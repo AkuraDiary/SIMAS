@@ -3,11 +3,14 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use Filament\Models\Contracts\FilamentUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Filament\Panel;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -18,10 +21,33 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
+        'username',
         'password',
+        'nama_lengkap',
+        'email',
+        'peran',
+        'status_user',
     ];
+
+    // This is the "Rule Enforcer"
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Rule 1: Must be active
+        // Rule 2: Must be either SuperAdmin or StafUnit
+        return $this->statusUser === 'aktif' &&
+            in_array($this->peran, ['SuperAdmin', 'StafUnit']);
+    }
+
+    // Tell Laravel to use 'username' for authentication instead of 'email'
+    public function getAuthIdentifierName()
+    {
+        return 'username';
+    }
+
+    public function canAccessFilament(): bool
+    {
+        return true;
+    }
 
     /**
      * The attributes that should be hidden for serialization.
@@ -41,7 +67,6 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
