@@ -11,6 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
@@ -32,13 +33,25 @@ class User extends Authenticatable implements FilamentUser, HasName
         'unit_kerja_id',
     ];
 
-    
+
     public function canAccessPanel(Panel $panel): bool
     {
         // Rule 1: Must be active
         // Rule 2: Must be either SuperAdmin or StafUnit
-        return $this->status_user === 'aktif' &&
-        in_array($this->peran, ['superadmin', 'stafunit']);
+        // Rule 3: Unit Kerja must be active if unit kerja not null
+        if ($this->status_user !== 'aktif') {
+            return false;
+        }
+
+        if (!in_array($this->peran, ['superadmin', 'stafunit'])) {
+            return false;
+        }
+
+        if ($this->unitKerja && $this->unitKerja->status_unit !== 'aktif') {
+            return false;
+        }
+
+        return true;
     }
 
 
@@ -72,5 +85,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function unitKerja(): BelongsTo
     {
         return $this->belongsTo(UnitKerja::class);
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'username';
     }
 }

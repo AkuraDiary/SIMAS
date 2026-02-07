@@ -24,6 +24,11 @@ class UnitKerjasTable
                     ->badge(),
                 TextColumn::make('status_unit')
                     ->badge()
+                    ->color(fn(string $state): string => match ($state) {
+                        'aktif' => 'success',
+                        'nonaktif' => 'gray',
+                        default => 'gray',
+                    })
                     ->searchable(),
                 TextColumn::make('created_at')
                     ->dateTime()
@@ -40,15 +45,13 @@ class UnitKerjasTable
                     'aktif' => 'Aktif',
                     'nonaktif' => 'Nonaktif',
                 ])
-                    ->label('Status User'),
+                    ->label('Status Unit'),
                 SelectFilter::make('jenis_unit')->options([
                     'fakultas' => 'Fakultas',
                     'non-fakultas' => 'Non Fakultas',
                 ]),
             ])
             ->recordActions([
-                // ViewAction::make(),
-                // EditAction::make(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

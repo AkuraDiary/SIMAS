@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('admin'),
             'nama_lengkap' => 'Administrator Utama',
             'email' => 'admin@test.com',
-            'peran' => 'SuperAdmin',
+            'peran' => 'superadmin',
             'status_user' => 'aktif',
         ]);
 
@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('ppm'),
             'nama_lengkap' => 'Staff Unit A',
             'email' => 'staf@test.com',
-            'peran' => 'StafUnit',
+            'peran' => 'stafunit',
             'status_user' => 'aktif',
             // 'idUnit' => 1, // Ensure this ID exists in your unit_kerja table!
         ]);

@@ -23,11 +23,16 @@ class UnitKerjaResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'Unit Kerja';
     protected static ?string $label = 'Unit Kerja';
-    protected static ?string $navigationLabel = 'Unit Kerja'; // for navigation
+    protected static ?string $title = 'Unit Kerja';
     protected static ?string $modelLabel = 'Unit Kerja';
-    protected static ?string $pluralModelLabel = 'Unit Kerja'; // for breadcrumbs
+
+    protected static ?string $navigationLabel = 'Unit Kerja'; // for navigation
+
+
+    // for breadcrumbs
+    protected static ?string $recordTitleAttribute = 'nama_unit';
+    protected static ?string $pluralModelLabel = 'Unit Kerja';
 
     public static function shouldRegisterNavigation(): bool
     {
@@ -60,6 +65,4 @@ class UnitKerjaResource extends Resource
 
         ];
     }
-
-  
 }

@@ -24,7 +24,7 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::UserGroup;
 
-    protected static ?string $recordTitleAttribute = 'Staf Unit';
+    protected static ?string $recordTitleAttribute = 'nama_lengkap';
     protected static ?string $label = 'Staf Unit';
     protected static ?string $navigationLabel = 'Staf Unit'; // for navigation
     protected static ?string $modelLabel = 'Staf Unit';

@@ -8,4 +8,5 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateUnitKerja extends CreateRecord
 {
     protected static string $resource = UnitKerjaResource::class;
+
 }

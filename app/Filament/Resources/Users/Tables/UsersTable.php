@@ -32,11 +32,13 @@ class UsersTable
                         default => $state,
                     }),
                 TextColumn::make('status_user')
-                    ->badge()->color(fn(string $state): string => match ($state) {
+                    ->badge()
+                    ->color(fn(string $state): string => match ($state) {
                         'aktif' => 'success',
                         'nonaktif' => 'gray',
                         default => 'gray',
-                    }),
+                    })
+                    ->label("Status Akun"),
                 TextColumn::make('unitKerja.nama_unit')
                     ->searchable(),
 
@@ -63,8 +65,7 @@ class UsersTable
                 //
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
+                
                 DeleteAction::make(),
             ])
             ->toolbarActions([
