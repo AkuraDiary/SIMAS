@@ -6,12 +6,14 @@ namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Surat;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Hash;
+
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
@@ -52,6 +54,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         }
 
         return true;
+    }
+
+    public function suratDibuat(): HasMany
+    {
+        return $this->hasMany(Surat::class, 'user_pembuat_id');
     }
 
 
