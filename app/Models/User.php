@@ -39,7 +39,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         // Rule 1: Must be active
         // Rule 2: Must be either SuperAdmin or StafUnit
         return $this->status_user === 'aktif' &&
-        in_array($this->peran, ['SuperAdmin', 'StafUnit']);
+        in_array($this->peran, ['superadmin', 'stafunit']);
     }
 
 

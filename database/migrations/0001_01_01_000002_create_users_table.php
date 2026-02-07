@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('username')->unique();
             $table->string('password');
             $table->string('nama_lengkap');
-            $table->string('email')->unique();
-            $table->enum('peran', ['SuperAdmin', 'StafUnit']);
+            $table->string('email')->nullable()->unique();
+            $table->enum('peran', ['superadmin', 'stafunit']);
             $table->enum('status_user', ['aktif', 'nonaktif']);
             $table->foreignId('unit_kerja_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();

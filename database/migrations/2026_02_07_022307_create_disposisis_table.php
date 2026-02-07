@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('disposisis', function (Blueprint $table) {
             $table->id();
             $table->string('jenis_instruksi');
-            $table->enum('sifat', ['Rahasia', 'Penting', 'Biasa', 'Segera', 'Sangat Segera']);
+            $table->enum('sifat', ['rahasia', 'penting', 'biasa', 'segera', 'sangat segera']);
             $table->text('catatan')->nullable();
             $table->dateTime('tanggal_disposisi');
             $table->dateTime('tanggal_update')->nullable();

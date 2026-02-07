@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('path_file');
             $table->foreignId('surat_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
