@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->enum('peran', ['SuperAdmin', 'StafUnit']);
             $table->enum('status_user', ['aktif', 'nonaktif']);
-            // $table->foreignId('unit_kerja_id')->constrained()->nullOnDelete();
+            $table->foreignId('unit_kerja_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
 

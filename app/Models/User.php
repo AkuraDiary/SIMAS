@@ -33,12 +33,13 @@ class User extends Authenticatable implements FilamentUser, HasName
     // This is the "Rule Enforcer"
     public function canAccessPanel(Panel $panel): bool
     {
+        // dd($this->status_user==='aktif');
         return true;
         // return true;
         // Rule 1: Must be active
         // Rule 2: Must be either SuperAdmin or StafUnit
-        // return $this->statusUser === 'aktif' &&
-        // in_array($this->peran, ['SuperAdmin', 'StafUnit']);
+        return $this->status_user === 'aktif' &&
+        in_array($this->peran, ['SuperAdmin', 'StafUnit']);
     }
 
 
