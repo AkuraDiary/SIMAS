@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class SuratUnit extends Pivot
@@ -13,7 +11,7 @@ class SuratUnit extends Pivot
     /** @use HasFactory<\Database\Factories\SuratUnitFactory> */
     use HasFactory;
     protected $table = 'surat_unit';
-
+    
     protected $fillable = [
         'surat_id',
         'unit_kerja_id',
