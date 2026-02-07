@@ -49,5 +49,6 @@ class Disposisi extends Model
     {
         return $this->belongsTo(Disposisi::class, 'parent_disposisi_id');
     }
-}
 
+   
+}

@@ -46,16 +46,21 @@ class Surat extends Model
             'surat_id',
             'unit_kerja_id'
         )
-        ->withPivot([
-            'jenis_tujuan',
-            'tanggal_terima',
-            'status_baca',
-        ]);
+            ->withPivot([
+                'jenis_tujuan',
+                'tanggal_terima',
+                'status_baca',
+            ]);
     }
 
     // Disposisi surat
     public function disposisis(): HasMany
     {
         return $this->hasMany(Disposisi::class);
+    }
+
+    public function lampirans()
+    {
+        return $this->hasMany(Lampiran::class);
     }
 }

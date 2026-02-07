@@ -78,34 +78,5 @@ class SuratMasuk extends Page implements HasTable
                 )
             );
     }
-    // protected function getTableColumns(): array
-    // {
-    //     return
-    // }
-
-
-    // protected function getTableRecordUrlUsing(): ?\Closure
-    // {
-    //     return fn(SuratUnit $record): string => DetailSurat::getUrl([
-    //         'suratUnit' => $record->id,
-    //     ]);
-    // }
-
-    // protected function getTableActions(): array
-    // {
-    //     return [
-    //         // Action::make('view')
-    //         //     ->label('Lihat')
-    //         //     ->icon(Heroicon::Eye)
-    //         //     ->action(function (SuratUnit $record) {
-    //         //         // return redirect()->route(
-    //         //         //     'filament.staf-unit.pages.surat-masuk.detail',
-    //         //         //     ['suratUnit' => $record->id]
-    //         //         // );
-    //         //         return redirect(
-    //         //             DetailSurat::getUrl(['suratUnit' => $record->id])
-    //         //         );
-    //         //     }),
-    //     ];
-    // }
+    
 }
