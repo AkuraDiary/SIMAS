@@ -27,11 +27,13 @@ class UserForm
                 TextInput::make('email')
                     ->label('Email address')
                     ->email(),
-                Select::make('peran')
-                    ->options(['stafunit' => 'Staf Unit'])
-                    ->required(),
                 Select::make('status_user')
                     ->options(['aktif' => 'Aktif', 'nonaktif' => 'Nonaktif'])
+                    ->required()
+                    ->default('aktif'),
+                Select::make('peran')
+                    ->options(['stafunit' => 'Staf Unit'])
+                    ->default('stafunit')
                     ->required(),
                 Select::make('unit_kerja_id')
                     ->relationship('unitKerja', 'nama_unit')

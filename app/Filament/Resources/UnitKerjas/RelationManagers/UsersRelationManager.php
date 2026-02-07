@@ -24,8 +24,25 @@ class UsersRelationManager extends RelationManager
 
     public function form(Schema $schema): Schema
     {
-        return UserForm::configure($schema);
+        // return UserForm::configure($schema);
+        $schema = UserForm::configure($schema);
+
+        // Find the unit_kerja_id field and modify it
+        $components = $schema->getComponents();
+
+        foreach ($components as $component) {
+            // We use the getName() method to find your specific field
+            if (method_exists($component, 'getName') && $component->getName() === 'unit_kerja_id') {
+                $component
+                    ->default($this->getOwnerRecord()->id)
+                    ->disabled() // Optional: prevents user from changing it
+                    ->hidden();   // Hide it since it's already contextual
+            }
+        }
+
+        return $schema;
     }
+
     public function table(Table $table): Table
     {
         return $table
