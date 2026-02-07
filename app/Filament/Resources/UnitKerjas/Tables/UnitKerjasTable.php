@@ -47,8 +47,8 @@ class UnitKerjasTable
                 ]),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
+                // ViewAction::make(),
+                // EditAction::make(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([
