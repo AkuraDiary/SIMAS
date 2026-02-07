@@ -19,6 +19,8 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\SimasDashboard;
+use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
+use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Models\User;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
@@ -43,6 +45,8 @@ class SimasPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 SimasDashboard::class,
+                SuratMasuk::class,
+                DetailSurat::class
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
