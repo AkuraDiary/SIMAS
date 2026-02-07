@@ -11,7 +11,7 @@ use App\Filament\Widgets\StafUnitStats;
 
 class SimasDashboard extends BaseDashboard
 {
-    protected static ?string $title = 'Beranda';
+    protected static ?string $title = 'Beranda SIMAS';
 
     public function getWidgets(): array
     {

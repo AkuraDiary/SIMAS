@@ -9,6 +9,7 @@ use Filament\Models\Contracts\HasName;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements FilamentUser, HasName
@@ -28,20 +29,17 @@ class User extends Authenticatable implements FilamentUser, HasName
         'email',
         'peran',
         'status_user',
+        'unit_kerja_id',
     ];
 
-    // This is the "Rule Enforcer"
+    
     public function canAccessPanel(Panel $panel): bool
     {
-        // dd($this->status_user==='aktif');
-        return true;
-        // return true;
         // Rule 1: Must be active
         // Rule 2: Must be either SuperAdmin or StafUnit
         return $this->status_user === 'aktif' &&
         in_array($this->peran, ['superadmin', 'stafunit']);
     }
-
 
 
     /**
@@ -69,5 +67,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function getFilamentName(): string
     {
         return $this->nama_lengkap;
+    }
+
+    public function unitKerja(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class);
     }
 }
