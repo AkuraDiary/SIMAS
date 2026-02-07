@@ -38,6 +38,7 @@ class SimasPanelProvider extends PanelProvider
             ->profile(EditProfile::class)
             ->brandName('SIMAS')
             ->login(Login::class)
+            ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Amber,
             ])

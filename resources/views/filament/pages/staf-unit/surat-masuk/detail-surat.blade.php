@@ -2,12 +2,12 @@
 
     <x-filament::section>
         <x-slot name="heading">
-            {{ $suratUnit->surat->perihal }}
+            {{ $surat->perihal }}
         </x-slot>
 
-        <p><strong>Nomor Surat:</strong> {{ $suratUnit->surat->nomor_surat }}</p>
-        <p><strong>Pengirim:</strong> {{ $suratUnit->surat->unitPengirim->nama_unit }}</p>
-        <p><strong>Diterima:</strong> {{ $suratUnit->tanggal_terima }}</p>
+        <p><strong>Nomor Surat:</strong> {{ $surat->nomor_surat }}</p>
+        <p><strong>Pengirim:</strong> {{ $surat->unitPengirim->nama_unit }}</p>
+        <p><strong>Diterima:</strong> {{ $suratUnit?->tanggal_terima ?? '-' }}</p>
         <p>
             <strong>Jenis Surat:</strong>
             {{ $jenisTujuanLabel }}

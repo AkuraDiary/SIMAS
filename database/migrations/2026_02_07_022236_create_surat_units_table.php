@@ -18,7 +18,6 @@ return new class extends Migration
             $table->enum('jenis_tujuan', ['utama', 'tembusan']);
             $table->dateTime('tanggal_terima')->nullable();
             $table->enum('status_baca', ['BELUM', 'SUDAH'])->default('BELUM');
-            // $table->primary(['surat_id', 'unit_kerja_id']);
         });
     }
 

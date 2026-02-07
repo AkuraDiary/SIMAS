@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -53,7 +54,12 @@ class Surat extends Model
             ]);
     }
 
-    // Disposisi surat
+
+    public function suratUnits(): HasMany
+    {
+        return $this->hasMany(SuratUnit::class);
+    }
+
     public function disposisis(): HasMany
     {
         return $this->hasMany(Disposisi::class);
@@ -62,5 +68,64 @@ class Surat extends Model
     public function lampirans()
     {
         return $this->hasMany(Lampiran::class);
+    }
+
+    public function tujuanUntukUnit(int $unitId): string
+    {
+        $disposisi = $this->disposisis->first();
+
+        if ($disposisi) {
+            return 'Disposisi: ' . $disposisi->parent?->unitTujuan?->nama_unit;
+        }
+
+        $suratUnit = $this->suratUnits->first();
+
+        return ucfirst($suratUnit?->jenis_tujuan ?? '-');
+    }
+
+    public function scopeUntukUnit(Builder $query, int $unitId): Builder
+    {
+        return $query->where(function ($q) use ($unitId) {
+            $q->whereHas(
+                'suratUnits',
+                fn($sq) =>
+                $sq->where('unit_kerja_id', $unitId)
+            )
+                ->orWhereHas(
+                    'disposisis',
+                    fn($dq) =>
+                    $dq->where('unit_tujuan_id', $unitId)
+                );
+        });
+    }
+
+    public function scopeMasukLangsung(Builder $query, int $unitId): Builder
+    {
+        return $query
+            ->whereHas(
+                'suratUnits',
+                fn($q) =>
+                $q->where('unit_kerja_id', $unitId)
+            )
+            ->whereDoesntHave(
+                'disposisis',
+                fn($q) =>
+                $q->where('unit_tujuan_id', $unitId)
+            );
+    }
+
+    public function scopeDisposisi(Builder $query, int $unitId): Builder
+    {
+        return $query
+            ->whereHas(
+                'disposisis',
+                fn($q) =>
+                $q->where('unit_tujuan_id', $unitId)
+            )
+            ->whereDoesntHave(
+                'suratUnits',
+                fn($q) =>
+                $q->where('unit_kerja_id', $unitId)
+            );
     }
 }
