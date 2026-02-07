@@ -2,15 +2,11 @@
 
 namespace App\Filament\Pages\Auth;
 
-use Filament\Auth\Http\Responses\LoginResponse;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin

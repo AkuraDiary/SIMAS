@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\EditProfile;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -30,7 +31,9 @@ class SimasPanelProvider extends PanelProvider
             ->default()
             ->id('simas')
             ->path('')
+            ->favicon(asset('favicon.png'))
             ->authGuard('web')
+            ->profile(EditProfile::class)
             ->brandName('SIMAS')
             ->login(Login::class)
             ->colors([
