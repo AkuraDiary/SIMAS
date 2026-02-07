@@ -33,7 +33,6 @@ class SimasPanelProvider extends PanelProvider
             ->authGuard('web')
             ->brandName('SIMAS')
             ->login(Login::class)
-        
             ->colors([
                 'primary' => Color::Amber,
             ])

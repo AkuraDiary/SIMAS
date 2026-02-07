@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\UnitKerjas\Tables;
+namespace App\Filament\Resources\Users\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -12,19 +12,34 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
-class UnitKerjasTable
+class UsersTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('nama_unit')
+                TextColumn::make('username')
                     ->searchable(),
-                TextColumn::make('jenis_unit')
-                    ->badge(),
-                TextColumn::make('status_unit')
+                TextColumn::make('nama_lengkap')
+                    ->searchable(),
+                TextColumn::make('email')
+                    ->label('Email address')
+                    ->searchable(),
+                TextColumn::make('peran')
                     ->badge()
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'stafunit' => 'Staf Unit',
+                        default => $state,
+                    }),
+                TextColumn::make('status_user')
+                    ->badge()->color(fn(string $state): string => match ($state) {
+                        'aktif' => 'success',
+                        'nonaktif' => 'gray',
+                        default => 'gray',
+                    }),
+                TextColumn::make('unitKerja.nama_unit')
                     ->searchable(),
+
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -35,16 +50,17 @@ class UnitKerjasTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
-                SelectFilter::make('status_unit')->options([
+                SelectFilter::make('status_user')->options([
                     'aktif' => 'Aktif',
                     'nonaktif' => 'Nonaktif',
                 ])
                     ->label('Status User'),
-                SelectFilter::make('jenis_unit')->options([
-                    'fakultas' => 'Fakultas',
-                    'non-fakultas' => 'Non Fakultas',
-                ]),
+                SelectFilter::make('unit_kerja')
+                    ->relationship('unitKerja', 'nama_unit')
+                    ->searchable()
+                    ->preload()
+                    ->label('Filter Unit Kerja'),
+                //
             ])
             ->recordActions([
                 ViewAction::make(),

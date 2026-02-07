@@ -18,13 +18,13 @@ class SimasDashboard extends BaseDashboard
         $user = Auth::user();
 
         // Return widgets based on the 'peran' column
-        if ($user->peran === 'SuperAdmin') {
+        if ($user->peran === 'superadmin') {
             return [
                 SuperAdminStats::class,
             ];
         }
 
-        if ($user->peran === 'StafUnit') {
+        if ($user->peran === 'stafunit') {
             return [
                 StafUnitStats::class,
             ];
