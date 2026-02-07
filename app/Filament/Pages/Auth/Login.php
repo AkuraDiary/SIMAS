@@ -47,15 +47,15 @@ class Login extends BaseLogin
     {
         // 1. Send the Notification
         Notification::make()
-            ->title(__('filament-panels::pages/auth/login.messages.failed'))
+            ->title(__('auth.failed'))
             ->danger()
             ->send();
 
         // 2. Throw an empty exception to stop the process without field errors
         // throw ValidationException::withMessages([]);
         throw ValidationException::withMessages([
-            'data.username' => __('Credential Mismatch'),
-            'data.password' => __('Credential Mismatch'),
+            'data.username' => __('auth.failed'),
+            'data.password' => __('auth.failed'),
         ]);
     }
 }
