@@ -16,15 +16,17 @@
     </x-filament::section>
 
     <x-filament::section>
-        {!! nl2br(e($suratUnit->surat->isi_surat)) !!}
-    </x-filament::section>
-
-    <x-filament::section>
         <x-slot name="heading">Disposisi</x-slot>
         <p class="text-gray-500 italic">
             Belum ada disposisi.
         </p>
     </x-filament::section>
+
+    <x-filament::section>
+        {!! nl2br(e($suratUnit->surat->isi_surat)) !!}
+    </x-filament::section>
+
+
 
     <x-filament::section>
         <x-slot name="heading">Lampiran</x-slot>

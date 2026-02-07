@@ -3,18 +3,13 @@
 namespace App\Filament\Pages\StafUnit\SuratMasuk;
 
 use App\Models\Surat;
-use App\Models\SuratUnit;
 use Filament\Pages\Page;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Illuminate\Support\Facades\Auth;
 use Filament\Support\Icons\Heroicon;
 use BackedEnum;
-use Filament\Forms\Components\Select;
-use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Tabs\Tab;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -159,19 +154,19 @@ class SuratMasuk extends Page implements HasTable
                         // Access the selected value via the 'value' key
                         $selectedValue = $data['value'] ?? null;
 
-                        // If nothing is selected, Filament often returns "" or null
+                        // If nothing is selected
                         if (blank($selectedValue)) {
                             return $query;
                         }
                         $unitId = Auth::user()->unit_kerja_id;
-                        // dd($selectedValue);
+
                         match ($selectedValue) {
                             'langsung'  => $query->masukLangsung($unitId),
                             'disposisi' => $query->disposisi($unitId),
                             default     => null,
                         };
 
-                        return $query; 
+                        return $query;
                     })
             ])
             ->recordUrl(
