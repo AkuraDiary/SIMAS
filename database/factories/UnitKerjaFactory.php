@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\UnitKerja;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class UnitKerjaFactory extends Factory
 {
+
+    protected $model = UnitKerja::class;
     /**
      * Define the model's default state.
      *
@@ -17,7 +20,9 @@ class UnitKerjaFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'nama_unit' => fake()->unique()->jobTitle(),
+            'jenis_unit' => fake()->randomElement(['fakultas', 'non-fakultas']),
+            'status_unit' => 'aktif',
         ];
     }
 }

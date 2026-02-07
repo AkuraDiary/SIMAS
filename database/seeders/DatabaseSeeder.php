@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use App\Models\UnitKerja;
+use App\Models\Surat;
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,26 +18,24 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-      
+       // Unit Kerja
+       $units = UnitKerja::factory()->count(5)->create();
 
-        User::create([
-            'username' => 'ayam',
-            'password' => Hash::make('admin'),
-            'nama_lengkap' => 'Administrator Utama',
-            'email' => 'admin@test.com',
-            'peran' => 'superadmin',
-            'status_user' => 'aktif',
-        ]);
+       // SuperAdmin
+       User::factory()->superAdmin()->create();
 
-        User::create([
-            'username' => 'staf',
-            'password' => Hash::make('ppm'),
-            'nama_lengkap' => 'Staff Unit A',
-            'email' => 'staf@test.com',
-            'peran' => 'stafunit',
-            'status_user' => 'aktif',
-            // 'idUnit' => 1, // Ensure this ID exists in your unit_kerja table!
-        ]);
+       // Staf Unit
+       User::factory()
+           ->count(10)
+           ->create();
+
+       // Surat
+       Surat::factory()
+           ->count(10)
+           ->create();
+
+       // Pivot SuratUnit
+       $this->call(SuratUnitSeeder::class);
 
     }
 }
