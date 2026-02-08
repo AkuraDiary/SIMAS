@@ -82,7 +82,9 @@ class UsersRelationManager extends RelationManager
 
             ])->recordActions([
                 DeleteAction::make(),
-            ]);
+            ])
+            ->emptyStateHeading('TIdak Ada Data Staf Unit')
+            ->emptyStateDescription('');
     }
 
     public function canCreate(): bool

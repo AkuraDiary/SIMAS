@@ -58,6 +58,8 @@ class UnitKerjasTable
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->emptyStateHeading('Tidak Ada Data Unit Kerja')
+            ->emptyStateDescription('');
     }
 }

@@ -72,6 +72,8 @@ class UsersTable
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->emptyStateHeading('Tidak Ada Data Staf')
+            ->emptyStateDescription('');
     }
 }

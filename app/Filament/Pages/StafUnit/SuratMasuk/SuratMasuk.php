@@ -51,6 +51,8 @@ class SuratMasuk extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->emptyStateHeading('Tidak Ada Data Surat')
+            ->emptyStateDescription('')
             ->columns([
                 TextColumn::make('nomor_surat')
                     ->label('Nomor Surat')
