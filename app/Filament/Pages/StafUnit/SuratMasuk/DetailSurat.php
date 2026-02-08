@@ -33,17 +33,18 @@ class DetailSurat extends Page
     public Surat $surat;
     public ?SuratUnit $suratUnit = null;
     public ?string $jenisTujuanLabel = null;
-    public  $disposisiUntukSaya = null;
-    public  $disposisiLainnya = null;
+    public $userUnitId = null;
+    // public  $disposisiUntukSaya = null;
+    // public  $disposisiLainnya = null;
 
     public function mount(Surat $surat): void
     {
-        $userUnitId = Auth::user()->unit_kerja_id;
+        $this->userUnitId = Auth::user()->unit_kerja_id;
 
         $this->surat = $surat->load([
             'unitPengirim',
             'lampirans',
-            'suratUnits' => fn($q) => $q->where('unit_kerja_id', $userUnitId),
+            'suratUnits' => fn($q) => $q->where('unit_kerja_id', $this->userUnitId),
             'disposisis',
             'disposisis.pembuat.unitKerja',
             'disposisis.unitTujuan',
@@ -53,14 +54,12 @@ class DetailSurat extends Page
         $this->suratUnit = $this->surat->suratUnits->first();
 
         $disposisiUntukUnitIni = $this->surat->disposisis
-            ->where('unit_tujuan_id', $userUnitId);
+            ->where('unit_tujuan_id', $this->userUnitId);
 
         abort_if(
             ! $this->suratUnit && $disposisiUntukUnitIni->isEmpty(),
             403
         );
-
-
 
         // Mark read ONLY if lewat surat_unit
         if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
@@ -68,12 +67,6 @@ class DetailSurat extends Page
         }
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
-
-
-        $this->disposisiUntukSaya = $disposisiUntukUnitIni;
-
-        $this->disposisiLainnya = $this->surat->disposisis
-            ->where('unit_tujuan_id', '!=', $userUnitId);
     }
 
     protected function getHeaderActions(): array
@@ -86,8 +79,84 @@ class DetailSurat extends Page
                 ->visible(fn() => $this->canDisposisi())
                 ->schema($this->getDisposisiForm())
                 ->action(fn(array $data) => $this->handleDisposisi($data)),
+
+            Action::make('respon_disposisi')
+                ->label('Tindaklanjuti Disposisi')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn() => $this->canRespondDisposisi())
+                ->schema([
+                    Select::make('status_disposisi')
+                        ->label('Status')
+                        ->options([
+                            'DIPROSES' => 'Sedang Diproses',
+                            'SELESAI' => 'Selesai',
+                        ])
+                        ->required(),
+
+                    Textarea::make('catatan_respon')
+                        ->label('Catatan Tindak Lanjut')
+                        ->rows(3),
+                ])
+                ->action(fn(array $data) => $this->handleRespondDisposisi($data)),
+
         ];
     }
+
+    protected function canRespondDisposisi(): bool
+    {
+        $unitId = Auth::user()->unit_kerja_id;
+
+        return $this->surat->disposisis
+            ->where('unit_tujuan_id', $unitId)
+            ->where('status_disposisi', '!=', 'SELESAI')
+            ->isNotEmpty();
+    }
+
+    protected function updateStatusSurat(): void
+    {
+        $allDone = $this->surat->disposisis
+            ->every(fn($d) => $d->status_disposisi === 'SELESAI');
+
+        $this->surat->update([
+            'status_surat' => $allDone ? 'SELESAI' : 'DIPROSES',
+        ]);
+    }
+
+
+    protected function handleRespondDisposisi(array $data): void
+    {
+        $unitId = Auth::user()->unit_kerja_id;
+
+        $disposisi = $this->surat->disposisis
+            ->where('unit_tujuan_id', $unitId)
+            ->sortByDesc('tanggal_disposisi')
+            ->first();
+
+        if (! $disposisi) {
+            abort(403);
+        }
+
+        $disposisi->update([
+            'status_disposisi' => $data['status_disposisi'],
+            'catatan' => trim(
+                ($disposisi->catatan ?? '') .
+                    "\n\nCatatan Tindak lanjut: " .
+                    ($data['catatan_respon'] ?? '-')
+            ),
+        ]);
+
+        $this->updateStatusSurat();
+
+        $this->surat->refresh();
+        $this->mount($this->surat);
+
+        Notification::make()
+            ->title('Disposisi diperbarui')
+            ->success()
+            ->send();
+    }
+
 
     protected function getDisposisiForm(): array
     {
@@ -95,7 +164,7 @@ class DetailSurat extends Page
             Select::make('unit_tujuan_ids')
                 ->label('Tujuan Disposisi')
                 ->options(
-                    UnitKerja::query()->where('id','<>',Auth::user()->unit_kerja_id)
+                    UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
                         ->pluck('nama_unit', 'id')
                 )
                 ->searchable()

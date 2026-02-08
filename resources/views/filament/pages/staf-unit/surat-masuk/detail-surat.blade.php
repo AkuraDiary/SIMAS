@@ -1,17 +1,12 @@
 <x-filament-panels::page>
 
-    @php
-    $userUnitId = auth()->user()->unit_kerja_id;
-    @endphp
     <x-filament::section collapsible>
         <x-slot name="heading">Alur Disposisi</x-slot>
         <x-slot name="description">
             Riwayat disposisi surat
         </x-slot>
 
-        @php
-        $userUnitId = auth()->user()->unit_kerja_id;
-        @endphp
+
 
         @if ($surat->disposisis->isEmpty())
         <p class="text-sm text-gray-500 italic">
@@ -19,12 +14,18 @@
         </p>
         @else
         @foreach ($surat->disposisis->sortBy('tanggal_disposisi') as $d)
+
         @php
         $isForMe = $d->unit_tujuan_id === $userUnitId;
+        $isFromMe = $d->pembuat->unit_kerja_id === $userUnitId;
         $prefix = $d->parent_disposisi_id ? '↳ ' : '';
         @endphp
 
+        @if ($isForMe || $isFromMe)
         <p class="{{ $isForMe ? 'font-semibold fi-text-primary-600' : '' }}">
+            @if ($isFromMe)
+            [Dari Saya]
+            @endif
             {{ $prefix }}
             <strong>
                 {{ $d->pembuat->unitKerja->nama_unit }}
@@ -41,12 +42,14 @@
         </p>
 
         <p class="ml-4">
-            <strong>Sifat:</strong> <x-filament::badge color="gray">
+            <strong>Sifat:</strong>
+            <x-filament::badge color="gray">
                 {{ ucfirst($d->sifat) }}
             </x-filament::badge>
 
             |
-            <strong>Status:</strong> <x-filament::badge :color="$d->status_disposisi === 'selesai' ? 'success' : 'warning'">
+            <strong>Status:</strong>
+            <x-filament::badge :color="$d->status_disposisi === 'selesai' ? 'success' : 'warning'">
                 {{ ucfirst($d->status_disposisi) }}
             </x-filament::badge>
         </p>
@@ -54,11 +57,13 @@
         @if ($d->catatan)
         <br>
         <p class="ml-4 text-gray-600 italic">
-            {{ $d->catatan }}
+            {!! nl2br($d->catatan) !!}
         </p>
         @endif
 
         <br>
+        @endif
+
         @endforeach
         @endif
     </x-filament::section>
