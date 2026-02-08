@@ -12,6 +12,7 @@ use App\Models\UnitKerja;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 
 class DetailSurat extends Page
 {
@@ -39,14 +40,6 @@ class DetailSurat extends Page
     {
         $userUnitId = Auth::user()->unit_kerja_id;
 
-        // $this->surat = $surat->load([
-        //     'unitPengirim',
-        //     'lampirans',
-        //     'suratUnits' => fn($q) => $q->where('unit_kerja_id', $userUnitId),
-        //     'disposisis' => fn($q) => $q->where('unit_tujuan_id', $userUnitId),
-        //     'disposisis.pembuat.unitKerja',
-        // ]); 
-
         $this->surat = $surat->load([
             'unitPengirim',
             'lampirans',
@@ -59,11 +52,15 @@ class DetailSurat extends Page
         // Ambil SuratUnit jika ada (langsung)
         $this->suratUnit = $this->surat->suratUnits->first();
 
-        // if unit is not recipient, or the disposisiton apalah itu, batalkan!
+        $disposisiUntukUnitIni = $this->surat->disposisis
+            ->where('unit_tujuan_id', $userUnitId);
+
         abort_if(
-            ! $this->suratUnit && $this->surat->disposisis->isEmpty(),
+            ! $this->suratUnit && $disposisiUntukUnitIni->isEmpty(),
             403
         );
+
+        
 
         // Mark read ONLY if lewat surat_unit
         if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
@@ -73,8 +70,10 @@ class DetailSurat extends Page
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
 
         // Disposisis
-        $this->disposisiUntukSaya = $this->surat->disposisis
-            ->where('unit_tujuan_id', $userUnitId);
+        $allDisposisis = $this->surat->disposisis
+            ->sortBy('tanggal_disposisi');
+            
+        $this->disposisiUntukSaya = $disposisiUntukUnitIni;
 
         $this->disposisiLainnya = $this->surat->disposisis
             ->where('unit_tujuan_id', '!=', $userUnitId);
@@ -166,6 +165,19 @@ class DetailSurat extends Page
             ? $data['instruksi_custom']
             : $data['jenis_instruksi'];
 
+        $alreadyExists = Disposisi::where('surat_id', $this->surat->id)
+            ->where('unit_tujuan_id', $data['unit_tujuan_id'])
+            ->exists();
+
+        if ($alreadyExists) {
+            Notification::make()
+                ->title('Disposisi ditolak')
+                ->body('Unit tujuan tersebut sudah pernah menerima disposisi untuk surat ini.')
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         Disposisi::create([
             'surat_id' => $this->surat->id,
@@ -182,6 +194,14 @@ class DetailSurat extends Page
         $this->surat->update([
             'status_surat' => 'DIPROSES',
         ]);
+
+        $this->surat->refresh();
+        $this->mount($this->surat);
+        Notification::make()
+            ->title('Disposisi berhasil')
+            ->body('Surat telah berhasil didisposisikan.')
+            ->success()
+            ->send();
     }
 
 
@@ -207,6 +227,8 @@ class DetailSurat extends Page
                 ? 'Disposisi dari ' . $unitAsal
                 : 'Disposisi';
         }
+
+
 
         return match ($this->suratUnit?->jenis_tujuan) {
             'utama' => 'Tujuan Utama',
