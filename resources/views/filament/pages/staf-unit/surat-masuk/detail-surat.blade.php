@@ -24,14 +24,14 @@
         $prefix = $d->parent_disposisi_id ? '↳ ' : '';
         @endphp
 
-        <p class="{{ $isForMe ? 'font-semibold text-primary-600' : '' }}">
+        <p class="{{ $isForMe ? 'font-semibold fi-text-primary-600' : '' }}">
             {{ $prefix }}
             <strong>
                 {{ $d->pembuat->unitKerja->nama_unit }}
                 →
                 {{ $d->unitTujuan->nama_unit }}
             </strong>
-            <span class="text-sm text-gray-500">
+            <span class="text-sm fi-text-gray-500">
                 ({{ $d->tanggal_disposisi }})
             </span>
         </p>
@@ -41,9 +41,14 @@
         </p>
 
         <p class="ml-4">
-            <strong>Sifat:</strong> {{ ucfirst($d->sifat) }}
+            <strong>Sifat:</strong> <x-filament::badge color="gray">
+                {{ ucfirst($d->sifat) }}
+            </x-filament::badge>
+
             |
-            <strong>Status:</strong> {{ ucfirst($d->status_disposisi) }}
+            <strong>Status:</strong> <x-filament::badge :color="$d->status_disposisi === 'selesai' ? 'success' : 'warning'">
+                {{ ucfirst($d->status_disposisi) }}
+            </x-filament::badge>
         </p>
 
         @if ($d->catatan)

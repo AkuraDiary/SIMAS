@@ -60,7 +60,7 @@ class DetailSurat extends Page
             403
         );
 
-        
+
 
         // Mark read ONLY if lewat surat_unit
         if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
@@ -69,10 +69,7 @@ class DetailSurat extends Page
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
 
-        // Disposisis
-        $allDisposisis = $this->surat->disposisis
-            ->sortBy('tanggal_disposisi');
-            
+
         $this->disposisiUntukSaya = $disposisiUntukUnitIni;
 
         $this->disposisiLainnya = $this->surat->disposisis
@@ -95,13 +92,14 @@ class DetailSurat extends Page
     protected function getDisposisiForm(): array
     {
         return [
-            Select::make('unit_tujuan_id')
+            Select::make('unit_tujuan_ids')
                 ->label('Tujuan Disposisi')
                 ->options(
-                    UnitKerja::query()
+                    UnitKerja::query()->where('id','<>',Auth::user()->unit_kerja_id)
                         ->pluck('nama_unit', 'id')
                 )
                 ->searchable()
+                ->multiple()
                 ->required(),
 
             Select::make('jenis_instruksi')
@@ -165,38 +163,45 @@ class DetailSurat extends Page
             ? $data['instruksi_custom']
             : $data['jenis_instruksi'];
 
-        $alreadyExists = Disposisi::where('surat_id', $this->surat->id)
-            ->where('unit_tujuan_id', $data['unit_tujuan_id'])
-            ->exists();
 
-        if ($alreadyExists) {
-            Notification::make()
-                ->title('Disposisi ditolak')
-                ->body('Unit tujuan tersebut sudah pernah menerima disposisi untuk surat ini.')
-                ->danger()
-                ->send();
 
-            return;
+        foreach ($data['unit_tujuan_ids'] as $unitTujuanId) {
+
+            $alreadyExists = Disposisi::where('surat_id', $this->surat->id)
+                ->where('unit_tujuan_id', $unitTujuanId)
+                ->exists();
+
+            if ($alreadyExists) {
+                Notification::make()
+                    ->title('Disposisi ditolak')
+                    ->body('Unit tujuan tersebut sudah pernah menerima disposisi untuk surat ini.')
+                    ->danger()
+                    ->send();
+
+                return;
+            }
+
+
+            Disposisi::create([
+                'surat_id' => $this->surat->id,
+                'unit_tujuan_id' => $unitTujuanId,
+                'user_pembuat_id' => $user->id,
+                'jenis_instruksi' => $jenisInstruksi,
+                'sifat' => $data['sifat'],
+                'catatan' => $data['catatan'],
+                'status_disposisi' => 'BARU',
+                'tanggal_disposisi' => now(),
+                'parent_disposisi_id' => $parentDisposisi?->id,
+            ]);
         }
-
-        Disposisi::create([
-            'surat_id' => $this->surat->id,
-            'unit_tujuan_id' => $data['unit_tujuan_id'],
-            'user_pembuat_id' => $user->id,
-            'jenis_instruksi' => $jenisInstruksi,
-            'sifat' => $data['sifat'],
-            'catatan' => $data['catatan'],
-            'status_disposisi' => 'BARU',
-            'tanggal_disposisi' => now(),
-            'parent_disposisi_id' => $parentDisposisi?->id,
-        ]);
 
         $this->surat->update([
             'status_surat' => 'DIPROSES',
         ]);
-
         $this->surat->refresh();
+
         $this->mount($this->surat);
+
         Notification::make()
             ->title('Disposisi berhasil')
             ->body('Surat telah berhasil didisposisikan.')
