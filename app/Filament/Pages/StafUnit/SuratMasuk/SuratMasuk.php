@@ -110,7 +110,7 @@ class SuratMasuk extends Page implements HasTable
                         return $record->suratUnits->first()?->status_baca;
                     })
                     ->hidden(
-                        true
+                        false
                     )
                     ->color(fn(?string $state) => match ($state) {
                         'BELUM' => 'danger',

@@ -23,6 +23,7 @@ class DetailSurat extends Page
             'Detail',
         ];
     }
+    
     public Surat $surat;
     public ?SuratUnit $suratUnit = null;
     public ?string $jenisTujuanLabel = null;
