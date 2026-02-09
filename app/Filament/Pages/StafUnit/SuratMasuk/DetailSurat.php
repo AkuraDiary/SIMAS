@@ -41,7 +41,6 @@ class DetailSurat extends Page
 
         $this->surat = $surat->load([
             'unitPengirim',
-            'lampirans',
             'suratUnits' => fn($q) => $q->where('unit_kerja_id', $this->userUnitId),
             'disposisis',
             'disposisis.unitPembuat',

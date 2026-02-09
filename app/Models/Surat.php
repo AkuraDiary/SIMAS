@@ -68,10 +68,7 @@ class Surat extends Model implements HasMedia
         return $this->hasMany(Disposisi::class);
     }
 
-    public function lampirans()
-    {
-        return $this->hasMany(Lampiran::class);
-    }
+    
 
     public function draftSuratUnits(): HasMany
     {

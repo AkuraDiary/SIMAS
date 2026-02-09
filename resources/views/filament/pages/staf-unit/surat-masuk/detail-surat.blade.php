@@ -101,13 +101,13 @@
         <br>
 
         <p><strong>Lampiran</strong>
-            @if ($surat->lampirans->isEmpty())
+            @if ($surat->getMedia('lampiran-surat')->isEmpty())
         <p class="text-gray-500 italic">
             Tidak ada lampiran.
         </p>
         @else
         <ul class="list-disc pl-5 space-y-2">
-            @foreach ($surat->lampirans as $lampiran)
+            @foreach ($surat->getMedia('lampiran-surat') as $lampiran)
             <li>
                 <a
                     href="{{ $lampiran->url }}"
