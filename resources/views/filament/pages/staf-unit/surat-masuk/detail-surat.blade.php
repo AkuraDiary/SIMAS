@@ -1,6 +1,6 @@
 <x-filament-panels::page>
 
-    <x-filament::section collapsible>
+    <x-filament::section collapsible collapsed>
         <x-slot name="heading">Alur Disposisi</x-slot>
         <x-slot name="description">
             Riwayat disposisi surat
@@ -17,7 +17,7 @@
 
         @php
         $isForMe = $d->unit_tujuan_id === $userUnitId;
-        $isFromMe = $d->pembuat->unit_kerja_id === $userUnitId;
+        $isFromMe = $d->unit_pembuat_id=== $userUnitId;
         $prefix = $d->parent_disposisi_id ? '↳ ' : '';
         @endphp
 
@@ -28,7 +28,7 @@
             @endif
             {{ $prefix }}
             <strong>
-                {{ $d->pembuat->unitKerja->nama_unit }}
+                {{ $d->unitPembuat->nama_unit }}
                 →
                 {{ $d->unitTujuan->nama_unit }}
             </strong>
@@ -68,10 +68,15 @@
         @endif
     </x-filament::section>
 
-
+    @if ($surat->status_surat != 'TERKIRIM' )
+    <x-filament::badge :color="$surat->status_surat === 'SELESAI' ? 'success' : 'warning'">
+        SURAT {{ ucfirst($surat->status_surat) }}
+    </x-filament::badge>
+    @endif
     <x-filament::section>
         <x-slot name="heading">
             Surat
+
         </x-slot>
         <x-slot name="description">
             Nomor: {{ $surat->nomor_surat }} | Agenda: {{ $surat->nomor_agenda }}
@@ -96,7 +101,6 @@
         <br>
 
         <p><strong>Lampiran</strong>
-
             @if ($surat->lampirans->isEmpty())
         <p class="text-gray-500 italic">
             Tidak ada lampiran.

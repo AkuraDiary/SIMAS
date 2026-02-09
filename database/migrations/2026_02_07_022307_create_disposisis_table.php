@@ -21,7 +21,7 @@ return new class extends Migration
             $table->enum('status_disposisi', ['BARU', 'DIPROSES', 'SELESAI']);
             $table->foreignId('surat_id')->constrained();
             $table->foreignId('unit_tujuan_id')->constrained('unit_kerjas');
-            $table->foreignId('user_pembuat_id')->constrained('users');
+            $table->foreignId('unit_pembuat_id')->constrained('unit_kerjas');
             $table->unique(['surat_id', 'unit_tujuan_id']); // spam prevention
             // Self-referencing
             $table->foreignId('parent_disposisi_id')->nullable()->constrained('disposisis');

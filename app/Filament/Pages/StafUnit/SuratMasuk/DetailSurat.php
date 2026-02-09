@@ -44,7 +44,7 @@ class DetailSurat extends Page
             'lampirans',
             'suratUnits' => fn($q) => $q->where('unit_kerja_id', $this->userUnitId),
             'disposisis',
-            'disposisis.pembuat.unitKerja',
+            'disposisis.unitPembuat',
             'disposisis.unitTujuan',
         ]);
 
@@ -226,7 +226,7 @@ class DetailSurat extends Page
             Disposisi::create([
                 'surat_id' => $this->surat->id,
                 'unit_tujuan_id' => $unitTujuanId,
-                'user_pembuat_id' => $user->id,
+                'unit_pembuat_id' => $unitId,
                 'jenis_instruksi' => $jenisInstruksi,
                 'sifat' => $data['sifat'],
                 'catatan' => $data['catatan'],

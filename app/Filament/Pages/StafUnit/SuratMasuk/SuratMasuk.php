@@ -44,6 +44,7 @@ class SuratMasuk extends Page implements HasTable
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
             ])
+            
             ->orderByDesc('tanggal_kirim');
     }
 
@@ -54,6 +55,20 @@ class SuratMasuk extends Page implements HasTable
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
             ->columns([
+                TextColumn::make('status_surat')
+                    ->label('Status Surat')
+                    ->searchable()
+                    ->badge()
+                    ->sortable()
+                    ->color(function (Surat $record): string {
+                    
+                        return match ($record->status_surat) {
+                            'BARU' => 'primary',
+                            'DIPROSES' => 'warning',
+                            'SELESAI' => 'success',
+                            default => 'secondary',
+                        };
+                    }),
                 TextColumn::make('nomor_surat')
                     ->label('Nomor Surat')
                     ->searchable(),
@@ -76,7 +91,7 @@ class SuratMasuk extends Page implements HasTable
                             ->firstWhere('unit_tujuan_id', $unitId);
 
                         if ($disposisi) {
-                            $unitAsal = $disposisi->pembuat?->unitKerja?->nama_unit;
+                            $unitAsal = $disposisi->unitPembuat?->nama_unit;
                             return $unitAsal
                                 ? 'Disposisi dari ' . $unitAsal
                                 : 'Disposisi';

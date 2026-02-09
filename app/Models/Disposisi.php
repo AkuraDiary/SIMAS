@@ -21,7 +21,7 @@ class Disposisi extends Model
         'status_disposisi',
         'surat_id',
         'unit_tujuan_id',
-        'user_pembuat_id',
+        'unit_pembuat_id',
         'parent_disposisi_id',
     ];
 
@@ -35,9 +35,9 @@ class Disposisi extends Model
         return $this->belongsTo(UnitKerja::class, 'unit_tujuan_id');
     }
 
-    public function pembuat(): BelongsTo
+    public function unitPembuat(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_pembuat_id');
+        return $this->belongsTo(UnitKerja::class, 'unit_pembuat_id');
     }
 
     public function children(): HasMany

@@ -122,6 +122,11 @@ class Surat extends Model
                 fn($q) =>
                 $q->where('unit_tujuan_id', $unitId)
             )
+            ->orWhereHas(
+                'disposisis',
+                fn($q) =>
+                $q->where('pembuat->unit_kerja_id', $unitId)
+            )
             ->whereDoesntHave(
                 'suratUnits',
                 fn($q) =>
