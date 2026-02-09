@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\Surats\Pages;
 
 use App\Filament\Resources\Surats\SuratResource;
+use App\Models\Surat;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
 class CreateSurat extends CreateRecord
@@ -22,7 +24,22 @@ class CreateSurat extends CreateRecord
         ];
     }
 
-    // Tujuan & Lampiran tidak terbaca
+    protected function afterCreate(): void
+    {
+        $surat = $this->record;
+
+        $unitIds = $this->data['unitTujuan'] ?? [];
+
+        foreach ($unitIds as $index => $unitId) {
+            $surat->unitTujuan()->updateExistingPivot($unitId, [
+                'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan',
+                'status_baca' => 'BELUM',
+            ]);
+        }
+
+        // dd($unitIds);
+    }
+
     protected function getSaveDraftAction(): Action
     {
         return Action::make('saveDraft')
@@ -32,14 +49,16 @@ class CreateSurat extends CreateRecord
 
                 $data = $this->form->getState();
 
+
                 $data['status_surat'] = 'DRAFT';
 
-                $this->handleRecordCreation($data);
-                
+                $this->create();
                 Notification::make()
                     ->title('Draft berhasil disimpan')
                     ->success()
                     ->send();
+
+                    $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
             });
     }
 
@@ -55,28 +74,29 @@ class CreateSurat extends CreateRecord
             ->action(function () {
 
                 $data = $this->form->getState();
-                
+
                 // Kalau langsung kirim harus ada tujuannya
-                if (empty($data['draft_surat_units'])) {
+                if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
                     Notification::make()
-                        ->title('Tujuan surat wajib diisi')
+                        ->title('Tujuan wajib diisi sebelum surat dikirim')
                         ->danger()
                         ->send();
+    
                     return;
                 }
 
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
-    
-                $surat = $this->handleRecordCreation($data);
-            
+
+                $this->create();
+
 
                 Notification::make()
                     ->title('Surat berhasil dikirim')
                     ->success()
                     ->send();
 
-                $this->redirect(SuratResource::getUrl());
+                    $this->redirect(SuratResource::getUrl('index', ['scope' => 'keluar']));
             });
     }
 

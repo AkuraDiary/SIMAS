@@ -35,12 +35,24 @@ class Surat extends Model implements HasMedia
         return $this->belongsTo(UnitKerja::class, 'unit_pengirim_id');
     }
 
+    public function suratUnits(): HasMany
+    {
+        return $this->hasMany(SuratUnit::class);
+    }
+
+    public function disposisis(): HasMany
+    {
+        return $this->hasMany(Disposisi::class);
+    }
+
     // User pembuat surat
     public function pembuat(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_pembuat_id');
     }
 
+
+    // Helper method in pages
     // Unit tujuan surat (surat masuk)
     public function unitTujuan(): BelongsToMany
     {
@@ -55,17 +67,6 @@ class Surat extends Model implements HasMedia
                 'tanggal_terima',
                 'status_baca',
             ]);
-    }
-
-
-    public function suratUnits(): HasMany
-    {
-        return $this->hasMany(SuratUnit::class);
-    }
-
-    public function disposisis(): HasMany
-    {
-        return $this->hasMany(Disposisi::class);
     }
 
 
@@ -85,6 +86,7 @@ class Surat extends Model implements HasMedia
     public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query
+        ->where('status_surat', '<>', 'DRAFT')
         ->where(function ($q) use ($unitId) {
             $q->whereHas(
                 'suratUnits',
@@ -102,6 +104,7 @@ class Surat extends Model implements HasMedia
     public function scopeMasukLangsung(Builder $query, int $unitId): Builder
     {
         return $query
+        ->where('status_surat', '<>', 'DRAFT')
             ->whereHas(
                 'suratUnits',
                 fn($q) =>
@@ -117,16 +120,19 @@ class Surat extends Model implements HasMedia
     public function scopeDisposisi(Builder $query, int $unitId): Builder
     {
         return $query
+        ->where('status_surat', '<>', 'DRAFT')
             ->whereHas(
                 'disposisis',
                 fn($q) =>
                 $q->where('unit_tujuan_id', $unitId)
             )
-            ->orWhereHas(
-                'disposisis',
-                fn($q) =>
-                $q->where('pembuat->unit_kerja_id', $unitId)
-            )
+
+            // untuk disposisi yang kembali ke awal
+            // ->orWhereHas(
+            //     'disposisis',
+            //     fn($q) =>
+            //     $q->where('pembuat->unit_kerja_id', $unitId)
+            // )
             ->whereDoesntHave(
                 'suratUnits',
                 fn($q) =>

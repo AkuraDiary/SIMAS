@@ -7,6 +7,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
 class EditSurat extends EditRecord
@@ -23,7 +24,8 @@ class EditSurat extends EditRecord
         ];
     }
 
-    // Sudah OK
+
+    // Tujuan Unit tidak terbaca
     protected function getSaveDraftAction(): Action
     {
         return Action::make('saveDraft')
@@ -33,7 +35,7 @@ class EditSurat extends EditRecord
             ->action(function () {
 
                 $data = $this->form->getState();
-                
+
                 $this->record->update($data);
 
                 Notification::make()
@@ -41,12 +43,12 @@ class EditSurat extends EditRecord
                     ->success()
                     ->send();
 
-                $this->redirect(SuratResource::getUrl());
+                    $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
             });
     }
 
 
-// Tujuan tidak terbaca
+
     protected function getSendNowAction(): Action
     {
         return Action::make('sendNow')
@@ -56,6 +58,16 @@ class EditSurat extends EditRecord
             ->action(function () {
 
                 $data = $this->form->getState();
+
+                // validasi tujuan
+                if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
+                    Notification::make()
+                        ->title('Tujuan wajib diisi sebelum surat dikirim')
+                        ->danger()
+                        ->send();
+    
+                    return;
+                }
 
                 // Generate nomor surat & tanggal kirim
                 $data['status_surat']   = 'TERKIRIM';
@@ -68,7 +80,8 @@ class EditSurat extends EditRecord
                     ->success()
                     ->send();
 
-                $this->redirect(SuratResource::getUrl());
+                $this->redirect(SuratResource::getUrl('index', ['scope' => 'keluar']));
+                
             });
     }
 
