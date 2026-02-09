@@ -7,6 +7,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Section;
@@ -79,12 +80,12 @@ class SuratForm
                 Section::make('Lampiran')
                     ->columnSpanFull()
                     ->schema([
-                        FileUpload::make('lampirans')
+                        SpatieMediaLibraryFileUpload::make('lampirans') // This links to the collection
                             ->label("Lampiran Surat (Max 10MB)")
                             ->multiple()
+                            ->collection('lampiran-surat') // Name of the media collection
                             ->preserveFilenames()
-                            ->directory('lampiran-surat')
-                            ->maxSize(10240), // 10MB
+                            ->maxSize(10240),
                     ]),
 
                 // Hidden Field
