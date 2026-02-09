@@ -68,12 +68,6 @@ class Surat extends Model implements HasMedia
         return $this->hasMany(Disposisi::class);
     }
 
-    
-
-    public function draftSuratUnits(): HasMany
-    {
-        return $this->hasMany(DraftSuratUnits::class);
-    }
 
     public function tujuanUntukUnit(int $unitId): string
     {
@@ -90,7 +84,8 @@ class Surat extends Model implements HasMedia
 
     public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
-        return $query->where(function ($q) use ($unitId) {
+        return $query
+        ->where(function ($q) use ($unitId) {
             $q->whereHas(
                 'suratUnits',
                 fn($sq) =>

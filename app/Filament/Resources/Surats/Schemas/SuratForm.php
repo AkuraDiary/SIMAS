@@ -27,31 +27,66 @@ class SuratForm
                     ->columnSpanFull()
                     ->description('Dapat diisi sekarang atau nanti sebelum surat dikirim')
                     ->schema([
-                        Repeater::make('draftSuratUnits')
+                        // Repeater::make('draftSuratUnits')
+                        //     ->label('Tujuan')
+                        //     ->relationship()
+                        //     ->schema([
+                        //         Select::make('unit_kerja_id')
+                        //             ->label('Unit Tujuan')
+                        //             ->options(
+                        //                 UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
+                        //                     ->pluck('nama_unit', 'id')
+                        //             )
+
+                        //             ->searchable()
+                        //             ->preload()
+                        //             ->required(),
+
+                        //         Select::make('jenis_tujuan')
+                        //             ->options([
+                        //                 'utama' => 'Tujuan Utama',
+                        //                 'tembusan' => 'Tembusan',
+                        //             ])
+                        //             ->required(),
+                        //     ])
+                        //     ->columns(2)
+                        //     ->defaultItems(0)
+                        //     ->addActionLabel('Tambah Tujuan'),
+
+                        // Select::make('draftSuratUnits')
                             ->label('Tujuan')
-                            ->relationship()
-                            ->schema([
-                                Select::make('unit_kerja_id')
-                                    ->label('Unit Tujuan')
-                                    ->options(
-                                        UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
-                                            ->pluck('nama_unit', 'id')
-                                    )
+                            ->multiple() // Mengizinkan pilih banyak unit
+                            ->relationship(name: 'draftSuratUnits', titleAttribute: 'nama_unit') // Tetap hubungkan ke relasi
+                            ->options(
+                                UnitKerja::query()
+                                    ->where('id', '<>', Auth::user()->unit_kerja_id)
+                                    ->pluck('nama_unit', 'id')
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            /** * Trik Magic: Memanipulasi data sebelum disimpan 
+                             */
+                            ->dehydrateStateUsing(function ($state) {
+                                if (!is_array($state)) return $state;
 
-                                    ->searchable()
-                                    ->preload()
-                                    ->required(),
+                                return collect($state)->map(function ($unitId, $index) {
+                                    return [
+                                        'unit_kerja_id' => $unitId,
+                                        'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan', // Item pertama = utama
+                                    ];
+                                })->toArray();
+                            })
+                            /** * Trik Magic: Memanipulasi data saat ditampilkan di Edit Page 
+                             */
+                            ->formatStateUsing(function ($state, $record) {
+                                // Jika sedang Edit, ambil hanya ID unit_kerja_id dari relasi
+                                if ($record && $record->draftSuratUnits) {
+                                    return $record->draftSuratUnits->pluck('unit_kerja_id')->toArray();
+                                }
+                                return $state;
+                            })
 
-                                Select::make('jenis_tujuan')
-                                    ->options([
-                                        'utama' => 'Tujuan Utama',
-                                        'tembusan' => 'Tembusan',
-                                    ])
-                                    ->required(),
-                            ])
-                            ->columns(2)
-                            ->defaultItems(0)
-                            ->addActionLabel('Tambah Tujuan'),
                     ]),
 
 

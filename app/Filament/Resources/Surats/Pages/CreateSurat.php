@@ -22,6 +22,7 @@ class CreateSurat extends CreateRecord
         ];
     }
 
+    // Tujuan & Lampiran tidak terbaca
     protected function getSaveDraftAction(): Action
     {
         return Action::make('saveDraft')
@@ -33,38 +34,8 @@ class CreateSurat extends CreateRecord
 
                 $data['status_surat'] = 'DRAFT';
 
-                $draftTujuan = $data['draftSuratUnits'] ?? [];
-                $lampirans = $data['lampirans'] ?? [];
-                // unset($data['draft_surat_units']);
-                unset($data['lampirans']);
-
-                dd($data);
-
-                $surat = $this->handleRecordCreation($data);
+                $this->handleRecordCreation($data);
                 
-
-                // if (! empty($draftTujuan)) {
-                //     $surat->draftSuratUnits()->createMany(
-                //         collect($draftTujuan)->map(fn($item) => [
-                //             'unit_kerja_id' => $item['unit_kerja_id'],
-                //             'jenis_tujuan'  => $item['jenis_tujuan'],
-                //         ])->toArray()
-                //     );
-                // }
-
-                // if (! empty($lampirans)) {
-                //     $surat->lampirans()->createMany(
-                //         collect($lampirans)->map(function ($path) {
-                //             return [
-                //                 'path_file' => $path,
-                //                 'nama_file' => basename($path),
-                //                 'mime_type' => Storage::mimeType($path),
-                //                 'size'      => Storage::size($path),
-                //             ];
-                //         })->toArray()
-                //     );
-                // }
-
                 Notification::make()
                     ->title('Draft berhasil disimpan')
                     ->success()
@@ -72,6 +43,8 @@ class CreateSurat extends CreateRecord
             });
     }
 
+
+    // Belum Dites
     protected function getSendNowAction(): Action
     {
         return Action::make('sendNow')
@@ -82,7 +55,7 @@ class CreateSurat extends CreateRecord
             ->action(function () {
 
                 $data = $this->form->getState();
-                // dd($data);
+                
                 // Kalau langsung kirim harus ada tujuannya
                 if (empty($data['draft_surat_units'])) {
                     Notification::make()
@@ -94,41 +67,9 @@ class CreateSurat extends CreateRecord
 
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
-
-                // Strip lampiran & draft Tujuan
-                $draftTujuan = $data['draft_surat_units'] ?? [];
-                $lampirans = $data['lampirans'] ?? [];
-                unset($data['draft_surat_units']);
-                unset($data['lampirans']);
-
+    
                 $surat = $this->handleRecordCreation($data);
-
-                // Simpan tujuan ke pivot
-
-                $surat->unitTujuan()->createMany(
-                    collect($draftTujuan)->mapWithKeys(fn($item) => [
-                        $item['unit_kerja_id'] => [
-                            'jenis_tujuan' => $item['jenis_tujuan'],
-                        ],
-                    ])
-                );
-                if (! empty($lampirans)) {
-                    $surat->lampirans()->createMany(
-                        collect($lampirans)->map(function ($path) {
-                            return [
-                                'path_file' => $path,
-                                'nama_file' => basename($path),
-                                'mime_type' => Storage::mimeType($path),
-                                'size'      => Storage::size($path),
-                            ];
-                        })->toArray()
-                    );
-                }
-                
-
-                // hapus tabel draft tujuan
-                $surat->draftTujuan()->delete();
-
+            
 
                 Notification::make()
                     ->title('Surat berhasil dikirim')

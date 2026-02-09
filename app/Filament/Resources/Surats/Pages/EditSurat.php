@@ -23,55 +23,30 @@ class EditSurat extends EditRecord
         ];
     }
 
+    // Sudah OK
     protected function getSaveDraftAction(): Action
     {
         return Action::make('saveDraft')
             ->label('Simpan Draft')
-            ->color('gray')
+            ->color('primary')
+            ->outlined()
             ->action(function () {
 
                 $data = $this->form->getState();
-
-                // $draftTujuan = $data['draft_surat_units'] ?? [];
-                // unset($data['draft_surat_units']);
-                // // $this->record->draftTujuan()->delete();
-
-                $lampirans = $data['lampirans'] ?? [];
-                unset($data['lampirans']);
-
-                // dd($data);
+                
                 $this->record->update($data);
-
-                // $this->record->draftSuratUnits()->delete();
-                // if (! empty($draftTujuan)) {
-                //     $this->record->draftSuratUnits()->createMany(
-                //         collect($draftTujuan)->map(fn($item) => [
-                //             'unit_kerja_id' => $item['unit_kerja_id'],
-                //             'jenis_tujuan'  => $item['jenis_tujuan'],
-                //         ])->toArray()
-                //     );
-                // }
-
-                if (! empty($lampirans)) {
-                    $this->record->lampirans()->createMany(
-                        collect($lampirans)->map(function ($path) {
-                            return [
-                                'path_file' => $path,
-                                'nama_file' => basename($path),
-                                'mime_type' => Storage::mimeType($path),
-                                'size'      => Storage::size($path),
-                            ];
-                        })->toArray()
-                    );
-                }
-
 
                 Notification::make()
                     ->title('Draft berhasil disimpan')
                     ->success()
                     ->send();
+
+                $this->redirect(SuratResource::getUrl());
             });
     }
+
+
+// Tujuan tidak terbaca
     protected function getSendNowAction(): Action
     {
         return Action::make('sendNow')
@@ -82,45 +57,11 @@ class EditSurat extends EditRecord
 
                 $data = $this->form->getState();
 
-                // Kalau langsung kirim harus ada tujuannya
-                if (empty($data['draft_surat_units'])) {
-                    Notification::make()
-                        ->title('Tujuan surat wajib diisi')
-                        ->danger()
-                        ->send();
-
-                    return;
-                }
-
                 // Generate nomor surat & tanggal kirim
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
 
                 $this->record->update($data);
-
-                // $draftTujuan = $data['draft_surat_units'] ?? [];
-                // unset($data['draft_surat_units']);
-
-                // // Simpan tujuan ke pivot
-                // $this->record->unitTujuan()->sync(
-                //     collect($draftTujuan)->mapWithKeys(fn($item) => [
-                //         $item['unit_kerja_id'] => [
-                //             'jenis_tujuan' => $item['jenis_tujuan'],
-                //         ],
-                //     ])
-                // );
-
-                // Simpan tujuan ke pivot
-                $this->record->unitTujuan()->sync(
-                    collect($data['draft_surat_units'])->mapWithKeys(fn($item) => [
-                        $item['unit_kerja_id'] => [
-                            'jenis_tujuan' => $item['jenis_tujuan'],
-                        ],
-                    ])
-                );
-
-                // hapus tabel draft tujuan
-                $this->record->draftTujuan()->delete();
 
                 Notification::make()
                     ->title('Surat berhasil dikirim')
@@ -130,6 +71,9 @@ class EditSurat extends EditRecord
                 $this->redirect(SuratResource::getUrl());
             });
     }
+
+
+
     protected function getCancelAction(): Action
     {
         return Action::make('cancel')
@@ -138,7 +82,6 @@ class EditSurat extends EditRecord
             ->url(SuratResource::getUrl())
             ->outlined();
     }
-
 
     protected function getHeaderActions(): array
     {
