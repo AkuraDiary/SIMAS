@@ -11,6 +11,8 @@ use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
+use function PHPUnit\Framework\isEmpty;
+
 class CreateSurat extends CreateRecord
 {
     protected static string $resource = SuratResource::class;
@@ -37,7 +39,7 @@ class CreateSurat extends CreateRecord
             ]);
         }
 
-        // dd($unitIds);
+        
     }
 
     protected function getSaveDraftAction(): Action
@@ -58,7 +60,7 @@ class CreateSurat extends CreateRecord
                     ->success()
                     ->send();
 
-                    $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
+                $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
             });
     }
 
@@ -71,32 +73,39 @@ class CreateSurat extends CreateRecord
             ->color('primary')
             ->outlined()
             ->requiresConfirmation()
+            ->before(function (Action $action) {
+                $unitIds = $this->data['unitTujuan'] ?? [];
+
+                if (isEmpty($unitIds)) {
+                    Notification::make()
+                        ->title('Tujuan Tidak Boleh Kosong')
+                        ->danger()
+                        ->send();
+                    $action->halt();
+                }
+
+                $surat = $this->record;
+
+                foreach ($unitIds as $index => $unitId) {
+                    $surat->unitTujuan()->updateExistingPivot($unitId, [
+                        'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan',
+                        'status_baca' => 'BELUM',
+                    ]);
+                }
+            })
             ->action(function () {
-
                 $data = $this->form->getState();
-
-                // Kalau langsung kirim harus ada tujuannya
-                // if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
-                //     Notification::make()
-                //         ->title('Tujuan wajib diisi sebelum surat dikirim')
-                //         ->danger()
-                //         ->send();
-    
-                //     return;
-                // }
-
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
 
                 $this->create();
-
 
                 Notification::make()
                     ->title('Surat berhasil dikirim')
                     ->success()
                     ->send();
 
-                    $this->redirect(SuratResource::getUrl('index', ['scope' => 'keluar']));
+                $this->redirect(SuratResource::getUrl('index', ['scope' => 'keluar']));
             });
     }
 

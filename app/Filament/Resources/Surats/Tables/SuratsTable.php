@@ -32,11 +32,7 @@ class SuratsTable
                     ->sortable(),
                 TextColumn::make('status_surat')
                     ->badge(),
-                TextColumn::make('unitPengirim.id')
-                    ->searchable(),
-                TextColumn::make('user_pembuat_id')
-                    ->numeric()
-                    ->sortable(),
+            
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

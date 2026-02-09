@@ -10,6 +10,8 @@ use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
+use function PHPUnit\Framework\isEmpty;
+
 class EditSurat extends EditRecord
 {
     protected static string $resource = SuratResource::class;
@@ -22,6 +24,20 @@ class EditSurat extends EditRecord
             $this->getSendNowAction(),
             $this->getCancelAction(),
         ];
+    }
+
+    protected function afterSave(): void
+    {
+        $surat = $this->record;
+
+        $unitIds = $this->data['unitTujuan'] ?? [];
+
+        foreach ($unitIds as $index => $unitId) {
+            $surat->unitTujuan()->updateExistingPivot($unitId, [
+                'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan',
+                'status_baca' => 'BELUM',
+            ]);
+        }
     }
 
 
@@ -43,7 +59,7 @@ class EditSurat extends EditRecord
                     ->success()
                     ->send();
 
-                    $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
+                $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
             });
     }
 
@@ -55,21 +71,31 @@ class EditSurat extends EditRecord
             ->label('Kirim Langsung')
             ->color('primary')
             ->requiresConfirmation()
+            ->before(function (Action $action) {
+
+                $unitIds = $this->data['unitTujuan'] ?? [];
+
+                if (isEmpty($unitIds)) {
+                    Notification::make()
+                        ->title('Tujuan Tidak Boleh Kosong')
+                        ->danger()
+                        ->send();
+                    $action->halt();
+                }
+
+                $surat = $this->record;
+
+                foreach ($unitIds as $index => $unitId) {
+                    $surat->unitTujuan()->updateExistingPivot($unitId, [
+                        'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan',
+                        'status_baca' => 'BELUM',
+                    ]);
+                }
+            })
             ->action(function () {
 
                 $data = $this->form->getState();
 
-                // validasi tujuan
-                // if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
-                //     Notification::make()
-                //         ->title('Tujuan wajib diisi sebelum surat dikirim')
-                //         ->danger()
-                //         ->send();
-    
-                //     return;
-                // }
-
-                // Generate nomor surat & tanggal kirim
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
 
@@ -81,7 +107,6 @@ class EditSurat extends EditRecord
                     ->send();
 
                 $this->redirect(SuratResource::getUrl('index', ['scope' => 'keluar']));
-                
             });
     }
 
