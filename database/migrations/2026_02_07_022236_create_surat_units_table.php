@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('surat_unit', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('surat_id')->constrained();
-            $table->foreignId('unit_kerja_id')->constrained();
+            $table->foreignId('surat_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('unit_kerja_id')->nullable()->constrained()->nullOnDelete();
             $table->enum('jenis_tujuan', ['utama', 'tembusan']);
             $table->dateTime('tanggal_terima')->nullable();
             $table->enum('status_baca', ['BELUM', 'SUDAH'])->default('BELUM');
