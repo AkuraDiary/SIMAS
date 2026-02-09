@@ -11,20 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('lampirans', function (Blueprint $table) {
+        Schema::create('draft_surat_units', function (Blueprint $table) {
             $table->id();
         
             $table->foreignId('surat_id')
                 ->constrained()
                 ->cascadeOnDelete();
         
-            $table->string('nama_file');          
-            $table->string('path_file');          
-            $table->string('mime_type')->nullable();
-            $table->unsignedBigInteger('size')->nullable(); // byte
+            $table->foreignId('unit_kerja_id')
+                ->constrained();
+        
+            $table->enum('jenis_tujuan', ['utama', 'tembusan']);
         
             $table->timestamps();
-            $table->softDeletes();
+        
+            $table->unique(['surat_id', 'unit_kerja_id']);
         });
         
     }
@@ -34,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('lampirans');
+        Schema::dropIfExists('draft_surat_units');
     }
 };

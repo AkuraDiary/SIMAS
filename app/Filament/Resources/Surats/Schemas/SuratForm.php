@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Filament\Resources\Surats\Schemas;
+
+use App\Models\UnitKerja;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Schemas\Components\Section;
+
+use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
+
+class SuratForm
+{
+    public static function configure(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Section::make('Tujuan Surat')
+                    ->collapsible()
+                    ->collapsed()
+                    ->columnSpanFull()
+                    ->description('Dapat diisi sekarang atau nanti sebelum surat dikirim')
+                    ->schema([
+                        Repeater::make('draftSuratUnits')
+                            ->label('Tujuan')
+                            ->relationship()
+                            ->schema([
+                                Select::make('unit_kerja_id')
+                                    ->label('Unit Tujuan')
+                                    ->options(
+                                        UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
+                                            ->pluck('nama_unit', 'id')
+                                    )
+
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
+
+                                Select::make('jenis_tujuan')
+                                    ->options([
+                                        'utama' => 'Tujuan Utama',
+                                        'tembusan' => 'Tembusan',
+                                    ])
+                                    ->required(),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0)
+                            ->addActionLabel('Tambah Tujuan'),
+                    ]),
+
+
+                Section::make('Isi Surat')
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('nomor_agenda')
+                            ->label('Nomor Agenda')
+                            ->required(),
+
+                        TextInput::make('nomor_surat')
+                            ->label('Nomor Surat')
+                            ->required(),
+
+                        TextInput::make('perihal')
+                            ->required(),
+
+                        Textarea::make('isi_surat')
+                            ->label('Isi Surat')
+                            ->rows(10)
+                            ->columnSpanFull()
+                            ->required(),
+                    ]),
+
+
+                Section::make('Lampiran')
+                    ->columnSpanFull()
+                    ->schema([
+                        FileUpload::make('lampirans')
+                            ->label("Lampiran Surat (Max 10MB)")
+                            ->multiple()
+                            ->preserveFilenames()
+                            ->directory('lampiran-surat')
+                            ->maxSize(10240), // 10MB
+                    ]),
+
+                // Hidden Field
+
+                Hidden::make('status_surat')
+                    ->default('DRAFT')
+                    ->dehydrated(),
+
+                Hidden::make('unit_pengirim_id')
+                    ->default(fn() => Auth::user()->unit_kerja_id)
+                    ->dehydrated(),
+
+                Hidden::make('user_pembuat_id')
+                    ->default(fn() => Auth::user()->id)
+                    ->dehydrated(),
+
+                Hidden::make('tanggal_buat')
+                    ->default(now())
+                    ->dehydrated(),
+
+            ]);
+    }
+}

@@ -20,25 +20,19 @@ class Lampiran extends Model
         'surat_id',
     ];
 
-    /**
-     * Lampiran milik satu surat
-     */
+    
     public function surat()
     {
         return $this->belongsTo(Surat::class);
     }
 
-    /**
-     * Helper kecil biar Blade tidak jelek
-     */
+    
     public function getUrlAttribute(): string
     {
         return Storage::url($this->path_file);
     }
 
-    /**
-     * Ambil nama file dari path
-     */
+    
     public function getFilenameAttribute(): string
     {
         return basename($this->path_file);

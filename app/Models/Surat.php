@@ -70,6 +70,11 @@ class Surat extends Model
         return $this->hasMany(Lampiran::class);
     }
 
+    public function draftSuratUnits(): HasMany
+    {
+        return $this->hasMany(DraftSuratUnits::class);
+    }
+
     public function tujuanUntukUnit(int $unitId): string
     {
         $disposisi = $this->disposisis->first();
