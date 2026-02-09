@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Surat extends Model implements HasMedia
 {
@@ -51,6 +52,17 @@ class Surat extends Model implements HasMedia
         return $this->belongsTo(User::class, 'user_pembuat_id');
     }
 
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this
+            ->addMediaConversion('thumb')
+            ->width(300)
+            ->height(300)
+            ->sharpen(10)
+            ->nonQueued();
+    }
+
+
 
     // Helper method in pages
     // Unit tujuan surat (surat masuk)
@@ -86,25 +98,25 @@ class Surat extends Model implements HasMedia
     public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query
-        ->where('status_surat', '<>', 'DRAFT')
-        ->where(function ($q) use ($unitId) {
-            $q->whereHas(
-                'suratUnits',
-                fn($sq) =>
-                $sq->where('unit_kerja_id', $unitId)
-            )
-                ->orWhereHas(
-                    'disposisis',
-                    fn($dq) =>
-                    $dq->where('unit_tujuan_id', $unitId)
-                );
-        });
+            ->where('status_surat', '<>', 'DRAFT')
+            ->where(function ($q) use ($unitId) {
+                $q->whereHas(
+                    'suratUnits',
+                    fn($sq) =>
+                    $sq->where('unit_kerja_id', $unitId)
+                )
+                    ->orWhereHas(
+                        'disposisis',
+                        fn($dq) =>
+                        $dq->where('unit_tujuan_id', $unitId)
+                    );
+            });
     }
 
     public function scopeMasukLangsung(Builder $query, int $unitId): Builder
     {
         return $query
-        ->where('status_surat', '<>', 'DRAFT')
+            ->where('status_surat', '<>', 'DRAFT')
             ->whereHas(
                 'suratUnits',
                 fn($q) =>
@@ -120,7 +132,7 @@ class Surat extends Model implements HasMedia
     public function scopeDisposisi(Builder $query, int $unitId): Builder
     {
         return $query
-        ->where('status_surat', '<>', 'DRAFT')
+            ->where('status_surat', '<>', 'DRAFT')
             ->whereHas(
                 'disposisis',
                 fn($q) =>

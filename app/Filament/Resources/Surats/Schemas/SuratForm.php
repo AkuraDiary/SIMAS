@@ -71,9 +71,11 @@ class SuratForm
                         SpatieMediaLibraryFileUpload::make('lampirans') // This links to the collection
                             ->label("Lampiran Surat (Max 10MB)")
                             ->multiple()
-                            ->collection('lampiran-surat') // Name of the media collection
+                            ->collection('lampiran-surat')
                             ->preserveFilenames()
+                            ->conversion('thumb')
                             ->maxSize(10240),
+
                     ]),
 
                 // Hidden Field

@@ -76,14 +76,14 @@ class CreateSurat extends CreateRecord
                 $data = $this->form->getState();
 
                 // Kalau langsung kirim harus ada tujuannya
-                if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
-                    Notification::make()
-                        ->title('Tujuan wajib diisi sebelum surat dikirim')
-                        ->danger()
-                        ->send();
+                // if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
+                //     Notification::make()
+                //         ->title('Tujuan wajib diisi sebelum surat dikirim')
+                //         ->danger()
+                //         ->send();
     
-                    return;
-                }
+                //     return;
+                // }
 
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();

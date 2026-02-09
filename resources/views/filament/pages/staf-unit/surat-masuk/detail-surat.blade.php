@@ -100,25 +100,41 @@
 
         <br>
 
-        <p><strong>Lampiran</strong>
-            @if ($surat->getMedia('lampiran-surat')->isEmpty())
-        <p class="text-gray-500 italic">
-            Tidak ada lampiran.
-        </p>
+        @php
+        $lampirans = $surat->getMedia('lampiran-surat');
+        @endphp
+
+        <p><strong>Lampiran</strong></p>
+
+        @if ($lampirans->isEmpty())
+        <p class="text-gray-500 italic">Tidak ada lampiran.</p>
         @else
-        <ul class="list-disc pl-5 space-y-2">
-            @foreach ($surat->getMedia('lampiran-surat') as $lampiran)
-            <li>
-                <a
-                    href="{{ $lampiran->url }}"
-                    target="_blank"
-                    class="text-primary-600 hover:underline">
-                    {{ $lampiran->filename }}
-                </a>
-            </li>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+            @foreach ($lampirans as $lampiran)
+            <a href="{{ route('media.download', $lampiran->id) }}" target="_blank"
+                class="block border rounded-lg overflow-hidden hover:shadow">
+
+                @if ($lampiran->hasGeneratedConversion('thumb'))
+                <img
+                    src="{{ route('media.thumb', $lampiran->id) }}"
+                    alt="{{ $lampiran->file_name }}"
+                    class="w-24 h-24 object-cover rounded" />
+
+                @else
+                <div class="flex items-center justify-center h-32 bg-gray-100 text-gray-500 text-sm">
+                    {{ strtoupper($lampiran->extension) }}
+                </div>
+                @endif
+
+                <div class="p-2 text-xs truncate">
+                    {{ $lampiran->file_name }}
+                </div>
+            </a>
             @endforeach
-        </ul>
+        </div>
         @endif
+        
+
     </x-filament::section>
 
 </x-filament-panels::page>

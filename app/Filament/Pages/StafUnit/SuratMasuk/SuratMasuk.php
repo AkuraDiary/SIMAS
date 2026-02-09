@@ -60,6 +60,12 @@ class SuratMasuk extends Page implements HasTable
                     ->searchable()
                     ->badge()
                     ->sortable()
+                    ->getStateUsing(function (Surat $record): string {
+                        return match ($record?->status_surat) {
+                            'TERKIRIM' => 'Surat Baru',
+                            default => $record?->status_surat,
+                        };
+                    })
                     ->color(function (Surat $record): string {
                     
                         return match ($record->status_surat) {

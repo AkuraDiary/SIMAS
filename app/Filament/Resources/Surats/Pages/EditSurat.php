@@ -60,14 +60,14 @@ class EditSurat extends EditRecord
                 $data = $this->form->getState();
 
                 // validasi tujuan
-                if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
-                    Notification::make()
-                        ->title('Tujuan wajib diisi sebelum surat dikirim')
-                        ->danger()
-                        ->send();
+                // if (empty($data['unitTujuan']) || count($data['unitTujuan']) === 0) {
+                //     Notification::make()
+                //         ->title('Tujuan wajib diisi sebelum surat dikirim')
+                //         ->danger()
+                //         ->send();
     
-                    return;
-                }
+                //     return;
+                // }
 
                 // Generate nomor surat & tanggal kirim
                 $data['status_surat']   = 'TERKIRIM';
