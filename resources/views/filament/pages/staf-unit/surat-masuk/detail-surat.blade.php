@@ -1,12 +1,23 @@
 <x-filament-panels::page>
-
+    @if ($isViewKirim)
+    <x-filament::section collapsible>
+        <x-slot name="heading">Penerima</x-slot>
+        @foreach ($surat->suratUnits as $su)
+        <p>
+            <x-filament::badge :color="$su->jenis_tujuan === 'utama' ? 'primary' : 'secondary'">
+                {{ $su->jenis_tujuan === 'utama' ? 'Tujuan Utama' : 'Tembusan' }}
+            </x-filament::badge>
+            <strong>{{ $su->unitKerja->nama_unit }}</strong>
+        </p>
+        <br>
+        @endforeach
+    </x-filament::section>
+    @endif
     <x-filament::section collapsible collapsed>
         <x-slot name="heading">Alur Disposisi</x-slot>
         <x-slot name="description">
             Riwayat disposisi surat
         </x-slot>
-
-
 
         @if ($surat->disposisis->isEmpty())
         <p class="text-sm text-gray-500 italic">
@@ -76,7 +87,6 @@
     <x-filament::section>
         <x-slot name="heading">
             Surat
-
         </x-slot>
         <x-slot name="description">
             Nomor: {{ $surat->nomor_surat }} | Agenda: {{ $surat->nomor_agenda }}
@@ -105,35 +115,36 @@
         @endphp
 
         <p><strong>Lampiran</strong></p>
-
         @if ($lampirans->isEmpty())
         <p class="text-gray-500 italic">Tidak ada lampiran.</p>
         @else
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+        {{-- Horizontal scroll --}}
+        <p>
             @foreach ($lampirans as $lampiran)
-            <a href="{{ route('media.download', $lampiran->id) }}" target="_blank"
-                class="block border rounded-lg overflow-hidden hover:shadow">
+            <a href="{{ route('media.download', $lampiran->id) }}" target="_blank">
 
+                {{-- Thumbnail / placeholder --}}
                 @if ($lampiran->hasGeneratedConversion('thumb'))
-                <img
-                    src="{{ route('media.thumb', $lampiran->id) }}"
-                    alt="{{ $lampiran->file_name }}"
-                    class="w-24 h-24 object-cover rounded" />
-
+                <img src="{{ route('media.thumb', $lampiran->id) }}"
+                    alt="{{ $lampiran->file_name }}" />
                 @else
-                <div class="flex items-center justify-center h-32 bg-gray-100 text-gray-500 text-sm">
+                <p>
                     {{ strtoupper($lampiran->extension) }}
-                </div>
+                </p>
                 @endif
 
-                <div class="p-2 text-xs truncate">
+                {{-- Nama file --}}
+                <x-filament::badge class="mt-1 truncate w-full" color="gray">
                     {{ $lampiran->file_name }}
-                </div>
+                </x-filament::badge>
+
             </a>
             @endforeach
-        </div>
+    
+
+
         @endif
-        
+        </p>
 
     </x-filament::section>
 

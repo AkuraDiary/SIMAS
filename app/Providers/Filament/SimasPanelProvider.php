@@ -33,6 +33,7 @@ class SimasPanelProvider extends PanelProvider
             ->default()
             ->id('simas')
             ->path('')
+          
             ->favicon(asset('favicon.png'))
             ->authGuard('web')
             ->profile(EditProfile::class)

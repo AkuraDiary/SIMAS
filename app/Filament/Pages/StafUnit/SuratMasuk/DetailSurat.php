@@ -12,6 +12,7 @@ use App\Models\UnitKerja;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Illuminate\Support\Facades\Request;
 use Filament\Notifications\Notification;
 
 class DetailSurat extends Page
@@ -34,29 +35,38 @@ class DetailSurat extends Page
     public ?SuratUnit $suratUnit = null;
     public ?string $jenisTujuanLabel = null;
     public $userUnitId = null;
+    public $isViewKirim = false;
 
     public function mount(Surat $surat): void
     {
-        $this->userUnitId = Auth::user()->unit_kerja_id;
 
+        $this->userUnitId = Auth::user()->unit_kerja_id;
+        $this->isViewKirim = Request::boolean('isViewKirim', false);
+        // dd(! $this->isViewKirim);
         $this->surat = $surat->load([
             'unitPengirim',
-            'suratUnits' => fn($q) => $q->where('unit_kerja_id', $this->userUnitId),
+            'suratUnits' => function ($q) {
+                if (!$this->isViewKirim) {
+                    $q->where('unit_kerja_id', $this->userUnitId);
+                }
+                // else: ambil semua unit, tidak perlu filter
+            },
             'disposisis',
             'disposisis.unitPembuat',
             'disposisis.unitTujuan',
         ]);
 
         // Ambil SuratUnit jika ada (langsung)
+        // dd($this->isViewKirim);
         $this->suratUnit = $this->surat->suratUnits->first();
 
-        $disposisiUntukUnitIni = $this->surat->disposisis
-            ->where('unit_tujuan_id', $this->userUnitId);
+        // $disposisiUntukUnitIni = $this->surat->disposisis
+        //     ->where('unit_tujuan_id', $this->userUnitId);
 
-        abort_if(
-            ! $this->suratUnit && $disposisiUntukUnitIni->isEmpty(),
-            403
-        );
+        // abort_if(
+        //     !$this->suratUnit && $disposisiUntukUnitIni->isEmpty() || !$this->isViewKirim,
+        //     403
+        // );
 
         // Mark read ONLY if lewat surat_unit
         if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
@@ -68,7 +78,7 @@ class DetailSurat extends Page
 
     protected function getHeaderActions(): array
     {
-        return [
+        return $this->isViewKirim ? [] :  [
             Action::make('disposisi')
                 ->label('Disposisikan')
                 ->icon('heroicon-o-arrow-right-circle')
