@@ -84,7 +84,7 @@
         SURAT {{ ucfirst($surat->status_surat) }}
     </x-filament::badge>
     @endif
-    <x-filament::section>
+    <x-filament::card>
         <x-slot name="heading">
             Surat
         </x-slot>
@@ -109,43 +109,51 @@
         </div>
 
         <br>
-
         @php
         $lampirans = $surat->getMedia('lampiran-surat');
         @endphp
 
         <p><strong>Lampiran</strong></p>
+        <br>
         @if ($lampirans->isEmpty())
         <p class="text-gray-500 italic">Tidak ada lampiran.</p>
         @else
-        {{-- Horizontal scroll --}}
-        <p>
-            @foreach ($lampirans as $lampiran)
-            <a href="{{ route('media.download', $lampiran->id) }}" target="_blank">
 
-                {{-- Thumbnail / placeholder --}}
-                @if ($lampiran->hasGeneratedConversion('thumb'))
-                <img src="{{ route('media.thumb', $lampiran->id) }}"
-                    alt="{{ $lampiran->file_name }}" />
-                @else
-                <p>
-                    {{ strtoupper($lampiran->extension) }}
-                </p>
-                @endif
 
-                {{-- Nama file --}}
-                <x-filament::badge class="mt-1 truncate w-full" color="gray">
-                    {{ $lampiran->file_name }}
-                </x-filament::badge>
+        @foreach ($lampirans as $lampiran)
 
+        <x-filament::card style="display: inline-block;" class="gap-4">
+            <a
+                href="{{ route('media.download', $lampiran->id) }}"
+                target="_blank">
+                <ul>
+                    <li>
+                        {{-- Thumbnail / placeholder --}}
+                        @if ($lampiran->hasGeneratedConversion('thumb'))
+                        <img
+                            style=" object-fit: fill;"
+                            src="{{ route('media.thumb', $lampiran->id) }}"
+                            alt="{{ $lampiran->file_name }}" />
+                        @else
+                        <div
+                            style="display: inline-block;">
+                            {{ strtoupper($lampiran->extension) }}
+                        </div>
+                        @endif
+                    </li>
+                    <li>
+                        {{-- Filename --}}
+                        <x-filament::badge>
+                            {{ $lampiran->file_name }}
+                        </x-filament::badge>
+                    </li>
+                </ul>
             </a>
-            @endforeach
-    
-
-
+        </x-filament::card>
+        @endforeach
         @endif
-        </p>
+        </x-filament::section>
 
-    </x-filament::section>
+
 
 </x-filament-panels::page>
