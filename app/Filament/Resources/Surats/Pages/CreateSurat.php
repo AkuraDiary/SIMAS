@@ -9,6 +9,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
 
 use function PHPUnit\Framework\isEmpty;
@@ -16,7 +17,16 @@ use function PHPUnit\Framework\isEmpty;
 class CreateSurat extends CreateRecord
 {
     protected static string $resource = SuratResource::class;
+    
+    protected static ?string $title = 'Buat Surat';
 
+    public function getBreadcrumbs(): array
+    {
+        return [
+            SuratResource::getUrl('index', ['scope' => Request::query('draft')]) => 'Draft Surat',
+            '#' => 'Buat Surat Baru',
+        ];
+    }
     protected function getFormActions(): array
     {
         return [
@@ -38,8 +48,6 @@ class CreateSurat extends CreateRecord
                 'status_baca' => 'BELUM',
             ]);
         }
-
-        
     }
 
     protected function getSaveDraftAction(): Action

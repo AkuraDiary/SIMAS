@@ -21,7 +21,7 @@
 
         @if ($surat->disposisis->isEmpty())
         <p class="text-sm text-gray-500 italic">
-            Surat ini belum memiliki disposisi.
+            Surat ini belum/tidak memiliki disposisi.
         </p>
         @else
         @foreach ($surat->disposisis->sortBy('tanggal_disposisi') as $d)

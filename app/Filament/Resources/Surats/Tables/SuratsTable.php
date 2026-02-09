@@ -59,6 +59,8 @@ class SuratsTable
                 // BulkActionGroup::make([
                 //     DeleteBulkAction::make(),
                 // ]),
-            ]);
+            ])
+            ->emptyStateHeading('TIdak Ada Data Surat')
+            ->emptyStateDescription('');
     }
 }

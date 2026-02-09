@@ -22,7 +22,6 @@ class SuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
-
     public static function canAccess(): bool
     {
         return Auth::user()?->peran === 'stafunit';
@@ -63,6 +62,7 @@ class SuratResource extends Resource
             'keluar' => $query
                 ->where('unit_pengirim_id', $user->unit_kerja_id)
                 ->where('status_surat', '!=', 'DRAFT'),
+                
 
             'arsip' => $query
                 ->where('unit_pengirim_id', $user->unit_kerja_id)

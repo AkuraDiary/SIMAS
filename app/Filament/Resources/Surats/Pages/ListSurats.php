@@ -11,7 +11,14 @@ class ListSurats extends ListRecords
 {
     protected static string $resource = SuratResource::class;
 
- public function getTitle(): string
+     public function getBreadcrumbs(): array
+    {
+        return [
+            SuratResource::getUrl('index', ['scope' => Request::query('scope')]) => $this->getTitle(),
+            '#' => 'List Surat',
+        ];
+    }
+    public function getTitle(): string
     {
         return match (Request::query('scope')) {
             'keluar' => 'Surat Keluar',
@@ -29,7 +36,7 @@ class ListSurats extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            
+
             CreateAction::make()->label("Buat Surat Baru"),
         ];
     }

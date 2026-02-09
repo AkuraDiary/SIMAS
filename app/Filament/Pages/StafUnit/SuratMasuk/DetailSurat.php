@@ -58,16 +58,8 @@ class DetailSurat extends Page
         ]);
 
         // Ambil SuratUnit jika ada (langsung)
-        // dd($this->isViewKirim);
+
         $this->suratUnit = $this->surat->suratUnits->first();
-
-        // $disposisiUntukUnitIni = $this->surat->disposisis
-        //     ->where('unit_tujuan_id', $this->userUnitId);
-
-        // abort_if(
-        //     !$this->suratUnit && $disposisiUntukUnitIni->isEmpty() || !$this->isViewKirim,
-        //     403
-        // );
 
         // Mark read ONLY if lewat surat_unit
         if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
