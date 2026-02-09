@@ -6,6 +6,7 @@ use App\Models\SuratUnit;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
+use App\Filament\Resources\Surats\SuratResource;
 use App\Models\Disposisi;
 use App\Models\Surat;
 use App\Models\UnitKerja;
@@ -25,7 +26,7 @@ class DetailSurat extends Page
     public function getBreadcrumbs(): array
     {
         return [
-            SuratMasuk::getUrl() => 'Surat Masuk',
+            $this->isViewKirim ? SuratResource::getUrl('index', ['scope' => 'keluar']) : SuratMasuk::getUrl() => $this->isViewKirim ? 'Surat Keluar' : 'Surat Masuk',
             '#' => $this->surat->nomor_surat,
             'Detail',
         ];

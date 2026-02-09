@@ -16,6 +16,14 @@ class EditSurat extends EditRecord
 {
     protected static string $resource = SuratResource::class;
 
+    public function getBreadcrumbs(): array
+    {
+        return [
+            SuratResource::getUrl('index', ['scope' => 'draft']) => 'Draft Surat',
+            '#' => $this->record->nomor_surat,
+            'Edit Surat',
+        ];
+    }
 
     protected function getFormActions(): array
     {

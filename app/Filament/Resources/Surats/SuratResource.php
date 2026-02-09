@@ -16,6 +16,7 @@ use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Filament\Navigation\NavigationItem;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Request;
 
 class SuratResource extends Resource
 {
@@ -31,16 +32,20 @@ class SuratResource extends Resource
         return [
             NavigationItem::make('Surat Keluar')
                 ->icon('heroicon-o-paper-airplane')
-                ->url(static::getUrl('index', ['scope' => 'keluar'])),
+                ->url(static::getUrl('index', ['scope' => 'keluar']))
+                ->isActiveWhen(fn() => Request::query('scope') === 'keluar'),
 
             NavigationItem::make('Draft Surat')
                 ->icon('heroicon-o-pencil-square')
-                ->url(static::getUrl('index', ['scope' => 'draft'])),
+                ->url(static::getUrl('index', ['scope' => 'draft']))
+                ->isActiveWhen(fn() => Request::query('scope') === 'draft'),
 
 
             NavigationItem::make('Arsip Surat')
                 ->icon('heroicon-o-archive-box')
-                ->url(static::getUrl('index', ['scope' => 'arsip'])),
+                ->url(static::getUrl('index', ['scope' => 'arsip']))
+                ->isActiveWhen(fn () => Request::query('scope') === 'arsip'),
+
         ];
     }
 
