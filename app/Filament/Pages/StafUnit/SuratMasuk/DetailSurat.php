@@ -71,7 +71,18 @@ class DetailSurat extends Page
 
     protected function getHeaderActions(): array
     {
-        return $this->isViewKirim ? [] :  [
+        return $this->isViewKirim ? [
+            $this->getACtionArsipkan()
+        ] :  [
+
+
+            Action::make('respon_surat_unit')
+                ->label('Respon')
+                ->color('success')
+
+                ->schema($this->getResponSuratUnitForm())
+                ->action(fn(array $data) => $this->handleResponSuratUnit($data)),
+
             Action::make('disposisi')
                 ->label('Disposisikan')
                 ->icon('heroicon-o-arrow-right-circle')
@@ -161,9 +172,16 @@ class DetailSurat extends Page
                 ->rows(4),
         ];
     }
-
+    protected function getResponSuratUnitForm(): array
+    {
+        return [];
+    }
+    protected function getActionArsipkan()
+    {
+        return Action::make('arsipkan_surat')
+            ->action(fn(array $data) => $this->handleArsipkanSurat($data));
+    }
     // Handler methods
-
     protected function handleRespondDisposisi(array $data): void
     {
         $unitId = Auth::user()->unit_kerja_id;
@@ -190,6 +208,7 @@ class DetailSurat extends Page
 
         $this->refreshPage('Disposisi diperbarui', null);
     }
+    protected function handleResponSuratUnit(array $data): void {}
 
     protected function handleDisposisi(array $data): void
     {
@@ -244,6 +263,8 @@ class DetailSurat extends Page
 
         $this->refreshPage('Disposisi berhasil', 'Surat telah berhasil didisposisikan.');
     }
+    protected function handleArsipkanSurat(array $data): void {}
+
     // Handler methods
 
 
@@ -273,8 +294,7 @@ class DetailSurat extends Page
 
     protected function updateStatusSurat(): void
     {
-        $allDone = $this->surat->disposisis
-            ->every(fn($d) => $d->status_disposisi === 'SELESAI');
+        $allDone = $this->surat->disposisis->every(fn($d) => $d->status_disposisi === 'SELESAI');
 
         $this->surat->update([
             'status_surat' => $allDone ? 'SELESAI' : 'DIPROSES',

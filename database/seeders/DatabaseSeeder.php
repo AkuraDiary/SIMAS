@@ -19,23 +19,23 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
        // Unit Kerja
-       $units = UnitKerja::factory()->count(5)->create();
+    //    $units = UnitKerja::factory()->count(5)->create();
 
        // SuperAdmin
        User::factory()->superAdmin()->create();
 
-       // Staf Unit
-       User::factory()
-           ->count(10)
-           ->create();
+    //    // Staf Unit
+    //    User::factory()
+    //        ->count(10)
+    //        ->create();
 
-       // Surat
-       Surat::factory()
-           ->count(10)
-           ->create();
+    //    // Surat
+    //    Surat::factory()
+    //        ->count(10)
+    //        ->create();
 
        // Pivot SuratUnit
-       $this->call(SuratUnitSeeder::class);
+    //    $this->call(SuratUnitSeeder::class);
 
     }
 }

@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('nomor_agenda');
             $table->string('nomor_surat');
             $table->string('perihal');
+            $table->string('pengirim_eksternal')->nullable();
+            $table->enum('tipe_surat', ['INTERNAL', 'EKSTERNAL',])->default('INTERNAL');
             $table->text('isi_surat');
             $table->dateTime('tanggal_buat');
             $table->dateTime('tanggal_kirim')->nullable();
