@@ -85,20 +85,6 @@ class Surat extends Model implements HasMedia
             ]);
     }
       
-
-    // public function tujuanUntukUnit(int $unitId): string
-    // {
-    //     $disposisi = $this->disposisis->first();
-
-    //     if ($disposisi) {
-    //         return 'Disposisi: ' . $disposisi->parent?->unitTujuan?->nama_unit;
-    //     }
-
-    //     $suratUnit = $this->suratUnits->first();
-
-    //     return ucfirst($suratUnit?->jenis_tujuan ?? '-');
-    // }
-
     public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query
