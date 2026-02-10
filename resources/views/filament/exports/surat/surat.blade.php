@@ -57,7 +57,7 @@
 <div class="footer">
     <div>
         Dibuat oleh:<br>
-        {{ $surat->pembuat->name ?? '-' }}<br>
+        {{ $surat->pembuat->nama_lengkap ?? '-' }}<br>
         {{ $surat->unitPengirim->nama_unit }}
     </div>
 </div>
