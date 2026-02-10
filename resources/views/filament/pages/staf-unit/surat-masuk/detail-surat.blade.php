@@ -4,11 +4,11 @@
         <x-slot name="heading">Penerima</x-slot>
         @foreach ($surat->suratUnits as $su)
         <p>
-        <strong>{{ $su->unitKerja->nama_unit }}</strong>
+            <strong>{{ $su->unitKerja->nama_unit }}</strong>
             <x-filament::badge :color="$su->jenis_tujuan === 'utama' ? 'primary' : 'secondary'">
                 {{ $su->jenis_tujuan === 'utama' ? 'Tujuan Utama' : 'Tembusan' }}
             </x-filament::badge>
-            
+
         </p>
         <br>
         @endforeach
@@ -80,11 +80,13 @@
         @endif
     </x-filament::section>
 
+    {{--
     @if ($surat->status_surat != 'TERKIRIM' )
     <x-filament::badge :color="$surat->status_surat === 'SELESAI' ? 'success' : 'warning'">
         SURAT {{ ucfirst($surat->status_surat) }}
     </x-filament::badge>
     @endif
+    --}}
     <x-filament::card>
         <x-slot name="heading">
             Surat
@@ -96,12 +98,12 @@
         <p><strong>Perihal:</strong> {{ $surat->perihal }}</p>
 
         @if ($surat->tipe_surat === 'EKSTERNAL')
-        <p><strong>Pengirim:</strong> {{ $surat->pengirim_eksternal }} melalui {{ $surat->unitPengirim->nama_unit }}</p>    
+        <p><strong>Pengirim:</strong> {{ $surat->pengirim_eksternal }} melalui {{ $surat->unitPengirim->nama_unit }}</p>
         @else
         <p><strong>Pengirim Asal:</strong> {{ $surat->unitPengirim->nama_unit }}</p>
         @endif
-        
-        
+
+
 
         @if ($suratUnit)
         <p><strong>Diterima:</strong> {{ $suratUnit?->tanggal_terima ?? '-' }}</p>

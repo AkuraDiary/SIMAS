@@ -104,14 +104,11 @@ class DetailSurat extends Page
                 ],
                 default =>
                 [
-
-
-                    Action::make('respon_surat_unit')
-                        ->label('Respon')
-                        ->color('success')
-
-                        ->schema($this->getResponSuratUnitForm())
-                        ->action(fn(array $data) => $this->handleResponSuratUnit($data)),
+                    // Action::make('respon_surat_unit')
+                    //     ->label('Tindak Lanjuti')
+                    //     ->color('success')
+                    //     ->schema($this->getResponSuratUnitForm())
+                    //     ->action(fn(array $data) => $this->handleResponSuratUnit($data)),
 
                     Action::make('disposisi')
                         ->label('Disposisikan')
