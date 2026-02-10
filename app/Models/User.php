@@ -53,6 +53,10 @@ class User extends Authenticatable implements FilamentUser, HasName
             return false;
         }
 
+        if($this->peran === 'stafunit' && !$this->unitKerja){
+            return false;
+        }
+
         return true;
     }
 

@@ -7,6 +7,7 @@ use Filament\Auth\Pages\EditProfile as BaseEditProfile;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\TextInput;
 use Filament\Support\Components\Component;
+use Filament\Tables\Columns\TextColumn;
 
 class EditProfile extends BaseEditProfile
 {
