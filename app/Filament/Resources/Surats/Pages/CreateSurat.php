@@ -95,12 +95,15 @@ class CreateSurat extends CreateRecord
                
             })
             ->action(function () {
-                $data = $this->form->getState();
+                
+                $data = $this->data;
             
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
 
                 $this->form->fill($data);
+
+                // dd($data);
                 $this->create();
                 
                 Notification::make()
