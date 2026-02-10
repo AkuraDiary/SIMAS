@@ -17,20 +17,17 @@ class SimasDashboard extends BaseDashboard
     {
         $user = Auth::user();
 
-        // Return widgets based on the 'peran' column
-        if ($user->peran === 'superadmin') {
-            return [
+        return match ($user->peran) {
+            'superadmin' => [
                 SuperAdminStats::class,
-            ];
-        }
-
-        if ($user->peran === 'stafunit') {
-            return [
+                // SuperAdminSuratChart::class,
+            ],
+            'stafunit' => [
                 StafUnitStats::class,
-            ];
-        }
-
-        return [];
+                // StafUnitInboxStats::class,
+            ],
+            default => [],
+        };
     }
     // protected string $view = 'filament.pages.dashboard-simas-dashboard';
 }
