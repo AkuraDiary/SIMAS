@@ -103,7 +103,7 @@
     @endif
     --}}
 
-    <x-filament::card>
+    <x-filament::section>
         <x-slot name="heading">
             Surat
         </x-slot>
