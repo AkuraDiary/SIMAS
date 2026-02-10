@@ -96,14 +96,18 @@ class DetailSurat extends Page
 
     protected function getHeaderActions(): array
     {
-        return
+
+
+        $conditionalsactions =
             match ($this->scope) {
                 'arsip' => [],
                 'keluar' => [
-                    $this->getACtionArsipkan()
+                    $this->getActionArsipkan()
                 ],
                 default =>
                 [
+
+
                     // Action::make('respon_surat_unit')
                     //     ->label('Tindak Lanjuti')
                     //     ->color('success')
@@ -140,6 +144,13 @@ class DetailSurat extends Page
                     $this->getACtionArsipkan(),
                 ],
             };
+
+        return $conditionalsactions + [
+            Action::make('export')
+                ->label('Export Surat')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(fn () => redirect()->route('surat.export', $this->surat)),
+        ];
     }
 
     protected function getDisposisiForm(): array
