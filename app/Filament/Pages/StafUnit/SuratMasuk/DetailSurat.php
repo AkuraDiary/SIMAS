@@ -7,14 +7,18 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Filament\Resources\Surats\SuratResource;
+use App\Models\ArsipSurat;
 use App\Models\Disposisi;
+use App\Models\KategoriArsip;
 use App\Models\Surat;
 use App\Models\UnitKerja;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Support\Facades\Request;
 use Filament\Notifications\Notification;
+use Illuminate\Validation\Rule;
 
 class DetailSurat extends Page
 {
@@ -113,7 +117,7 @@ class DetailSurat extends Page
                         ->rows(3),
                 ])
                 ->action(fn(array $data) => $this->handleRespondDisposisi($data)),
-
+            $this->getACtionArsipkan(),
         ];
     }
 
@@ -175,15 +179,51 @@ class DetailSurat extends Page
                 ->rows(4),
         ];
     }
+    protected function getActionArsipkan()
+    {
+        return Action::make('arsipkan')
+            ->label('Arsipkan')
+            ->icon('heroicon-o-archive-box')
+            ->color('gray')
+            ->visible(fn() => ! $this->sudahDiarsipkan())
+            ->schema([
+                Select::make('kategori_arsip_id')
+                    ->label('Kategori Arsip')
+                    ->options(
+                        KategoriArsip::where('unit_kerja_id', Auth::user()->unit_kerja_id)
+                            ->pluck('nama', 'id')
+                    )
+                    ->searchable()
+                    ->required()->createOptionForm([
+                        TextInput::make('nama')
+                            ->label('Nama Kategori')
+                            ->required()
+                            ->maxLength(100)
+                            ->rule(function () {
+                                return Rule::unique('kategori_arsips', 'nama')
+                                    ->where('unit_kerja_id', Auth::user()->unit_kerja_id);
+                            }),
+                    ])
+                    ->createOptionUsing(function (array $data) {
+                        return KategoriArsip::create([
+                            'unit_kerja_id' => Auth::user()->unit_kerja_id,
+                            'nama' => $data['nama'],
+                        ])->id;
+                    }),
+
+                Textarea::make('catatan')
+                    ->label('Catatan')
+                    ->rows(3),
+            ])
+            ->action(fn($data) => $this->handleArsipkanSurat($data));
+    }
+
     protected function getResponSuratUnitForm(): array
     {
         return [];
     }
-    protected function getActionArsipkan()
-    {
-        return Action::make('arsipkan_surat')
-            ->action(fn(array $data) => $this->handleArsipkanSurat($data));
-    }
+
+
     // Handler methods
     protected function handleRespondDisposisi(array $data): void
     {
@@ -266,7 +306,17 @@ class DetailSurat extends Page
 
         $this->refreshPage('Disposisi berhasil', 'Surat telah berhasil didisposisikan.');
     }
-    protected function handleArsipkanSurat(array $data): void {}
+    protected function handleArsipkanSurat(array $data): void
+    {
+        ArsipSurat::create([
+            'surat_id' => $this->surat->id,
+            'unit_kerja_id' => Auth::user()->unit_kerja_id,
+            'kategori_arsip_id' => $data['kategori_arsip_id'],
+            'catatan' => $data['catatan'] ?? null,
+        ]);
+
+        $this->refreshPage('Surat diarsipkan', 'Surat berhasil masuk arsip unit.');
+    }
 
     // Handler methods
 
@@ -310,6 +360,14 @@ class DetailSurat extends Page
 
         return $this->suratUnit !== null || $this->surat->disposisis->contains('unit_tujuan_id', $unitId);
     }
+
+    protected function sudahDiarsipkan(): bool
+    {
+        return ArsipSurat::where('surat_id', $this->surat->id)
+            ->where('unit_kerja_id', Auth::user()->unit_kerja_id)
+            ->exists();
+    }
+
 
     protected function resolveJenisTujuanLabel(): string
     {

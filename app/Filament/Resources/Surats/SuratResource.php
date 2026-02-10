@@ -43,7 +43,7 @@ class SuratResource extends Resource
             NavigationItem::make('Arsip Surat')
                 ->icon('heroicon-o-archive-box')
                 ->url(static::getUrl('index', ['scope' => 'arsip']))
-                ->isActiveWhen(fn () => Request::query('scope') === 'arsip'),
+                ->isActiveWhen(fn() => Request::query('scope') === 'arsip'),
 
         ];
     }
@@ -62,11 +62,15 @@ class SuratResource extends Resource
             'keluar' => $query
                 ->where('unit_pengirim_id', $user->unit_kerja_id)
                 ->where('status_surat', '!=', 'DRAFT'),
-                
+
 
             'arsip' => $query
-                ->where('unit_pengirim_id', $user->unit_kerja_id)
-                ->where('status_surat', 'SELESAI'),
+                ->whereHas(
+                    'arsipSurats',
+                    fn($q) =>
+                    $q->where('unit_kerja_id', $user->unit_kerja_id)
+                ),
+
 
             default => $query
                 ->where('unit_pengirim_id', $user->unit_kerja_id),

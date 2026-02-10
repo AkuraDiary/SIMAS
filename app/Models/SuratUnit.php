@@ -18,6 +18,7 @@ class SuratUnit extends Pivot
         'jenis_tujuan',
         'tanggal_terima',
         'status_baca',
+        'respon'
     ];
 
     public $timestamps = false;

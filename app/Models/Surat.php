@@ -62,6 +62,10 @@ class Surat extends Model implements HasMedia
             ->nonQueued();
     }
 
+    public function arsipSurats(): HasMany
+    {
+        return $this->hasMany(ArsipSurat::class);
+    }
 
 
     // Helper method in pages
@@ -80,20 +84,20 @@ class Surat extends Model implements HasMedia
                 'status_baca',
             ]);
     }
+      
 
+    // public function tujuanUntukUnit(int $unitId): string
+    // {
+    //     $disposisi = $this->disposisis->first();
 
-    public function tujuanUntukUnit(int $unitId): string
-    {
-        $disposisi = $this->disposisis->first();
+    //     if ($disposisi) {
+    //         return 'Disposisi: ' . $disposisi->parent?->unitTujuan?->nama_unit;
+    //     }
 
-        if ($disposisi) {
-            return 'Disposisi: ' . $disposisi->parent?->unitTujuan?->nama_unit;
-        }
+    //     $suratUnit = $this->suratUnits->first();
 
-        $suratUnit = $this->suratUnits->first();
-
-        return ucfirst($suratUnit?->jenis_tujuan ?? '-');
-    }
+    //     return ucfirst($suratUnit?->jenis_tujuan ?? '-');
+    // }
 
     public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
@@ -139,7 +143,7 @@ class Surat extends Model implements HasMedia
                 $q->where('unit_tujuan_id', $unitId)
             )
 
-            // untuk disposisi yang kembali ke awal
+            // untuk disposisi yang kembali ke awal (TODO jangan disentuh dulu)
             // ->orWhereHas(
             //     'disposisis',
             //     fn($q) =>

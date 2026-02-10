@@ -39,6 +39,9 @@ class SuratMasuk extends Page implements HasTable
 
         return Surat::query()
             ->untukUnit($unitId)
+            ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
+                $q->where('unit_kerja_id', $unitId);
+            })
             ->with([
                 'unitPengirim',
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
@@ -209,6 +212,9 @@ class SuratMasuk extends Page implements HasTable
                             default     => null,
                         };
 
+                        $query->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
+                            $q->where('unit_kerja_id', $unitId);
+                        });
                         return $query;
                     })
             ])

@@ -101,9 +101,6 @@ class CreateSurat extends CreateRecord
                 $data['tanggal_kirim']  = now();
 
                 $this->form->fill($data);
-
-                
-
                 $this->create();
                 
                 Notification::make()

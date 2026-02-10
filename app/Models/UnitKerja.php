@@ -25,8 +25,18 @@ class UnitKerja extends Model
 
     public function getRouteKeyName(): string
     {
-        return 'nama_unit'; 
+        return 'nama_unit';
     }
+    public function arsipSurats(): HasMany
+    {
+        return $this->hasMany(ArsipSurat::class);
+    }
+
+    public function kategoriArsips(): HasMany
+    {
+        return $this->hasMany(KategoriArsip::class);
+    }
+
     // Surat yang dikirim oleh unit
     public function suratKeluar(): HasMany
     {
@@ -42,10 +52,10 @@ class UnitKerja extends Model
             'unit_kerja_id',
             'surat_id'
         )
-        ->withPivot([
-            'jenis_tujuan',
-            'tanggal_terima',
-            'status_baca',
-        ]);
+            ->withPivot([
+                'jenis_tujuan',
+                'tanggal_terima',
+                'status_baca',
+            ]);
     }
 }
