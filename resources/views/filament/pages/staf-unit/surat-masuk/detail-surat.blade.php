@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    @if ($scope != 'masuk')
+    @if ($scope == 'keluar')
     <x-filament::section collapsible>
         <x-slot name="heading">Penerima</x-slot>
         @foreach ($surat->suratUnits as $su)
@@ -28,6 +28,7 @@
         @endforeach
     </x-filament::section>
     @endif
+
     <x-filament::section collapsible collapsed>
         <x-slot name="heading">Alur Disposisi</x-slot>
         <x-slot name="description">
