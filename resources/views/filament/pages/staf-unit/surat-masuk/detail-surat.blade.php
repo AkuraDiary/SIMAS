@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    @if ($isViewKirim)
+    @if ($scope != 'masuk')
     <x-filament::section collapsible>
         <x-slot name="heading">Penerima</x-slot>
         @foreach ($surat->suratUnits as $su)

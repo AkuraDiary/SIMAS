@@ -27,31 +27,49 @@ class DetailSurat extends Page
 
     protected static bool $shouldRegisterNavigation = false;
 
+
     public function getBreadcrumbs(): array
     {
-        return [
-            $this->isViewKirim ? SuratResource::getUrl('index', ['scope' => 'keluar']) : SuratMasuk::getUrl() => $this->isViewKirim ? 'Surat Keluar' : 'Surat Masuk',
-            '#' => $this->surat->nomor_surat,
-            'Detail',
-        ];
+        return match ($this->scope) {
+            'arsip' => [
+                SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
+                '#' => $this->surat->nomor_surat,
+                'Detail',
+            ],
+            'keluar' => [
+                SuratResource::getUrl('index', ['scope' => 'keluar']) => 'Surat Keluar',
+                '#' => $this->surat->nomor_surat,
+                'Detail',
+            ],
+            default => [
+                SuratMasuk::getUrl() => 'Surat Masuk',
+                '#' => $this->surat->nomor_surat,
+                'Detail',
+            ],
+        };
     }
+
+
 
     public Surat $surat;
     public ?SuratUnit $suratUnit = null;
     public ?string $jenisTujuanLabel = null;
     public $userUnitId = null;
-    public $isViewKirim = false;
+
+    public string $scope = 'masuk';
+
 
     public function mount(Surat $surat): void
     {
 
         $this->userUnitId = Auth::user()->unit_kerja_id;
-        $this->isViewKirim = Request::boolean('isViewKirim', false);
+        $this->scope = request('scope', 'masuk');
+
         // dd(! $this->isViewKirim);
         $this->surat = $surat->load([
             'unitPengirim',
             'suratUnits' => function ($q) {
-                if (!$this->isViewKirim) {
+                if ($this->scope === 'masuk') {
                     $q->where('unit_kerja_id', $this->userUnitId);
                 }
                 // else: ambil semua unit, tidak perlu filter
@@ -66,7 +84,7 @@ class DetailSurat extends Page
         $this->suratUnit = $this->surat->suratUnits->first();
 
         // Mark read ONLY if lewat surat_unit
-        if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
+        if ($this->scope === 'masuk' && $this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
             $this->suratUnit->update([
                 'status_baca' => 'SUDAH',
                 'tanggal_terima' => now()
@@ -78,47 +96,53 @@ class DetailSurat extends Page
 
     protected function getHeaderActions(): array
     {
-        return $this->isViewKirim ? [
-            $this->getACtionArsipkan()
-        ] :  [
+        return
+            match ($this->scope) {
+                'arsip' => [],
+                'keluar' => [
+                    $this->getACtionArsipkan()
+                ],
+                default =>
+                [
 
 
-            Action::make('respon_surat_unit')
-                ->label('Respon')
-                ->color('success')
+                    Action::make('respon_surat_unit')
+                        ->label('Respon')
+                        ->color('success')
 
-                ->schema($this->getResponSuratUnitForm())
-                ->action(fn(array $data) => $this->handleResponSuratUnit($data)),
+                        ->schema($this->getResponSuratUnitForm())
+                        ->action(fn(array $data) => $this->handleResponSuratUnit($data)),
 
-            Action::make('disposisi')
-                ->label('Disposisikan')
-                ->icon('heroicon-o-arrow-right-circle')
-                ->color('warning')
-                ->visible(fn() => $this->canDisposisi())
-                ->schema($this->getDisposisiForm())
-                ->action(fn(array $data) => $this->handleDisposisi($data)),
+                    Action::make('disposisi')
+                        ->label('Disposisikan')
+                        ->icon('heroicon-o-arrow-right-circle')
+                        ->color('warning')
+                        ->visible(fn() => $this->canDisposisi())
+                        ->schema($this->getDisposisiForm())
+                        ->action(fn(array $data) => $this->handleDisposisi($data)),
 
-            Action::make('respon_disposisi')
-                ->label('Tindaklanjuti Disposisi')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->visible(fn() => $this->canRespondDisposisi())
-                ->schema([
-                    Select::make('status_disposisi')
-                        ->label('Status')
-                        ->options([
-                            'DIPROSES' => 'Sedang Diproses',
-                            'SELESAI' => 'Selesai',
+                    Action::make('respon_disposisi')
+                        ->label('Tindaklanjuti Disposisi')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn() => $this->canRespondDisposisi())
+                        ->schema([
+                            Select::make('status_disposisi')
+                                ->label('Status')
+                                ->options([
+                                    'DIPROSES' => 'Sedang Diproses',
+                                    'SELESAI' => 'Selesai',
+                                ])
+                                ->required(),
+
+                            Textarea::make('catatan_respon')
+                                ->label('Catatan Tindak Lanjut')
+                                ->rows(3),
                         ])
-                        ->required(),
-
-                    Textarea::make('catatan_respon')
-                        ->label('Catatan Tindak Lanjut')
-                        ->rows(3),
-                ])
-                ->action(fn(array $data) => $this->handleRespondDisposisi($data)),
-            $this->getACtionArsipkan(),
-        ];
+                        ->action(fn(array $data) => $this->handleRespondDisposisi($data)),
+                    $this->getACtionArsipkan(),
+                ],
+            };
     }
 
     protected function getDisposisiForm(): array

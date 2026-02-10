@@ -52,28 +52,31 @@ class SuratResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = Auth::user();
-
+        
+        $unitId = Auth::user()->unit_kerja_id;
         return match (request('scope')) {
             'draft' => $query
-                ->where('unit_pengirim_id', $user->unit_kerja_id)
+                ->where('unit_pengirim_id', $unitId)
                 ->where('status_surat', 'DRAFT'),
 
             'keluar' => $query
-                ->where('unit_pengirim_id', $user->unit_kerja_id)
-                ->where('status_surat', '!=', 'DRAFT'),
+                ->where('unit_pengirim_id', $unitId)
+                ->where('status_surat', '!=', 'DRAFT')
+                ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
+                    $q->where('unit_kerja_id', $unitId);
+                }),
 
 
             'arsip' => $query
                 ->whereHas(
                     'arsipSurats',
                     fn($q) =>
-                    $q->where('unit_kerja_id', $user->unit_kerja_id)
+                    $q->where('unit_kerja_id', $unitId)
                 ),
 
 
             default => $query
-                ->where('unit_pengirim_id', $user->unit_kerja_id),
+                ->where('unit_pengirim_id', $unitId),
         };
     }
 

@@ -32,7 +32,7 @@ class SuratsTable
                     ->sortable(),
                 TextColumn::make('status_surat')
                     ->badge(),
-            
+
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -51,9 +51,17 @@ class SuratsTable
                 DeleteAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
 
             ])
-            ->recordUrl(fn(Surat $record) => $record->status_surat === 'DRAFT'
-                ? EditSurat::getUrl(['record' => $record->id])
-                : DetailSurat::getUrl(['surat' => $record->id, 'isViewKirim' => true], panel: 'simas'))
+            ->recordUrl(
+                fn(Surat $record) => $record->status_surat === 'DRAFT'
+                    ? EditSurat::getUrl(['record' => $record->id])
+                    : DetailSurat::getUrl(
+                        parameters: [
+                            'surat' => $record->id,
+                            'scope' => request('scope') ?? 'masuk',
+                        ],
+                        panel: 'simas'
+                    )
+            )
 
             ->toolbarActions([
                 // BulkActionGroup::make([

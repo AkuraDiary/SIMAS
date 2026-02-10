@@ -48,7 +48,6 @@ class CreateSurat extends CreateRecord
                 'status_baca' => 'BELUM',
             ]);
         }
-        
     
     }
 
@@ -103,7 +102,6 @@ class CreateSurat extends CreateRecord
 
                 $this->form->fill($data);
 
-                // dd($data);
                 $this->create();
                 
                 Notification::make()
