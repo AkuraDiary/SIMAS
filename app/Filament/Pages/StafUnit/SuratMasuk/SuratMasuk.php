@@ -84,6 +84,10 @@ class SuratMasuk extends Page implements HasTable
                     ->wrap()
                     ->searchable(),
 
+                TextColumn::make('tipe_surat')
+                    ->label('Tipe Surat')
+                    ->badge(),
+
                 TextColumn::make('unitPengirim.nama_unit')
                     ->label('Pengirim'),
 

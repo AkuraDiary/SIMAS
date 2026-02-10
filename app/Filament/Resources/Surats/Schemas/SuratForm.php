@@ -10,6 +10,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 
 use Filament\Schemas\Schema;
@@ -38,14 +39,27 @@ class SuratForm
                                 modifyQueryUsing: fn($query) => $query->where('unit_kerjas.id', '<>', Auth::user()->unit_kerja_id)
                             )
                             ->searchable()
-                            ->preload()
-
+                            ->preload(),
+                        Grid::make()->schema([
+                            Select::make('tipe_surat')
+                                ->options(['INTERNAL' => 'Internal', 'EKSTERNAL' => 'Eksternal'])
+                                ->default('INTERNAL')
+                                ->dehydrated()
+                                ->reactive(),
+                            TextInput::make('pengirim_eksternal')
+                                ->label('Asal Pengirim')
+                                ->dehydrated()
+                                ->required(fn($get) => $get('tipe_surat') === 'EKSTERNAL')
+                                ->visible(fn($get) => $get('tipe_surat') === 'EKSTERNAL'),
+                        ]),
                     ]),
 
 
                 Section::make('Isi Surat')
                     ->columnSpanFull()
                     ->schema([
+
+
                         TextInput::make('nomor_agenda')
                             ->label('Nomor Agenda')
                             ->required(),
@@ -75,12 +89,11 @@ class SuratForm
                             ->preserveFilenames()
                             ->conversion('thumb')
                             ->maxSize(10240),
-
                     ]),
 
                 // Hidden Field
-
                 Hidden::make('status_surat')
+                    ->disabled()
                     ->default('DRAFT')
                     ->dehydrated(),
 
@@ -96,6 +109,9 @@ class SuratForm
                     ->default(now())
                     ->dehydrated(),
 
+                Hidden::make('tanggal_kirim')
+                    ->default(null)
+                    ->dehydrated(),
             ]);
     }
 }

@@ -57,9 +57,7 @@ class EditSurat extends EditRecord
             ->color('primary')
             ->outlined()
             ->action(function () {
-
                 $data = $this->form->getState();
-
                 $this->record->update($data);
 
                 Notification::make()
@@ -79,11 +77,12 @@ class EditSurat extends EditRecord
             ->label('Kirim Langsung')
             ->color('primary')
             ->requiresConfirmation()
+           
             ->before(function (Action $action) {
 
                 $unitIds = $this->data['unitTujuan'] ?? [];
 
-                if (isEmpty($unitIds)) {
+                if (empty($unitIds)) {
                     Notification::make()
                         ->title('Tujuan Tidak Boleh Kosong')
                         ->danger()

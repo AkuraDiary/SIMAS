@@ -48,6 +48,8 @@ class CreateSurat extends CreateRecord
                 'status_baca' => 'BELUM',
             ]);
         }
+        
+    
     }
 
     protected function getSaveDraftAction(): Action
@@ -58,7 +60,6 @@ class CreateSurat extends CreateRecord
             ->action(function () {
 
                 $data = $this->form->getState();
-
 
                 $data['status_surat'] = 'DRAFT';
 
@@ -83,31 +84,28 @@ class CreateSurat extends CreateRecord
             ->requiresConfirmation()
             ->before(function (Action $action) {
                 $unitIds = $this->data['unitTujuan'] ?? [];
-
-                if (isEmpty($unitIds)) {
+                
+                if (empty($unitIds)) {
                     Notification::make()
                         ->title('Tujuan Tidak Boleh Kosong')
                         ->danger()
                         ->send();
                     $action->halt();
                 }
-
-                $surat = $this->record;
-
-                foreach ($unitIds as $index => $unitId) {
-                    $surat->unitTujuan()->updateExistingPivot($unitId, [
-                        'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan',
-                        'status_baca' => 'BELUM',
-                    ]);
-                }
+               
             })
             ->action(function () {
                 $data = $this->form->getState();
+            
                 $data['status_surat']   = 'TERKIRIM';
                 $data['tanggal_kirim']  = now();
 
-                $this->create();
+                $this->form->fill($data);
 
+                
+
+                $this->create();
+                
                 Notification::make()
                     ->title('Surat berhasil dikirim')
                     ->success()
