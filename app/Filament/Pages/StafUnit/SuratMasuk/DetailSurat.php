@@ -63,7 +63,10 @@ class DetailSurat extends Page
 
         // Mark read ONLY if lewat surat_unit
         if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
-            $this->suratUnit->update(['status_baca' => 'SUDAH']);
+            $this->suratUnit->update([
+                'status_baca' => 'SUDAH',
+                'tanggal_terima' => now()
+            ]);
         }
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();

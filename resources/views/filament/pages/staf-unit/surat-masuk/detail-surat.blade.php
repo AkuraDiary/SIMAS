@@ -4,10 +4,11 @@
         <x-slot name="heading">Penerima</x-slot>
         @foreach ($surat->suratUnits as $su)
         <p>
+        <strong>{{ $su->unitKerja->nama_unit }}</strong>
             <x-filament::badge :color="$su->jenis_tujuan === 'utama' ? 'primary' : 'secondary'">
                 {{ $su->jenis_tujuan === 'utama' ? 'Tujuan Utama' : 'Tembusan' }}
             </x-filament::badge>
-            <strong>{{ $su->unitKerja->nama_unit }}</strong>
+            
         </p>
         <br>
         @endforeach
@@ -93,12 +94,20 @@
         </x-slot>
 
         <p><strong>Perihal:</strong> {{ $surat->perihal }}</p>
-        <p><strong>Pengirim Awal:</strong> {{ $surat->unitPengirim->nama_unit }}</p>
+
+        @if ($surat->tipe_surat === 'EKSTERNAL')
+        <p><strong>Pengirim:</strong> {{ $surat->pengirim_eksternal }} melalui {{ $surat->unitPengirim->nama_unit }}</p>    
+        @else
+        <p><strong>Pengirim Asal:</strong> {{ $surat->unitPengirim->nama_unit }}</p>
+        @endif
+        
+        
+
         @if ($suratUnit)
         <p><strong>Diterima:</strong> {{ $suratUnit?->tanggal_terima ?? '-' }}</p>
         @endif
 
-        <p><strong>Jenis Surat:</strong>
+        <p><strong>Tujuan Surat:</strong>
             {{ $jenisTujuanLabel }}
         </p>
 

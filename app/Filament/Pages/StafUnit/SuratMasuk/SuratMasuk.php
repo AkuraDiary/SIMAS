@@ -44,7 +44,7 @@ class SuratMasuk extends Page implements HasTable
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
             ])
-            
+
             ->orderByDesc('tanggal_kirim');
     }
 
@@ -55,26 +55,33 @@ class SuratMasuk extends Page implements HasTable
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
             ->columns([
-                TextColumn::make('status_surat')
-                    ->label('Status Surat')
+
+                // TextColumn::make('status_surat')
+                //     ->label('Status Surat')
+                //     ->searchable()
+                //     ->badge()
+                //     ->sortable()
+                //     ->getStateUsing(function (Surat $record): string {
+                //         return match ($record?->status_surat) {
+                //             'TERKIRIM' => 'Surat Baru',
+                //             default => $record?->status_surat,
+                //         };
+                //     })
+                //     ->color(function (Surat $record): string {
+
+                //         return match ($record->status_surat) {
+                //             'BARU' => 'primary',
+                //             'DIPROSES' => 'warning',
+                //             'SELESAI' => 'success',
+                //             default => 'secondary',
+                //         };
+                //     }),
+
+                TextColumn::make('tanggal_kirim')
+                    ->label('Tanggal Kirim')
                     ->searchable()
-                    ->badge()
-                    ->sortable()
-                    ->getStateUsing(function (Surat $record): string {
-                        return match ($record?->status_surat) {
-                            'TERKIRIM' => 'Surat Baru',
-                            default => $record?->status_surat,
-                        };
-                    })
-                    ->color(function (Surat $record): string {
-                    
-                        return match ($record->status_surat) {
-                            'BARU' => 'primary',
-                            'DIPROSES' => 'warning',
-                            'SELESAI' => 'success',
-                            default => 'secondary',
-                        };
-                    }),
+                    ->sortable(),
+
                 TextColumn::make('nomor_surat')
                     ->label('Nomor Surat')
                     ->searchable(),
@@ -86,13 +93,22 @@ class SuratMasuk extends Page implements HasTable
 
                 TextColumn::make('tipe_surat')
                     ->label('Tipe Surat')
+                    ->sortable()
+                    ->searchable()
                     ->badge(),
 
                 TextColumn::make('unitPengirim.nama_unit')
-                    ->label('Pengirim'),
+                    ->label('Pengirim')
+                    ->getStateUsing(function (Surat $record): string {
+                        if ($record->tipe_surat === 'EKSTERNAL') {
+                            return $record->pengirim_eksternal . ' melalui ' .  $record->unitPengirim->nama_unit;
+                        } else {
+                            return $record->unitPengirim->nama_unit;
+                        }
+                    }),
 
                 TextColumn::make('tujuan_label')
-                    ->label('Tipe Surat')
+                    ->label('Tujuan')
                     ->badge()
                     ->getStateUsing(function (Surat $record): string {
                         $unitId = Auth::user()->unit_kerja_id;
