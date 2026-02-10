@@ -22,6 +22,7 @@ use App\Filament\Pages\SimasDashboard;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Models\User;
+use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
@@ -33,7 +34,7 @@ class SimasPanelProvider extends PanelProvider
             ->default()
             ->id('simas')
             ->path('')
-          
+            ->viteTheme('resources/css/filament/simas/theme.css')
             ->favicon(asset('favicon.png'))
             ->authGuard('web')
             ->profile(EditProfile::class)
@@ -66,8 +67,17 @@ class SimasPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            ->plugin(
+                AuthUIEnhancerPlugin::make()
+                    ->showEmptyPanelOnMobile(false)
+                    ->formPanelPosition('right')
+                    ->formPanelWidth('40%')
+                    
+                    ->emptyPanelBackgroundImageUrl('https://images.unsplash.com/photo-1603796846097-bee99e4a601f?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
+            )
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+        ;
     }
 }

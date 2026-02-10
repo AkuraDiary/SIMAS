@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Auth;
 
+use DiogoGPinto\AuthUIEnhancer\Pages\Auth\Concerns\HasCustomLayout;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
@@ -11,10 +12,12 @@ use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin
 {
+    use HasCustomLayout;
 
     public function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema
+        ->components([
             $this->getLoginFormComponent(),
             $this->getPasswordFormComponent(),
             $this->getRememberFormComponent(),
