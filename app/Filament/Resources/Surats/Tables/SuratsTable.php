@@ -11,6 +11,7 @@ use Filament\Tables\Table;
 use App\Models\Surat;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Resources\Surats\Pages\EditSurat;
+use Illuminate\Support\Facades\Request;
 
 class SuratsTable
 {
@@ -30,8 +31,12 @@ class SuratsTable
                 TextColumn::make('tanggal_kirim')
                     ->dateTime()
                     ->sortable(),
+
+
                 TextColumn::make('status_surat')
-                    ->badge(),
+                    ->badge()
+                    ->visible(fn($record) => Request::query('scope') != 'arsip'),
+
 
                 TextColumn::make('created_at')
                     ->dateTime()
@@ -47,7 +52,6 @@ class SuratsTable
             ])
             ->recordActions([
                 EditAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
-
                 DeleteAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
 
             ])

@@ -28,6 +28,7 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
+        // return true;
         return $user->peran === 'superadmin';
     }
 
@@ -52,6 +53,7 @@ class UserPolicy
      */
     public function restore(User $user, User $model): bool
     {
+        
         return $user->peran === 'superadmin';
     }
 
@@ -60,6 +62,7 @@ class UserPolicy
      */
     public function forceDelete(User $user, User $model): bool
     {
+        
         return $user->peran === 'superadmin';
     }
 }

@@ -106,14 +106,6 @@ class DetailSurat extends Page
                 ],
                 default =>
                 [
-
-
-                    // Action::make('respon_surat_unit')
-                    //     ->label('Tindak Lanjuti')
-                    //     ->color('success')
-                    //     ->schema($this->getResponSuratUnitForm())
-                    //     ->action(fn(array $data) => $this->handleResponSuratUnit($data)),
-
                     Action::make('disposisi')
                         ->label('Disposisikan')
                         ->icon('heroicon-o-arrow-right-circle')
@@ -145,12 +137,14 @@ class DetailSurat extends Page
                 ],
             };
 
-        return $conditionalsactions + [
+        return [
+            ...$conditionalsactions,
             Action::make('export')
                 ->label('Export Surat')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => redirect()->route('surat.export', $this->surat)),
         ];
+        
     }
 
     protected function getDisposisiForm(): array

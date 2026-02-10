@@ -28,15 +28,9 @@ class ListSurats extends ListRecords
         };
     }
 
-    public function getHeading(): string
-    {
-        // Often you want the heading to match the title
-        return $this->getTitle();
-    }
-    protected function getHeaderActions(): array
+    public function getHeaderActions(): array
     {
         return [
-
             CreateAction::make()->label("Buat Surat Baru"),
         ];
     }

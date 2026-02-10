@@ -13,7 +13,8 @@ class SuratPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        
+        return $user->peran === 'stafunit';
     }
 
     /**
@@ -53,7 +54,7 @@ class SuratPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->peran === 'stafunit';
     }
 
     /**
@@ -61,7 +62,8 @@ class SuratPolicy
      */
     public function update(User $user, Surat $surat): bool
     {
-        return false;
+        
+        return $user->peran === 'stafunit';
     }
 
     /**
@@ -69,7 +71,8 @@ class SuratPolicy
      */
     public function delete(User $user, Surat $surat): bool
     {
-        return false;
+        
+        return $user->peran === 'stafunit';
     }
 
     /**
@@ -77,7 +80,8 @@ class SuratPolicy
      */
     public function restore(User $user, Surat $surat): bool
     {
-        return false;
+        
+        return $user->peran === 'stafunit';
     }
 
     /**
@@ -85,6 +89,7 @@ class SuratPolicy
      */
     public function forceDelete(User $user, Surat $surat): bool
     {
-        return false;
+       
+        return $user->peran === 'stafunit';
     }
 }
