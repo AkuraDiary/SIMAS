@@ -3,14 +3,28 @@
     <x-filament::section collapsible>
         <x-slot name="heading">Penerima</x-slot>
         @foreach ($surat->suratUnits as $su)
-        <p>
-            <strong>{{ $su->unitKerja->nama_unit }}</strong>
-            <x-filament::badge :color="$su->jenis_tujuan === 'utama' ? 'primary' : 'secondary'">
+        <p class="text-sm text-gray-800 dark:text-gray-200">
+            <strong class="mr-2">
+                {{ $su->unitKerja->nama_unit }}
+            </strong>
+            -
+            <x-filament::badge
+                size="sm"
+                class="mr-1"
+                :color="$su->jenis_tujuan === 'utama' ? 'primary' : 'secondary'">
                 {{ $su->jenis_tujuan === 'utama' ? 'Tujuan Utama' : 'Tembusan' }}
             </x-filament::badge>
-
+            -
+            <x-filament::badge
+                size="sm"
+                :color="$su->status_baca === 'SUDAH' ? 'success' : 'secondary'">
+                {{ ucfirst(strtolower($su->status_baca)) }}
+                Dibaca
+                {{ $su->tanggal_terima
+            ? \Carbon\Carbon::parse($su->tanggal_terima)->format('d M Y H:i:s')
+            : '-' }}
+            </x-filament::badge>
         </p>
-        <br>
         @endforeach
     </x-filament::section>
     @endif
@@ -87,6 +101,7 @@
     </x-filament::badge>
     @endif
     --}}
+
     <x-filament::card>
         <x-slot name="heading">
             Surat
@@ -103,7 +118,7 @@
         <p><strong>Pengirim Asal:</strong> {{ $surat->unitPengirim->nama_unit }}</p>
         @endif
 
-
+        @if ($scope == 'masuk')
 
         @if ($suratUnit)
         <p><strong>Diterima:</strong> {{ $suratUnit?->tanggal_terima ?? '-' }}</p>
@@ -113,6 +128,7 @@
             {{ $jenisTujuanLabel }}
         </p>
 
+        @endif
         <br>
 
         <div class="prose max-w-none">

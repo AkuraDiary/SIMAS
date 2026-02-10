@@ -410,8 +410,6 @@ class DetailSurat extends Page
                 : 'Disposisi';
         }
 
-
-
         return match ($this->suratUnit?->jenis_tujuan) {
             'utama' => 'Tujuan Utama',
             'tembusan' => 'Tembusan',
