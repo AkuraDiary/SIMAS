@@ -52,7 +52,7 @@ class SuratResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        
+
         $unitId = Auth::user()->unit_kerja_id;
         return match (request('scope')) {
             'draft' => $query
@@ -72,8 +72,9 @@ class SuratResource extends Resource
                     'arsipSurats',
                     fn($q) =>
                     $q->where('unit_kerja_id', $unitId)
-                ),
-
+                )->with([
+                    'arsipSurats.kategoriArsip'
+                ]),
 
             default => $query
                 ->where('unit_pengirim_id', $unitId),

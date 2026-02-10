@@ -15,7 +15,7 @@ class SuperAdminStats extends StatsOverviewWidget
         return [
             Stat::make('Selamat Datang', Auth::user()->nama_lengkap,),
             Stat::make('Unit Aktif', UnitKerja::where('status_unit', 'aktif')->count()),
-            Stat::make('Akun User Aktif', User::where('status_user', 'aktif')->count()),
+            Stat::make('Akun User Aktif', User::where('status_user', 'aktif')->where('peran', 'stafunit')->count()),
         ];
     }
 }

@@ -11,6 +11,9 @@ use Filament\Tables\Table;
 use App\Models\Surat;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Resources\Surats\Pages\EditSurat;
+use App\Models\KategoriArsip;
+use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 
 class SuratsTable
@@ -35,20 +38,54 @@ class SuratsTable
 
                 TextColumn::make('status_surat')
                     ->badge()
-                    ->visible(fn($record) => Request::query('scope') != 'arsip'),
+                    ->visible(fn() => request('scope') != 'arsip'),
+
+                TextColumn::make('arsip_kategori')
+                    ->label('Diarsipkan Di')
+                    ->badge()
+                    ->visible(fn() => request('scope') === 'arsip')
+                    ->getStateUsing(function (Surat $record) {
+                        $unitId = Auth::user()->unit_kerja_id;
+
+                        $arsip = $record->arsipSurats
+                            ->firstWhere('unit_kerja_id', $unitId);
+
+                        return $arsip?->kategoriArsip?->nama ?? '-';
+                    })
+                    ->color('success'),
 
 
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+
+                SelectFilter::make('kategori_arsip_id')
+                    ->label('Kategori Arsip')
+                    ->options(function () {
+                        return KategoriArsip::query()
+                            ->where('unit_kerja_id', Auth::user()->unit_kerja_id)
+                            ->pluck('nama', 'id');
+                    })
+                    ->query(function ($query, $value) {
+                        $unitId = Auth::user()->unit_kerja_id;
+
+                        $query->whereHas(
+                            'arsipSurats',
+                            fn($q) =>
+                            $q->where('unit_kerja_id', $unitId)
+                                ->where('kategori_arsip_id', $value)
+                        );
+                    })
+                    ->visible(fn() => request('scope') === 'arsip'),
+
             ])
             ->recordActions([
                 EditAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
@@ -66,12 +103,13 @@ class SuratsTable
                         panel: 'simas'
                     )
             )
+            ->modifyQueryUsing(function ($query) {
+                if (request('scope') === 'arsip') {
+                    $query->with(['arsipSurats.kategoriArsip']);
+                }
+            })            
 
-            ->toolbarActions([
-                // BulkActionGroup::make([
-                //     DeleteBulkAction::make(),
-                // ]),
-            ])
+            ->toolbarActions([])
             ->emptyStateHeading('TIdak Ada Data Surat')
             ->emptyStateDescription('');
     }
