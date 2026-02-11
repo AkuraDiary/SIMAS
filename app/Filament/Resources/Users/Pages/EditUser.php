@@ -17,4 +17,9 @@ class EditUser extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function afterSave(){
+        // redirect to list page
+        $this->redirect(UserResource::getUrl());
+    }
 }
