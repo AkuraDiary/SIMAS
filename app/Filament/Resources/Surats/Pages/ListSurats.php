@@ -11,22 +11,30 @@ class ListSurats extends ListRecords
 {
     protected static string $resource = SuratResource::class;
 
-     public function getBreadcrumbs(): array
+    public string $scope = 'keluar'; // or whatever default
+
+    protected $queryString = [
+        'scope' => ['except' => 'keluar'],
+    ];
+
+    public function getBreadcrumbs(): array
     {
         return [
-            SuratResource::getUrl('index', ['scope' => Request::query('scope')]) => $this->getTitle(),
+            SuratResource::getUrl('index', ['scope' => $this->scope]) => $this->getTitle(),
             '#' => 'List Surat',
         ];
     }
     public function getTitle(): string
     {
-        return match (Request::query('scope')) {
+        return match ($this->scope) {
             'keluar' => 'Surat Keluar',
             'draft'  => 'Draft Surat',
             'arsip'  => 'Arsip Surat',
             default  => 'Semua Surat',
         };
     }
+
+
 
     public function getHeaderActions(): array
     {

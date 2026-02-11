@@ -22,6 +22,7 @@ class SuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
+    
     public static function canAccess(): bool
     {
         return Auth::user()?->peran === 'stafunit';
@@ -48,12 +49,12 @@ class SuratResource extends Resource
         ];
     }
 
-
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
 
         $unitId = Auth::user()->unit_kerja_id;
+
         return match (request('scope')) {
             'draft' => $query
                 ->where('unit_pengirim_id', $unitId)
@@ -72,10 +73,12 @@ class SuratResource extends Resource
                     'arsipSurats',
                     fn($q) =>
                     $q->where('unit_kerja_id', $unitId)
-                )->with([
+                )
+                ->with([
                     'arsipSurats.kategoriArsip'
                 ]),
 
+            // all surat sent by this user
             default => $query
                 ->where('unit_pengirim_id', $unitId),
         };

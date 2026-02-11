@@ -12,14 +12,27 @@ use App\Models\Surat;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Resources\Surats\Pages\EditSurat;
 use App\Models\KategoriArsip;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
+use PHPUnit\TextUI\Configuration\SourceFilter;
 
 class SuratsTable
 {
+
+    public string $scope = 'masuk';
+
+    public function mount(): void
+    {
+        $this->scope = request()->get('scope', 'masuk');
+    }
+
+
     public static function configure(Table $table): Table
     {
+
         return $table
             ->columns([
                 TextColumn::make('nomor_agenda')
@@ -38,12 +51,12 @@ class SuratsTable
 
                 TextColumn::make('status_surat')
                     ->badge()
-                    ->visible(fn() => request('scope') != 'arsip'),
+                    ->visible(fn($livewire) => $livewire->scope != 'arsip'),
 
                 TextColumn::make('arsip_kategori')
                     ->label('Diarsipkan Di')
                     ->badge()
-                    ->visible(fn() => request('scope') === 'arsip')
+                    ->visible(fn($livewire) => $livewire->scope === 'arsip')
                     ->getStateUsing(function (Surat $record) {
                         $unitId = Auth::user()->unit_kerja_id;
 
@@ -74,17 +87,23 @@ class SuratsTable
                             ->where('unit_kerja_id', Auth::user()->unit_kerja_id)
                             ->pluck('nama', 'id');
                     })
-                    ->query(function ($query, $value) {
-                        $unitId = Auth::user()->unit_kerja_id;
+                    ->query(function (Builder $query, array $data) {
 
-                        $query->whereHas(
-                            'arsipSurats',
-                            fn($q) =>
-                            $q->where('unit_kerja_id', $unitId)
-                                ->where('kategori_arsip_id', $value)
-                        );
+                        $value = $data['value'] ?? null;
+
+
+                        // dd($value);
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('arsipSurats', function ($q) use ($value) {
+                            $q->where('kategori_arsip_id', $value);
+                        });
                     })
-                    ->visible(fn() => request('scope') === 'arsip'),
+
+                    ->visible(fn($livewire) => $livewire->scope === 'arsip')
+
 
             ])
             ->recordActions([
@@ -103,14 +122,11 @@ class SuratsTable
                         panel: 'simas'
                     )
             )
-            ->modifyQueryUsing(function ($query) {
-                if (request('scope') === 'arsip') {
-                    $query->with(['arsipSurats.kategoriArsip']);
-                }
-            })            
 
             ->toolbarActions([])
             ->emptyStateHeading('TIdak Ada Data Surat')
-            ->emptyStateDescription('');
+            ->emptyStateDescription('')
+            ->persistSearchInSession()
+            ->persistSortInSession();;
     }
 }
