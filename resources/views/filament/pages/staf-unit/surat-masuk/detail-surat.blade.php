@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    @if ($scope == 'keluar')
+    @if ($surat->unit_pengirim_id === $userUnitId )
     <x-filament::section collapsible>
         <x-slot name="heading">Penerima</x-slot>
         @foreach ($surat->suratUnits as $su)
