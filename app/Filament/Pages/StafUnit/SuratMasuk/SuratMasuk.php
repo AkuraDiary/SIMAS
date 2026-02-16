@@ -9,6 +9,7 @@ use Filament\Tables\Contracts\HasTable;
 use Illuminate\Support\Facades\Auth;
 use Filament\Support\Icons\Heroicon;
 use BackedEnum;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -18,6 +19,42 @@ class SuratMasuk extends Page implements HasTable
 {
     use InteractsWithTable;
     protected string $view = 'filament.pages.staf-unit.surat-masuk.surat-masuk';
+    public int $lastCount = 0;
+
+    public function mount(): void
+    {
+        // for initials
+        $this->lastCount = $this->getSuratMasukCount();
+    }
+
+    protected function getSuratMasukCount(): int
+    {
+        $unitId = Auth::user()->unit_kerja_id;
+
+        return Surat::query()
+            ->untukUnit($unitId)
+            ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
+                $q->where('unit_kerja_id', $unitId);
+            })
+            ->count();
+    }
+
+
+    public function hydrate(): void
+    {
+        $currentCount = $this->getSuratMasukCount();
+
+        if ($this->lastCount !== 0 && $currentCount > $this->lastCount) {
+            \Filament\Notifications\Notification::make()
+                ->title('Surat baru masuk')
+                ->info()
+                ->send();
+        }
+
+        $this->lastCount = $currentCount;
+    }
+
+
 
     public static function canAccess(): bool
     {
@@ -35,6 +72,7 @@ class SuratMasuk extends Page implements HasTable
 
     protected function getTableQuery(): Builder
     {
+
         $unitId = Auth::user()->unit_kerja_id;
 
         return Surat::query()
@@ -55,6 +93,7 @@ class SuratMasuk extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->poll('7s')
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
             ->columns([
