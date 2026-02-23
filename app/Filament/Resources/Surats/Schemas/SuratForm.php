@@ -59,7 +59,6 @@ class SuratForm
                     ->columnSpanFull()
                     ->schema([
 
-
                         TextInput::make('nomor_agenda')
                             ->label('Nomor Agenda')
                             ->required(),
@@ -74,8 +73,7 @@ class SuratForm
                         Textarea::make('isi_surat')
                             ->label('Isi Surat')
                             ->rows(10)
-                            ->columnSpanFull()
-                            ->required(),
+                            ->columnSpanFull(),
                     ]),
 
 

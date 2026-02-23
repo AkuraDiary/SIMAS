@@ -23,7 +23,7 @@ class SuratMasuk extends Page implements HasTable
 
     public function mount(): void
     {
-        // for initials
+        // for initials data
         $this->lastCount = $this->getSuratMasukCount();
     }
 
