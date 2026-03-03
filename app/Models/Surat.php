@@ -66,6 +66,7 @@ class Surat extends Model implements HasMedia
             ->width(300)
             ->height(300)
             ->sharpen(10)
+            
             ->nonQueued();
     }
 

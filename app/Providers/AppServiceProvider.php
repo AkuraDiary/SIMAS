@@ -10,6 +10,7 @@ use App\Policies\UnitKerjaPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAdded;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
         UnitKerja::class => UnitKerjaPolicy::class,
         Surat::class => SuratPolicy::class,
     ];
-
+    
     /**
      * Bootstrap any application services.
      */

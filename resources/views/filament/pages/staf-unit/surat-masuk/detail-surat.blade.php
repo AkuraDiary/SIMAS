@@ -1,4 +1,31 @@
 <x-filament-panels::page>
+
+    <x-filament::modal
+        id="preview-modal"
+        width="8xl">
+        <x-slot name="heading">
+            Preview File
+        </x-slot>
+
+        @if ($previewUrl)
+        <iframe src="{{ $previewUrl }}" style="height: 85vh;" class="border-0"></iframe>
+        @endif
+
+        <x-slot name="footer">
+            <div class="flex justify-end">
+                <x-filament::button
+                    tag="a"
+                    href="{{ $downloadUrl }}"
+                    target="_blank"
+                    color="primary">
+                    Download
+                </x-filament::button>
+            </div>
+        </x-slot>
+
+    </x-filament::modal>
+
+
     @if ($surat->unit_pengirim_id === $userUnitId )
     <x-filament::section collapsible>
         <x-slot name="heading">Penerima</x-slot>
@@ -169,34 +196,39 @@
         @endphp
 
         <x-filament::card style="display: inline-block;" class="gap-4">
-                @if ($isImage || $isPdf)
-                <a href="{{ route('media.preview', $lampiran->id) }}" target="_blank">
-                @else
-                <a href="https://docs.google.com/gview?url={{ urlencode(route('media.preview', $lampiran->id)) }}&embedded=true" target="_blank">
-                @endif
-                    <ul>
-                        <li>
-                            {{-- Thumbnail / placeholder --}}
-                            @if ($lampiran->hasGeneratedConversion('thumb'))
-                            <img
-                                style=" object-fit: fill;"
-                                src="{{ route('media.thumb', $lampiran->id) }}"
-                                alt="{{ $lampiran->file_name }}" />
-                            @else
-                            <div
-                                style="display: inline-block;">
-                                {{ strtoupper($lampiran->extension) }}
-                            </div>
-                            @endif
-                        </li>
-                        <li>
-                            {{-- Filename --}}
-                            <x-filament::badge>
-                                {{ $lampiran->file_name }}
-                            </x-filament::badge>
-                        </li>
-                    </ul>
-                </a>
+            @php
+            $mime = $lampiran->mime_type;
+            $isWord = in_array($mime, [
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ]);
+            @endphp
+
+
+            <button wire:click="openPreview({{ $lampiran->id }})">
+                <ul>
+                    <li>
+                        {{-- Thumbnail / placeholder --}}
+                        @if ($lampiran->hasGeneratedConversion('thumb'))
+                        <img
+                            style=" object-fit: fill;"
+                            src="{{ route('media.thumb', $lampiran->id) }}"
+                            alt="{{ $lampiran->file_name }}" />
+                        @else
+                        <div
+                            style="display: inline-block;">
+                            {{ strtoupper($lampiran->extension) }}
+                        </div>
+                        @endif
+                    </li>
+                    <li>
+                        {{-- Filename --}}
+                        <x-filament::badge>
+                            {{ $lampiran->file_name }}
+                        </x-filament::badge>
+                    </li>
+                </ul>
+            </button>
         </x-filament::card>
         @endforeach
         @endif

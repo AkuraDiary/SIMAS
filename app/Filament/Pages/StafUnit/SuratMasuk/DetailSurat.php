@@ -18,7 +18,9 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Section;
+use PhpOffice\PhpWord\IOFactory;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use PhpOffice\PhpWord\Settings;
 use Illuminate\Validation\Rule;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -117,7 +119,7 @@ class DetailSurat extends Page implements HasForms
                         ->visible(fn() => $this->canDisposisi())
                         ->schema($this->getDisposisiForm())
                         ->model(Disposisi::class)
-                        ->action(function (array $data, Action $action) {  
+                        ->action(function (array $data, Action $action) {
                             return $this->handleDisposisi($data, $action);
                         }),
 
@@ -347,7 +349,7 @@ class DetailSurat extends Page implements HasForms
                     ->toMediaCollection('bukti-disposisi');
             }
             // $action->model($disposisi)->save;
-            
+
         }
 
 
@@ -373,6 +375,36 @@ class DetailSurat extends Page implements HasForms
 
 
     // Helper methods
+
+    public ?string $previewHtml = null;
+    public ?string $previewUrl = null;
+    public ?string $downloadUrl = null;
+    public bool $previewModal = false;
+
+
+    public function openPreview(int $mediaId): void
+    {
+        $media = Media::findOrFail($mediaId);
+
+        if (str_starts_with($media->mime_type, 'image/') || $media->mime_type === 'application/pdf') {
+
+            $this->previewUrl = route('media.file', $media->id);
+            $this->downloadUrl = route('media.download', $media->id);
+        } elseif ($media->getCustomProperty('preview_media_id')) {
+
+            $previewMedia = Media::find($media->getCustomProperty('preview_media_id'));
+
+            $this->previewUrl = route('media.file', $previewMedia->id);
+            $this->downloadUrl = route('media.download', $media->id); // download original
+
+        } else {
+
+            $this->previewUrl = null;
+            $this->downloadUrl = route('media.download', $media->id);
+        }
+
+        $this->dispatch('open-modal', id: 'preview-modal');
+    }
 
     protected function refreshPage(string $message, ?string $body): void
     {

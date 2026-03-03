@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\IOFactory;
+
 
 class MediaController extends Controller
 {
@@ -11,9 +12,26 @@ class MediaController extends Controller
     {
         $path = $media->getPath('thumb');
         abort_unless(file_exists($path), 404);
+
         return response()->file($path,  ['Content-Type' => $media->mime_type]);
     }
+    public function previewWord(Media $media)
+    {
+        $path = $media->getPath();
+        abort_unless(file_exists($path), 404);
 
+        $phpWord = IOFactory::load($path);
+
+        $writer = IOFactory::createWriter($phpWord, 'HTML');
+
+        ob_start();
+        $writer->save('php://output');
+        $html = ob_get_clean();
+
+        return response()->json([
+            'html' => $html
+        ]);
+    }
     public function file(Media $media)
     {
         $path = $media->getPath();
@@ -24,7 +42,6 @@ class MediaController extends Controller
     {
         $path = $media->getPath();
         abort_unless(file_exists($path), 404);
-
         return response()->file($path, [
             'Content-Type' => $media->mime_type,
             'Content-Disposition' => 'inline; filename="' . $media->file_name . '"',
