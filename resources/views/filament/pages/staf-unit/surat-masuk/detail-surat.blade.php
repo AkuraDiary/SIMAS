@@ -2,7 +2,7 @@
 
     <x-filament::modal
         id="preview-modal"
-        width="8xl">
+        width="7xl">
         <x-slot name="heading">
             Preview File
         </x-slot>

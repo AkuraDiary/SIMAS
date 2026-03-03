@@ -40,9 +40,12 @@ class Surat extends Model implements HasMedia
     // In Disposisi.php
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('lampiran-surat');
-    }
+        $this->addMediaCollection('lampiran-surat')
+            ->useDisk('private');
 
+        $this->addMediaCollection('lampiran-preview')
+            ->useDisk('private');
+    }
     public function suratUnits(): HasMany
     {
         return $this->hasMany(SuratUnit::class);
@@ -61,13 +64,13 @@ class Surat extends Model implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
-        $this
-            ->addMediaConversion('thumb')
-            ->width(300)
-            ->height(300)
-            ->sharpen(10)
-            
-            ->nonQueued();
+        if ($media && $media->mime_type === 'application/pdf') {
+            $this->addMediaConversion('thumb')
+                ->width(300)
+                ->height(400)
+                ->sharpen(10)
+                ->nonQueued();
+        }
     }
 
     public function arsipSurats(): HasMany
