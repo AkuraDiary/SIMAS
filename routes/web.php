@@ -10,9 +10,11 @@ use App\Http\Controllers\SuratExportController;
 //     return view('welcome');
 // });
 Route::middleware('auth')->group(function () {
-    Route::get('/media/{media}/img', [MediaController::class, 'img'])
-        ->name('media.img');
-        
+    
+
+    Route::get('/media/{media}/preview', [MediaController::class, 'preview'])
+        ->name('media.preview')->middleware('signed');;
+
     Route::get('/media/{media}/thumb', [MediaController::class, 'thumb'])
         ->name('media.thumb');
 

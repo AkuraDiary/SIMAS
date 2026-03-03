@@ -94,13 +94,12 @@
         <p class="text-gray-500 italic">Tidak ada Bukti.</p>
         @else
         @foreach ($d->getMedia('bukti-disposisi') as $media)
-
-        <img
-            src="{{ route('media.img', $media->id) }}"
-
-            alt="{{ $media->file_name }}"
-            style="max-width: 300px;" />
-
+        <a href="{{ route('media.preview', $media->id) }}" target="_blank">
+            <img
+                src="{{ route('media.preview', $media->id) }}"
+                alt="{{ $media->file_name }}"
+                style="max-width: 300px;" />
+        </a>
         @endforeach
         @endif
 
@@ -163,34 +162,41 @@
 
 
         @foreach ($lampirans as $lampiran)
+        @php
+        $mime = $lampiran->mime_type;
+        $isImage = str_starts_with($mime, 'image/');
+        $isPdf = $mime === 'application/pdf';
+        @endphp
 
         <x-filament::card style="display: inline-block;" class="gap-4">
-            <a
-                href="{{ route('media.download', $lampiran->id) }}"
-                target="_blank">
-                <ul>
-                    <li>
-                        {{-- Thumbnail / placeholder --}}
-                        @if ($lampiran->hasGeneratedConversion('thumb'))
-                        <img
-                            style=" object-fit: fill;"
-                            src="{{ route('media.thumb', $lampiran->id) }}"
-                            alt="{{ $lampiran->file_name }}" />
-                        @else
-                        <div
-                            style="display: inline-block;">
-                            {{ strtoupper($lampiran->extension) }}
-                        </div>
-                        @endif
-                    </li>
-                    <li>
-                        {{-- Filename --}}
-                        <x-filament::badge>
-                            {{ $lampiran->file_name }}
-                        </x-filament::badge>
-                    </li>
-                </ul>
-            </a>
+                @if ($isImage || $isPdf)
+                <a href="{{ route('media.preview', $lampiran->id) }}" target="_blank">
+                @else
+                <a href="https://docs.google.com/gview?url={{ urlencode(route('media.preview', $lampiran->id)) }}&embedded=true" target="_blank">
+                @endif
+                    <ul>
+                        <li>
+                            {{-- Thumbnail / placeholder --}}
+                            @if ($lampiran->hasGeneratedConversion('thumb'))
+                            <img
+                                style=" object-fit: fill;"
+                                src="{{ route('media.thumb', $lampiran->id) }}"
+                                alt="{{ $lampiran->file_name }}" />
+                            @else
+                            <div
+                                style="display: inline-block;">
+                                {{ strtoupper($lampiran->extension) }}
+                            </div>
+                            @endif
+                        </li>
+                        <li>
+                            {{-- Filename --}}
+                            <x-filament::badge>
+                                {{ $lampiran->file_name }}
+                            </x-filament::badge>
+                        </li>
+                    </ul>
+                </a>
         </x-filament::card>
         @endforeach
         @endif
