@@ -14,6 +14,13 @@ class MediaController extends Controller
         return response()->file($path,  ['Content-Type' => $media->mime_type]);
     }
 
+    public function img(Media $media)
+    {
+        $path = $media->getPath();
+        abort_unless(file_exists($path), 404);
+        return response()->file($path,  ['Content-Type' => $media->mime_type]);
+    }
+
     public function download(Media $media)
     {
         return response()->download(

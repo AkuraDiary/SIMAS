@@ -88,25 +88,22 @@
             {!! nl2br($d->catatan) !!}
         </p>
         @endif
-
-        @php
-        $buktiDisposisis = $d->getMedia('bukti-disposisi');
-        
-        @endphp
-
-        @if ($buktiDisposisis->isEmpty())
+        <br>
+        <caption>Bukti Disposisi :</caption>
+        @if ($d->getMedia('bukti-disposisi')->isEmpty())
         <p class="text-gray-500 italic">Tidak ada Bukti.</p>
         @else
+        @foreach ($d->getMedia('bukti-disposisi') as $media)
 
-
-        @foreach ($buktiDisposisis as $buktiDisposisi)
         <img
-            style="object-fit: fill;"
-            src="{{ $buktiDisposisi }}"
-            alt="{{ $buktiDisposisi->file_name }}" />
-        <br>
+            src="{{ route('media.img', $media->id) }}"
+
+            alt="{{ $media->file_name }}"
+            style="max-width: 300px;" />
+
         @endforeach
         @endif
+
         @endif
         @endforeach
         @endif
