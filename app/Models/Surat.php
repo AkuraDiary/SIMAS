@@ -18,6 +18,7 @@ class Surat extends Model implements HasMedia
     /** @use HasFactory<\Database\Factories\SuratFactory> */
     use HasFactory;
 
+
     protected $fillable = [
         'nomor_agenda',
         'nomor_surat',
@@ -34,6 +35,12 @@ class Surat extends Model implements HasMedia
     public function unitPengirim(): BelongsTo
     {
         return $this->belongsTo(UnitKerja::class, 'unit_pengirim_id');
+    }
+
+    // In Disposisi.php
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('lampiran-surat');
     }
 
     public function suratUnits(): HasMany
@@ -84,7 +91,7 @@ class Surat extends Model implements HasMedia
                 'status_baca',
             ]);
     }
-      
+
     public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query

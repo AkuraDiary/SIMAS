@@ -5,12 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Disposisi extends Model
+class Disposisi extends Model implements HasMedia
 {
     /** @use HasFactory<\Database\Factories\DisposisiFactory> */
+    use InteractsWithMedia;
     use HasFactory;
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('bukti-disposisi')
+            ->singleFile(); // Since you set multiple(false) in Filament
+    }
 
     protected $fillable = [
         'jenis_instruksi',
@@ -49,6 +58,4 @@ class Disposisi extends Model
     {
         return $this->belongsTo(Disposisi::class, 'parent_disposisi_id');
     }
-
-   
 }

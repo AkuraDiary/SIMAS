@@ -69,6 +69,7 @@
         </p>
 
         <p class="ml-4">
+
             <strong>Sifat:</strong>
             <x-filament::badge color="gray">
                 {{ ucfirst($d->sifat) }}
@@ -88,9 +89,25 @@
         </p>
         @endif
 
-        <br>
-        @endif
+        @php
+        $buktiDisposisis = $d->getMedia('bukti-disposisi');
+        
+        @endphp
 
+        @if ($buktiDisposisis->isEmpty())
+        <p class="text-gray-500 italic">Tidak ada Bukti.</p>
+        @else
+
+
+        @foreach ($buktiDisposisis as $buktiDisposisi)
+        <img
+            style="object-fit: fill;"
+            src="{{ $buktiDisposisi }}"
+            alt="{{ $buktiDisposisi->file_name }}" />
+        <br>
+        @endforeach
+        @endif
+        @endif
         @endforeach
         @endif
     </x-filament::section>
@@ -180,7 +197,7 @@
         </x-filament::card>
         @endforeach
         @endif
-        </x-filament::section>
+    </x-filament::section>
 
 
 

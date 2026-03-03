@@ -16,12 +16,16 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Illuminate\Support\Facades\Request;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Section;
 use Illuminate\Validation\Rule;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Concerns\InteractsWithForms;
 
-class DetailSurat extends Page
+class DetailSurat extends Page implements HasForms
 {
+    use InteractsWithForms;
     protected string $view = 'filament.pages.staf-unit.surat-masuk.detail-surat';
     protected static ?string $slug = 'surat-masuk/{surat}';
 
@@ -112,7 +116,10 @@ class DetailSurat extends Page
                         ->color('warning')
                         ->visible(fn() => $this->canDisposisi())
                         ->schema($this->getDisposisiForm())
-                        ->action(fn(array $data) => $this->handleDisposisi($data)),
+                        ->model(Disposisi::class)
+                        ->action(function (array $data, Action $action) {  
+                            return $this->handleDisposisi($data, $action);
+                        }),
 
                     Action::make('respon_disposisi')
                         ->label('Tindaklanjuti Disposisi')
@@ -142,9 +149,8 @@ class DetailSurat extends Page
             Action::make('export')
                 ->label('Export Surat')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->action(fn () => redirect()->route('surat.export', $this->surat)),
+                ->action(fn() => redirect()->route('surat.export', $this->surat)),
         ];
-        
     }
 
     protected function getDisposisiForm(): array
@@ -200,11 +206,23 @@ class DetailSurat extends Page
                 ])
                 ->required(),
 
+
+            SpatieMediaLibraryFileUpload::make('bukti')
+                ->label("Bukti Disposisi (Max 5MB)")
+                ->multiple(false)
+                ->dehydrated(true)
+                ->image()
+                ->collection('bukti-disposisi')
+                ->preserveFilenames()
+                ->maxSize(5048)
+                ->required(),
+
             Textarea::make('catatan')
                 ->label('Catatan')
                 ->rows(4),
         ];
     }
+
     protected function getActionArsipkan()
     {
         return Action::make('arsipkan')
@@ -279,7 +297,7 @@ class DetailSurat extends Page
     }
     protected function handleResponSuratUnit(array $data): void {}
 
-    protected function handleDisposisi(array $data): void
+    protected function handleDisposisi(array $data, Action $action): void
     {
         $user = Auth::user();
         $unitId = $user->unit_kerja_id;
@@ -293,7 +311,6 @@ class DetailSurat extends Page
         $jenisInstruksi = $data['jenis_instruksi'] === 'lainnya'
             ? $data['instruksi_custom']
             : $data['jenis_instruksi'];
-
 
 
         foreach ($data['unit_tujuan_ids'] as $unitTujuanId) {
@@ -313,7 +330,7 @@ class DetailSurat extends Page
             }
 
 
-            Disposisi::create([
+            $disposisi = Disposisi::create([
                 'surat_id' => $this->surat->id,
                 'unit_tujuan_id' => $unitTujuanId,
                 'unit_pembuat_id' => $unitId,
@@ -324,7 +341,15 @@ class DetailSurat extends Page
                 'tanggal_disposisi' => now(),
                 'parent_disposisi_id' => $parentDisposisi?->id,
             ]);
+            if (!empty($data['bukti'])) {
+                $disposisi
+                    ->addMedia($data['bukti'])
+                    ->toMediaCollection('bukti-disposisi');
+            }
+            // $action->model($disposisi)->save;
+            
         }
+
 
         $this->surat->update([
             'status_surat' => 'DIPROSES',

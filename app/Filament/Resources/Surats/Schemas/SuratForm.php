@@ -58,7 +58,6 @@ class SuratForm
                 Section::make('Isi Surat')
                     ->columnSpanFull()
                     ->schema([
-
                         TextInput::make('nomor_agenda')
                             ->label('Nomor Agenda')
                             ->required(),
