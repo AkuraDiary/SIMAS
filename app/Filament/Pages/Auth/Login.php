@@ -28,7 +28,7 @@ class Login extends BaseLogin
     {
         return [
             'username' => $data['username'],
-            'password' => 'admin',
+            'password' => $data['password'],
         ];
     }
 
