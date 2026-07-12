@@ -6,21 +6,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ArsipSurat extends Model
+class UserPegawaiJabatan extends Model
 {
     use SoftDeletes;
 
+    protected $table = 'user_pegawai_jabatans';
+
     protected $fillable = [
-        'surat_id',
+        'user_pegawai_id',
         'unit_kerja_id',
-        'kategori_arsip_id',
-        'tanggal_arsip',
-        'catatan',
+        'jabatan_id',
+        'status_jabatan',
     ];
 
-    public function surat(): BelongsTo
+    public function pegawai(): BelongsTo
     {
-        return $this->belongsTo(Surat::class);
+        return $this->belongsTo(UserPegawai::class, 'user_pegawai_id');
     }
 
     public function unitKerja(): BelongsTo
@@ -28,8 +29,8 @@ class ArsipSurat extends Model
         return $this->belongsTo(UnitKerja::class);
     }
 
-    public function kategoriArsip(): BelongsTo
+    public function jabatan(): BelongsTo
     {
-        return $this->belongsTo(KategoriArsip::class);
+        return $this->belongsTo(Jabatan::class);
     }
 }
