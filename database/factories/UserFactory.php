@@ -23,7 +23,7 @@ class UserFactory extends Factory
         return [
             'username' => fake()->unique()->userName(),
             'email' => fake()->unique()->safeEmail(),
-            'tipe_entitas' => 'ADMIN',
+            'tipe_entitas' => 'STAF',
             'password' => Hash::make('password'),
         ];
     }

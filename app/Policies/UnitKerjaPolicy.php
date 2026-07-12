@@ -13,7 +13,7 @@ class UnitKerjaPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 
     /**
@@ -21,7 +21,7 @@ class UnitKerjaPolicy
      */
     public function view(User $user, UnitKerja $unitKerja): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 
     /**
@@ -29,7 +29,7 @@ class UnitKerjaPolicy
      */
     public function create(User $user): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 
     /**
@@ -37,7 +37,7 @@ class UnitKerjaPolicy
      */
     public function update(User $user, UnitKerja $unitKerja): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 
     /**
@@ -45,7 +45,7 @@ class UnitKerjaPolicy
      */
     public function delete(User $user, UnitKerja $unitKerja): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 
     /**
@@ -53,7 +53,7 @@ class UnitKerjaPolicy
      */
     public function restore(User $user, UnitKerja $unitKerja): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 
     /**
@@ -61,6 +61,6 @@ class UnitKerjaPolicy
      */
     public function forceDelete(User $user, UnitKerja $unitKerja): bool
     {
-        return $user->peran === 'superadmin';
+        return $user->peran === 'ADMIN';
     }
 }

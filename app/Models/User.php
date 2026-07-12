@@ -28,10 +28,9 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected $fillable = [
         'username',
         'password',
-        'nama_lengkap',
         'email',
-        'peran',
-        'status_user',
+        'tipe_entitas',
+        'is_active',
         'unit_kerja_id',
     ];
 
@@ -41,21 +40,23 @@ class User extends Authenticatable implements FilamentUser, HasName
         // Rule 1: Must be active
         // Rule 2: Must be either SuperAdmin or StafUnit
         // Rule 3: Unit Kerja must be active if unit kerja not null
-        if ($this->status_user !== 'aktif') {
+        // return true;
+
+        if (!$this->is_active) {
+            return $this->is_active;
+        }
+        
+        if (!in_array($this->tipe_entitas, ['ADMIN', 'STAF'])) {
             return false;
         }
 
-        if (!in_array($this->peran, ['superadmin', 'stafunit'])) {
-            return false;
-        }
+        // if ($this->unitKerja && $this->unitKerja->status_unit !== 'aktif') {
+        //     return false;
+        // }
 
-        if ($this->unitKerja && $this->unitKerja->status_unit !== 'aktif') {
-            return false;
-        }
-
-        if($this->peran === 'stafunit' && !$this->unitKerja){
-            return false;
-        }
+        // if ($this->peran === 'STAF' && !$this->unitKerja) {
+        //     return false;
+        // }
 
         return true;
     }
@@ -90,7 +91,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function getFilamentName(): string
     {
-        return $this->nama_lengkap;
+        return $this->username;
     }
 
     public function unitKerja(): BelongsTo

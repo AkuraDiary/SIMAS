@@ -18,11 +18,11 @@ class SimasDashboard extends BaseDashboard
         $user = Auth::user();
 
         return match ($user->peran) {
-            'superadmin' => [
+            'ADMIN' => [
                 SuperAdminStats::class,
                 // SuperAdminSuratChart::class,
             ],
-            'stafunit' => [
+            'STAF' => [
                 StafUnitStats::class,
                 // StafUnitInboxStats::class,
             ],

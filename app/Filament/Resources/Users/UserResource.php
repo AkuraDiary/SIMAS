@@ -32,7 +32,7 @@ class UserResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return Auth::user()?->peran === 'superadmin';
+        return Auth::user()?->peran === 'ADMIN';
     }
 
     public static function getEloquentQuery(): Builder
