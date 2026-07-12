@@ -15,9 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('surat_id')->constrained()->cascadeOnDelete();
             $table->foreignId('unit_kerja_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('kategori_arsip_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('kategori_arsip_id')->constrained();
             $table->timestamp('tanggal_arsip')->useCurrent();
             $table->text('catatan')->nullable();
+            $table->softDeletes();
             $table->timestamps();
             $table->unique(['surat_id', 'unit_kerja_id']);
         });

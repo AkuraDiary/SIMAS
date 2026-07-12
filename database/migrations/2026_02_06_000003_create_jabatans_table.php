@@ -11,14 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('kategori_arsips', function (Blueprint $table) {
+        Schema::create('jabatans', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('unit_kerja_id')->constrained()->cascadeOnDelete();
-            $table->string('nama');
+            $table->string('nama_jabatan');
+            $table->integer('level_jabatan')->default(99)->comment('level lokal jabatan; semakin kecil semakin tinggi');
             $table->softDeletes();
-            $table->timestamps();
-
-            $table->unique(['unit_kerja_id', 'nama']);
         });
     }
 
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('kategori_arsips');
+        Schema::dropIfExists('jabatans');
     }
 };

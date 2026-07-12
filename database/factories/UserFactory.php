@@ -22,11 +22,8 @@ class UserFactory extends Factory
     {
         return [
             'username' => fake()->unique()->userName(),
-            'nama_lengkap' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'peran' => 'stafunit',
-            'status_user' => 'aktif',
-            'unit_kerja_id' => UnitKerja::factory(),
+            'tipe_entitas' => 'ADMIN',
             'password' => Hash::make('password'),
         ];
     }
@@ -35,10 +32,8 @@ class UserFactory extends Factory
     {
         return $this->state(fn () => [
             'username' => 'admin',
-            'nama_lengkap' => 'Super Admin',
             'email' => 'admin@internal.test',
-            'peran' => 'superadmin',
-            'unit_kerja_id' => null,
+            'tipe_entitas' => 'ADMIN',
             'password' => Hash::make('admin'),
         ]);
     }

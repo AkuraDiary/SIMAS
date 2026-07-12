@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('kategori_arsips', function (Blueprint $table) {
+        Schema::create('template_kategoris', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('unit_kerja_id')->constrained()->cascadeOnDelete();
-            $table->string('nama');
+            $table->string('nama_kategori');
+            $table->text('deskripsi')->nullable();
             $table->softDeletes();
             $table->timestamps();
-
-            $table->unique(['unit_kerja_id', 'nama']);
         });
     }
 
@@ -27,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('kategori_arsips');
+        Schema::dropIfExists('template_kategoris');
     }
 };

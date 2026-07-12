@@ -11,14 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('kategori_arsips', function (Blueprint $table) {
+        Schema::create('surat_media', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('unit_kerja_id')->constrained()->cascadeOnDelete();
-            $table->string('nama');
-            $table->softDeletes();
-            $table->timestamps();
-
-            $table->unique(['unit_kerja_id', 'nama']);
+            $table->foreignId('surat_id')->constrained('surats')->cascadeOnDelete();
+            $table->foreignId('media_id')->constrained('media')->cascadeOnDelete();
+            $table->enum('konteks', ['Pengajuan', 'Penerbitan'])->nullable();
         });
     }
 
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('kategori_arsips');
+        Schema::dropIfExists('surat_media');
     }
 };

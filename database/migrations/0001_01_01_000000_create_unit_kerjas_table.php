@@ -12,10 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('unit_kerjas', function (Blueprint $table) {
-            $table->id(); 
+            $table->id();
+            $table->foreignId('parent_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
+            $table->foreignId('jenis_unit_id')->constrained('jenis_units');
             $table->string('nama_unit');
-            $table->enum('jenis_unit', ['fakultas', 'non-fakultas']);
-            $table->enum('status_unit', ['aktif', 'nonaktif']);
+            $table->string('singkatan')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->softDeletes();
             $table->timestamps();
         });
         

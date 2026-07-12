@@ -11,14 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('kategori_arsips', function (Blueprint $table) {
+        // kosong = global. ada baris = hanya unit terdaftar.
+        Schema::create('template_unit_akses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('unit_kerja_id')->constrained()->cascadeOnDelete();
-            $table->string('nama');
-            $table->softDeletes();
-            $table->timestamps();
-
-            $table->unique(['unit_kerja_id', 'nama']);
+            $table->foreignId('template_id')->constrained('templates')->cascadeOnDelete();
+            $table->foreignId('unit_kerja_id')->constrained('unit_kerjas')->cascadeOnDelete();
         });
     }
 
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('kategori_arsips');
+        Schema::dropIfExists('template_unit_akses');
     }
 };
