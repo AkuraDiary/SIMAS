@@ -58,7 +58,7 @@ class SuratMasuk extends Page implements HasTable
 
     public static function canAccess(): bool
     {
-        return Auth::user()?->peran === 'stafunit';
+        return Auth::user()?->tipe_entitas === 'STAF';
     }
     public function getBreadcrumbs(): array
     {

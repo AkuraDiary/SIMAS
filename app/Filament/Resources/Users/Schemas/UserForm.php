@@ -31,9 +31,9 @@ class UserForm
                     ->options(['aktif' => 'Aktif', 'nonaktif' => 'Nonaktif'])
                     ->required()
                     ->default('aktif'),
-                Select::make('peran')
-                    ->options(['stafunit' => 'Staf Unit'])
-                    ->default('stafunit')
+                Select::make('tipe_entitas')
+                    ->options(['STAF' => 'Staf Unit'])
+                    ->default('STAF')
                     ->required(),
                 Select::make('unit_kerja_id')
                     ->relationship('unitKerja', 'nama_unit')

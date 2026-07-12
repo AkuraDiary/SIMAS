@@ -17,7 +17,7 @@ class SimasDashboard extends BaseDashboard
     {
         $user = Auth::user();
 
-        return match ($user->peran) {
+        return match ($user->tipe_entitas) {
             'ADMIN' => [
                 SuperAdminStats::class,
                 // SuperAdminSuratChart::class,

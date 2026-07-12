@@ -32,13 +32,13 @@ class UserResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return Auth::user()?->peran === 'ADMIN';
+        return Auth::user()?->tipe_entitas === 'ADMIN';
     }
 
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('peran', 'stafunit');
+            ->where('tipe_entitas', 'stafunit');
     }
 
     public static function form(Schema $schema): Schema

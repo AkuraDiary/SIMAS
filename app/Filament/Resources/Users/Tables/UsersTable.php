@@ -25,10 +25,10 @@ class UsersTable
                 TextColumn::make('email')
                     ->label('Email address')
                     ->searchable(),
-                TextColumn::make('peran')
+                TextColumn::make('tipe_entitas')
                     ->badge()
                     ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'stafunit' => 'Staf Unit',
+                        'STAF' => 'Staf Unit',
                         default => $state,
                     }),
                 TextColumn::make('status_user')

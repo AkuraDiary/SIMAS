@@ -25,7 +25,7 @@ class SuratResource extends Resource
     
     public static function canAccess(): bool
     {
-        return Auth::user()?->peran === 'stafunit';
+        return Auth::user()?->tipe_entitas === 'STAF';
     }
     public static function getNavigationItems(): array
     {

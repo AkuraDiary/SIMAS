@@ -36,7 +36,7 @@ class UnitKerjaResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return Auth::user()?->peran === 'ADMIN';
+        return Auth::user()?->tipe_entitas === 'ADMIN';
     }
 
     public static function form(Schema $schema): Schema
