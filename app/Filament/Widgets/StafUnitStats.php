@@ -14,7 +14,7 @@ class StafUnitStats extends StatsOverviewWidget
         $unitId = Auth::user()->unit_kerja_id;
 
         return [
-            Stat::make('Selamat Datang', Auth::user()->username,),
+            Stat::make('Selamat Datang', Auth::user()->pegawai->nama_lengkap,),
             Stat::make('Unit Kerja', Auth::user()->unitKerja->nama_unit,),
             Stat::make(
                 'Total Surat',

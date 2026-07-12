@@ -13,7 +13,7 @@ class SuperAdminStats extends StatsOverviewWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Selamat Datang', Auth::user()->nama_lengkap,),
+            Stat::make('Selamat Datang', Auth::user()->username,),
             Stat::make('Unit Aktif', UnitKerja::where('is_active', true)->count()),
             Stat::make('Akun User Aktif', User::where('is_active', true)->where('tipe_entitas', 'STAF')->count()),
         ];
