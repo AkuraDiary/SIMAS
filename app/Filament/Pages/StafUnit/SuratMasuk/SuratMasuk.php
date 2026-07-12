@@ -86,7 +86,7 @@ class SuratMasuk extends Page implements HasTable
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
             ])
 
-            ->orderByDesc('tanggal_kirim');
+            ->orderByDesc('created_at');
     }
 
 
@@ -119,13 +119,13 @@ class SuratMasuk extends Page implements HasTable
                 //         };
                 //     }),
 
-                TextColumn::make('tanggal_kirim')
-                    ->label('Tanggal Kirim')
+                TextColumn::make('created_at')
+                    ->label('Tanggal Dibuat')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('nomor_surat')
-                    ->label('Nomor Surat')
+                TextColumn::make('tracking_code')
+                    ->label('Kode Pelacakan')
                     ->searchable(),
 
                 TextColumn::make('perihal')
@@ -159,7 +159,7 @@ class SuratMasuk extends Page implements HasTable
                             ->firstWhere('unit_tujuan_id', $unitId);
 
                         if ($disposisi) {
-                            $unitAsal = $disposisi->unitPembuat?->nama_unit;
+                            $unitAsal = $disposisi->pembuat?->unitKerja?->nama_unit;
                             return $unitAsal
                                 ? 'Disposisi dari ' . $unitAsal
                                 : 'Disposisi';
@@ -168,8 +168,8 @@ class SuratMasuk extends Page implements HasTable
                         $suratUnit = $record->suratUnits->first();
 
                         return match ($suratUnit?->jenis_tujuan) {
-                            'utama' => 'Tujuan Utama',
-                            'tembusan' => 'Tembusan',
+                            'UTAMA' => 'Tujuan Utama',
+                            'TEMBUSAN' => 'Tembusan',
                             default => '-',
                         };
                     })
@@ -181,8 +181,8 @@ class SuratMasuk extends Page implements HasTable
                         }
 
                         return match ($record->suratUnits->first()?->jenis_tujuan) {
-                            'utama' => 'primary',
-                            'tembusan' => 'gray',
+                            'UTAMA' => 'primary',
+                            'TEMBUSAN' => 'gray',
                             default => 'secondary',
                         };
                     }),

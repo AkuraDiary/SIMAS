@@ -113,7 +113,7 @@ class SuratExportService
     protected function buildZipName(Surat $surat): string
     {
 
-        $dateString = $surat->tanggal_kirim;
+        $dateString = $surat->created_at;
         $dateObject =  $dateString ? new DateTime($dateString) : now();
 
         $formattedDate = $dateObject->format('Y-m-d');

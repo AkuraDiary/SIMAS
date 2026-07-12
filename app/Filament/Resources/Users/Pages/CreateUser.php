@@ -3,53 +3,49 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\UserResource;
+use App\Models\UserPegawaiJabatan;
 use Filament\Resources\Pages\CreateRecord;
-use Filament\Schemas\Components\Tabs\Tab;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
-    protected function afterCreate(): void
+    /**
+     * assign_unit_kerja_id / assign_jabatan_id aren't columns on User (unit assignment
+     * now lives in user_pegawai_jabatans), so they're pulled out here before the User
+     * record is created and applied afterwards.
+     */
+    protected ?array $pendingJabatan = null;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // redirect to list page
-        $this->redirect(UserResource::getUrl());
+        $this->pendingJabatan = [
+            'unit_kerja_id' => $data['assign_unit_kerja_id'] ?? null,
+            'jabatan_id' => $data['assign_jabatan_id'] ?? null,
+        ];
+
+        unset($data['assign_unit_kerja_id'], $data['assign_jabatan_id']);
+
+        return $data;
     }
 
-    public static function getTabs(): array
+    protected function afterCreate(): void
     {
-        $unitId = Auth::user()->unit_kerja_id;
+        $unitKerjaId = $this->pendingJabatan['unit_kerja_id'] ?? null;
+        $jabatanId = $this->pendingJabatan['jabatan_id'] ?? null;
 
-        return [
-            'draft' => Tab::make()
-                ->modifyQueryUsing(
-                    fn(Builder $query) =>
-                    $query->where('status_surat', 'DRAFT')
-                ),
+        // pegawai is created automatically by Filament via the pegawai.* dot-notation
+        // fields in UserForm, since User::pegawai() is a real HasOne relation.
+        if ($unitKerjaId && $jabatanId && $this->record->pegawai) {
+            UserPegawaiJabatan::create([
+                'user_pegawai_id' => $this->record->pegawai->id,
+                'unit_kerja_id' => $unitKerjaId,
+                'jabatan_id' => $jabatanId,
+                'status_jabatan' => 'AKTIF',
+            ]);
+        }
 
-            'keluar' => Tab::make()
-                ->modifyQueryUsing(
-                    fn(Builder $query) =>
-                    $query
-                        ->where('status_surat', '!=', 'DRAFT')
-                        ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                            $q->where('unit_kerja_id', $unitId);
-                        })
-                ),
-
-            'arsip' => Tab::make()
-                ->modifyQueryUsing(
-                    fn(Builder $query) =>
-                    $query
-                        ->whereHas(
-                            'arsipSurats',
-                            fn($q) =>
-                            $q->where('unit_kerja_id', $unitId)
-                        )
-                        ->with('arsipSurats.kategoriArsip')
-                ),
-        ];
+        // redirect to list page
+        $this->redirect(UserResource::getUrl());
     }
 }

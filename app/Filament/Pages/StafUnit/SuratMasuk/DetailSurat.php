@@ -39,17 +39,17 @@ class DetailSurat extends Page implements HasForms
         return match ($this->scope) {
             'arsip' => [
                 SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
-                '#' => $this->surat->nomor_surat,
+                '#' => $this->surat->perihal,
                 'Detail',
             ],
             'keluar' => [
                 SuratResource::getUrl('index', ['scope' => 'keluar']) => 'Surat Keluar',
-                '#' => $this->surat->nomor_surat,
+                '#' => $this->surat->perihal,
                 'Detail',
             ],
             default => [
                 SuratMasuk::getUrl() => 'Surat Masuk',
-                '#' => $this->surat->nomor_surat,
+                '#' => $this->surat->perihal,
                 'Detail',
             ],
         };
@@ -81,7 +81,7 @@ class DetailSurat extends Page implements HasForms
                 // else: ambil semua unit, tidak perlu filter
             },
             'disposisis',
-            'disposisis.unitPembuat',
+            'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
         ]);
 
@@ -335,7 +335,7 @@ class DetailSurat extends Page implements HasForms
             $disposisi = Disposisi::create([
                 'surat_id' => $this->surat->id,
                 'unit_tujuan_id' => $unitTujuanId,
-                'unit_pembuat_id' => $unitId,
+                'user_pembuat_id' => Auth::id(),
                 'jenis_instruksi' => $jenisInstruksi,
                 'sifat' => $data['sifat'],
                 'catatan' => $data['catatan'],
@@ -468,8 +468,8 @@ class DetailSurat extends Page implements HasForms
         }
 
         return match ($this->suratUnit?->jenis_tujuan) {
-            'utama' => 'Tujuan Utama',
-            'tembusan' => 'Tembusan',
+            'UTAMA' => 'Tujuan Utama',
+            'TEMBUSAN' => 'Tembusan',
             default => '-',
         };
     }

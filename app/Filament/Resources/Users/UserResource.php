@@ -24,7 +24,7 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::UserGroup;
 
-    protected static ?string $recordTitleAttribute = 'nama_lengkap';
+    protected static ?string $recordTitleAttribute = 'username';
     protected static ?string $label = 'Staf Unit';
     protected static ?string $navigationLabel = 'Staf Unit'; // for navigation
     protected static ?string $modelLabel = 'Staf Unit';
@@ -38,7 +38,7 @@ class UserResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('tipe_entitas', 'stafunit');
+            ->where('tipe_entitas', 'STAF');
     }
 
     public static function form(Schema $schema): Schema

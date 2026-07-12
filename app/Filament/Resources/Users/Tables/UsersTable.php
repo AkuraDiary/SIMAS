@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Models\UnitKerja;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -20,7 +22,8 @@ class UsersTable
             ->columns([
                 TextColumn::make('username')
                     ->searchable(),
-                TextColumn::make('nama_lengkap')
+                TextColumn::make('pegawai.nama_lengkap')
+                    ->label('Nama Lengkap')
                     ->searchable(),
                 TextColumn::make('email')
                     ->label('Email address')
@@ -31,15 +34,11 @@ class UsersTable
                         'STAF' => 'Staf Unit',
                         default => $state,
                     }),
-                TextColumn::make('status_user')
-                    ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'aktif' => 'success',
-                        'nonaktif' => 'gray',
-                        default => 'gray',
-                    })
-                    ->label("Status Akun"),
-                TextColumn::make('unitKerja.nama_unit')
+                IconColumn::make('is_active')
+                    ->boolean()
+                    ->label('Aktif'),
+                TextColumn::make('jabatanAktif.unitKerja.nama_unit')
+                    ->label('Unit Kerja')
                     ->searchable(),
 
                 TextColumn::make('created_at')
@@ -52,20 +51,32 @@ class UsersTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('status_user')->options([
-                    'aktif' => 'Aktif',
-                    'nonaktif' => 'Nonaktif',
-                ])
+                SelectFilter::make('is_active')
+                    ->options([
+                        '1' => 'Aktif',
+                        '0' => 'Nonaktif',
+                    ])
                     ->label('Status User'),
-                SelectFilter::make('unit_kerja')
-                    ->relationship('unitKerja', 'nama_unit')
-                    ->searchable()
-                    ->preload()
-                    ->label('Filter Unit Kerja'),
-                //
+                Filter::make('unit_kerja')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('unit_kerja_id')
+                            ->label('Filter Unit Kerja')
+                            ->options(fn() => UnitKerja::query()->pluck('nama_unit', 'id'))
+                            ->searchable()
+                            ->preload(),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query->when(
+                            $data['unit_kerja_id'] ?? null,
+                            fn($q, $unitId) => $q->whereHas(
+                                'jabatanAktif',
+                                fn($jq) => $jq->where('unit_kerja_id', $unitId)
+                            )
+                        );
+                    }),
             ])
             ->recordActions([
-                
+                EditAction::make(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([
