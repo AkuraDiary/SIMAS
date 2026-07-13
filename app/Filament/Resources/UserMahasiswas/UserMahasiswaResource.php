@@ -24,7 +24,12 @@ class UserMahasiswaResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $recordTitleAttribute = 'Mahasiswa';
+    protected static ?string $recordTitleAttribute = 'nama_lengkap';
+
+    public function getRouteKeyName(): string
+    {
+        return 'nim';
+    }
 
     public static function form(Schema $schema): Schema
     {
