@@ -24,6 +24,11 @@ class UserPegawaisTable
                     ->searchable(),
                 TextColumn::make('nama_lengkap')
                     ->searchable(),
+                TextColumn::make('user.is_active')
+                    ->label('Status Akun')
+                    ->badge()
+                    ->formatStateUsing(fn(bool $state): string => $state ? 'Aktif' : 'Belum Aktivasi')
+                    ->color(fn(bool $state): string => $state ? 'success' : 'gray'),
                 TextColumn::make('deleted_at')
                     ->dateTime()
                     ->sortable()
@@ -50,6 +55,7 @@ class UserPegawaisTable
                     ForceDeleteBulkAction::make(),
                     RestoreBulkAction::make(),
                 ]),
-            ]);
+            ])->emptyStateHeading('Tidak Ada Data Akun Pegawai')
+            ->emptyStateDescription('');
     }
 }

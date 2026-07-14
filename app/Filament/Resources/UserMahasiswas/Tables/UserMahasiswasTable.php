@@ -53,7 +53,7 @@ class UserMahasiswasTable
                         default => 'gray',
                     }),
                 TextColumn::make('user.is_active')
-                    ->label('Akun Aktif')
+                    ->label('Status Akun')
                     ->badge()
                     ->formatStateUsing(fn(bool $state): string => $state ? 'Aktif' : 'Belum Aktivasi')
                     ->color(fn(bool $state): string => $state ? 'success' : 'gray'),

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\UserMahasiswa;
+use App\Models\UserPegawai;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -17,25 +18,25 @@ class UserProvisioningService
         //
     }
 
-    public function createMahasiswa(array $mahasiswaData): UserMahasiswa
+    public function createMahasiswa(array $data): UserMahasiswa
     {
-        return DB::transaction(function () use ($mahasiswaData) {
+        return DB::transaction(function () use ($data) {
             $user = User::create([
-                'username' => $mahasiswaData['nim'],
-                'password' => Hash::make($mahasiswaData['nim']), // TODO: replace once activation flow exists
+                'username' => $data['nim'],
+                'password' => Hash::make($data['nim']), // TODO: replace once activation flow exists
                 'tipe_entitas' => 'MAHASISWA',
-                'email' => $mahasiswaData['email'] ?? null,
-                'phone' => $mahasiswaData['phone'] ?? null,
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
                 'is_active' => false, // pending activation
             ]);
 
             return UserMahasiswa::create([
                 'user_id' => $user->id,
-                'nim' => $mahasiswaData['nim'],
-                'nama_lengkap' => $mahasiswaData['nama_lengkap'],
-                'prodi_id' => $mahasiswaData['prodi_id'],
-                'fakultas_id' => $mahasiswaData['fakultas_id'] ?? null,
-                'tahun_masuk' => $mahasiswaData['tahun_masuk'] ?? null,
+                'nim' => $data['nim'],
+                'nama_lengkap' => $data['nama_lengkap'],
+                'prodi_id' => $data['prodi_id'],
+                'fakultas_id' => $data['fakultas_id'] ?? null,
+                'tahun_masuk' => $data['tahun_masuk'] ?? null,
                 'status' => 'AKTIF',
             ]);
         });
@@ -65,6 +66,49 @@ class UserProvisioningService
             ]);
 
             return $mahasiswa;
+        });
+    }
+
+
+    public function createPegawai(array $data): UserPegawai
+    {
+        return DB::transaction(function () use ($data) {
+            $user = User::create([
+                'username' => $data['nip'],
+                'password' => Hash::make($data['nip']), // TODO: replace once activation flow exists
+                'tipe_entitas' => 'STAF',
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'is_active' => false, // pending activation
+            ]);
+
+            return UserPegawai::create([
+                'user_id' => $user->id,
+                'nip' => $data['nip'],
+                'nama_lengkap' => $data['nama_lengkap'],
+            ]);
+        });
+    }
+
+    public function createOrUpdatePegawaiFromImport(array $data): UserPegawai
+    {
+        return DB::transaction(function () use ($data) {
+            $pegawai = UserPegawai::where('nip', $data['nip'])->first();
+
+            if (! $pegawai) {
+                return $this->createMahasiswa($data);
+            }
+
+            $pegawai->update([
+                'nama_lengkap' => $data['nama_lengkap'], 
+            ]);
+
+            $pegawai->user?->update([
+                'email' => $data['email'] ?? $pegawai->user->email,
+                'phone' => $data['phone'] ?? $pegawai->user->phone,
+            ]);
+
+            return $pegawai;
         });
     }
 }
