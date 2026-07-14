@@ -20,8 +20,7 @@ class UserMahasiswaForm
                 ->schema([
                     TextInput::make('nim')
                         ->required()
-                        // ->disabled(fn(string $context): bool => $context === 'edit')
-                        ->disabled()
+                        ->disabled(fn(string $context): bool => $context === 'edit')
                         ->dehydrated(),
                     TextInput::make('nama_lengkap')
                         ->required(),
