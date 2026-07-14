@@ -29,7 +29,6 @@ class UnitKerjaResource extends Resource
 
     protected static ?string $navigationLabel = 'Unit Kerja'; // for navigation
 
-
     // for breadcrumbs
     protected static ?string $recordTitleAttribute = 'nama_unit';
     protected static ?string $pluralModelLabel = 'Unit Kerja';

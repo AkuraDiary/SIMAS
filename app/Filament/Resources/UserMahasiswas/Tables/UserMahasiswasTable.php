@@ -94,7 +94,7 @@ class UserMahasiswasTable
                 RestoreBulkAction::make(),
             ]),
         ])
-        ->emptyStateHeading('Tidak Ada Data Mahasiswa')
+        ->emptyStateHeading('Tidak Ada Data Akun Mahasiswa')
         ->emptyStateDescription('');
     }
 }
