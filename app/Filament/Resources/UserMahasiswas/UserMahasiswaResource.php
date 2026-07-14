@@ -22,7 +22,7 @@ class UserMahasiswaResource extends Resource
 {
     protected static ?string $model = UserMahasiswa::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::UserGroup;
 
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 

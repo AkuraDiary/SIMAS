@@ -40,4 +40,31 @@ class UserProvisioningService
             ]);
         });
     }
+
+    public function createOrUpdateMahasiswaFromImport(array $data): UserMahasiswa
+    {
+        return DB::transaction(function () use ($data) {
+            $mahasiswa = UserMahasiswa::where('nim', $data['nim'])->first();
+
+            if (! $mahasiswa) {
+                return $this->createMahasiswa($data);
+            }
+
+            $mahasiswa->update([
+                'nama_lengkap' => $data['nama_lengkap'],
+                'tanggal_lahir' => $data['tanggal_lahir'] ?? $mahasiswa->tanggal_lahir,
+                'tahun_masuk' => $data['tahun_masuk'] ?? $mahasiswa->tahun_masuk,
+                'status' => $data['status'] ?? $mahasiswa->status,
+                'prodi_id' => $data['prodi_id'] ?? $mahasiswa->prodi_id,
+                'fakultas_id' => $data['fakultas_id'] ?? $mahasiswa->fakultas_id,
+            ]);
+
+            $mahasiswa->user?->update([
+                'email' => $data['email'] ?? $mahasiswa->user->email,
+                'phone' => $data['phone'] ?? $mahasiswa->user->phone,
+            ]);
+
+            return $mahasiswa;
+        });
+    }
 }

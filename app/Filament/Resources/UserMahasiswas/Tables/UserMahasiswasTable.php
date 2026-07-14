@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\UserMahasiswas\Tables;
 
+use App\Filament\Imports\UserMahasiswaImporter;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\ImportAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
@@ -93,6 +95,11 @@ class UserMahasiswasTable
                 ForceDeleteBulkAction::make(),
                 RestoreBulkAction::make(),
             ]),
+        ])
+        ->headerActions([
+            ImportAction::make()
+                ->importer(UserMahasiswaImporter::class)
+                ->label('Import'),
         ])
         ->emptyStateHeading('Tidak Ada Data Akun Mahasiswa')
         ->emptyStateDescription('');
