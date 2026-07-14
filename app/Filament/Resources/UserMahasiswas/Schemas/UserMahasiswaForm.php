@@ -13,23 +13,39 @@ class UserMahasiswaForm
     {
         return $schema
             ->components([
-                Select::make('user_id')
-                    ->relationship('user', 'id')
-                    ->required(),
+                // Removed user_id field — the linked User account is provisioned
+                // automatically (via UserProvisioningService) when a mahasiswa is
+                // created, not selected from existing accounts. See CreateUserMahasiswa.
+
                 TextInput::make('nim')
-                    ->required(),
+                    ->required()
+                    ->disabled(fn(string $context): bool => $context === 'edit')
+                    ->dehydrated(),
                 TextInput::make('nama_lengkap')
                     ->required(),
                 DatePicker::make('tanggal_lahir'),
-                TextInput::make('tahun_masuk'),
+                TextInput::make('tahun_masuk')
+                    ->numeric(),
                 Select::make('status')
-                    ->options(['AKTIF' => 'A k t i f', 'CUTI' => 'C u t i', 'LULUS' => 'L u l u s', 'KELUAR' => 'K e l u a r'])
+                    ->options([
+                        'AKTIF' => 'Aktif',
+                        'CUTI' => 'Cuti',
+                        'LULUS' => 'Lulus',
+                        'KELUAR' => 'Keluar',
+                    ])
                     ->default('AKTIF')
                     ->required(),
                 Select::make('prodi_id')
-                    ->relationship('prodi', 'id'),
+                    ->label('Prodi')
+                    ->relationship('prodi', 'nama_unit')
+                    ->searchable()
+                    ->preload(),
                 Select::make('fakultas_id')
-                    ->relationship('fakultas', 'id'),
+                    ->label('Fakultas')
+                    ->relationship('fakultas', 'nama_unit')
+                    ->searchable()
+                    ->preload(),
+
             ]);
     }
 }

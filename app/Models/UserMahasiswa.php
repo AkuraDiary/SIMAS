@@ -23,6 +23,11 @@ class UserMahasiswa extends Model
         'fakultas_id',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'nim';
+    }
+
     protected function casts(): array
     {
         return [

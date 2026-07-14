@@ -26,11 +26,6 @@ class UserMahasiswaResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 
-    public function getRouteKeyName(): string
-    {
-        return 'nim';
-    }
-
     public static function form(Schema $schema): Schema
     {
         return UserMahasiswaForm::configure($schema);

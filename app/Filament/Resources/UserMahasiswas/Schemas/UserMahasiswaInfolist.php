@@ -12,10 +12,18 @@ class UserMahasiswaInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('user.id')
-                    ->label('User'),
-                TextEntry::make('nim'),
                 TextEntry::make('nama_lengkap'),
+                TextEntry::make('nim'),
+                TextEntry::make('user.username')
+                    ->label('Username'),
+                TextEntry::make('user.email')
+                    ->label('Email')
+                    ->placeholder('-'),
+                TextEntry::make('user.is_active')
+                    ->label('Status Akun')
+                    ->badge()
+                    ->formatStateUsing(fn(bool $state): string => $state ? 'Aktif' : 'Belum Aktivasi')
+                    ->color(fn(bool $state): string => $state ? 'success' : 'gray'),
                 TextEntry::make('tanggal_lahir')
                     ->date()
                     ->placeholder('-'),
@@ -23,21 +31,23 @@ class UserMahasiswaInfolist
                     ->placeholder('-'),
                 TextEntry::make('status')
                     ->badge(),
-                TextEntry::make('prodi.id')
+                TextEntry::make('prodi.nama_unit')
                     ->label('Prodi')
                     ->placeholder('-'),
-                TextEntry::make('fakultas.id')
+                TextEntry::make('fakultas.nama_unit')
                     ->label('Fakultas')
                     ->placeholder('-'),
                 TextEntry::make('deleted_at')
                     ->dateTime()
-                    ->visible(fn (UserMahasiswa $record): bool => $record->trashed()),
+                    ->visible(fn(UserMahasiswa $record): bool => $record->trashed()),
                 TextEntry::make('created_at')
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('updated_at')
                     ->dateTime()
                     ->placeholder('-'),
+                
+                
             ]);
     }
 }
