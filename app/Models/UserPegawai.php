@@ -23,6 +23,10 @@ class UserPegawai extends Model
     {
         return $this->belongsTo(User::class);
     }
+    public function getRouteKeyName(): string
+    {
+        return 'nip';
+    }
 
     public function jabatans(): HasMany
     {
