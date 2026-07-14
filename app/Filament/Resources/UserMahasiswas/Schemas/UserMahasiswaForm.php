@@ -21,6 +21,7 @@ class UserMahasiswaForm
                     TextInput::make('nim')
                         ->required()
                         // ->disabled(fn(string $context): bool => $context === 'edit')
+                        ->disabled()
                         ->dehydrated(),
                     TextInput::make('nama_lengkap')
                         ->required(),

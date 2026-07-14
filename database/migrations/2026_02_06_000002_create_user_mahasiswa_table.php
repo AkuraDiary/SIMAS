@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('nama_lengkap');
             $table->date('tanggal_lahir')->nullable();
             $table->year('tahun_masuk')->nullable();
-            $table->enum('status', ['AKTIF', 'CUTI', 'LULUS', 'KELUAR'])->default('AKTIF');
+            $table->enum('status', ['AKTIF', 'CUTI', 'LULUS', 'KELUAR', 'MUTASI'])->default('AKTIF');
             $table->foreignId('prodi_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
             $table->foreignId('fakultas_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
             $table->softDeletes();
