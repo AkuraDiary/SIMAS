@@ -23,17 +23,14 @@ class UserMahasiswasTable
     {
         return $table
         ->searchPlaceholder('Cari nama, email, atau NIM...')
-        // ->filtersLayout(FiltersLayout::AboveContent)
+        
             ->columns([
                 ImageColumn::make('avatar')
                     ->label('')
                     ->circular()
                     ->getStateUsing(fn() => null)
                     ->defaultImageUrl(fn($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->nama_lengkap) . '&background=random'),
-                // TextColumn::make('nama_lengkap')
-                //     ->label('Nama Pengguna')
-                //     ->description(fn($record) => $record->nim)
-                //     ->searchable(['nama_lengkap', 'nim']),
+            
                 TextColumn::make('nama_lengkap')
                     ->label('Nama Pengguna')
                     ->searchable(),
@@ -83,6 +80,7 @@ class UserMahasiswasTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            
             ->filters([
                 SelectFilter::make('prodi_id')
                     ->label('Prodi')
