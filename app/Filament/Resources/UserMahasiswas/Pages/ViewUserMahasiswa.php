@@ -10,6 +10,11 @@ class ViewUserMahasiswa extends ViewRecord
 {
     protected static string $resource = UserMahasiswaResource::class;
 
+    public function getTitle(): string
+    {
+        return $this->getRecordTitle(); 
+    }
+
     protected function getHeaderActions(): array
     {
         return [

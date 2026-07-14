@@ -27,6 +27,7 @@ class UserMahasiswaForm
                 TextInput::make('tahun_masuk')
                     ->numeric(),
                 Select::make('status')
+                    ->label("Status Mahasiswa")
                     ->options([
                         'AKTIF' => 'Aktif',
                         'CUTI' => 'Cuti',
