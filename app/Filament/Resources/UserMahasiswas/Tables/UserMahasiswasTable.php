@@ -29,7 +29,7 @@ class UserMahasiswasTable
                     ->label('')
                     ->circular()
                     ->getStateUsing(fn() => null)
-                    ->defaultImageUrl(fn($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->nama_lengkap) . '&background=random'),
+                    ->defaultImageUrl(fn($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->nama_lengkap) ),
             
                 TextColumn::make('nama_lengkap')
                     ->label('Nama Pengguna')
