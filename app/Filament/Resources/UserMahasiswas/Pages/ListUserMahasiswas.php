@@ -18,7 +18,7 @@ class ListUserMahasiswas extends ListRecords
         return [
             ImportAction::make()
                 ->importer(UserMahasiswaImporter::class)
-                ->label('Import'),
+                ->label('Import Data Mahasiswa'),
             // ExportAction::make()
             //     ->exporter(UserMahasiswaExporter::class)
             //     ->label('Export'),
