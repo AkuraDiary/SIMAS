@@ -24,6 +24,8 @@ class UserProvisioningService
                 'username' => $mahasiswaData['nim'],
                 'password' => Hash::make($mahasiswaData['nim']), // TODO: replace once activation flow exists
                 'tipe_entitas' => 'MAHASISWA',
+                'email' => $mahasiswaData['email'] ?? null,
+                'phone' => $mahasiswaData['phone'] ?? null,
                 'is_active' => false, // pending activation
             ]);
 

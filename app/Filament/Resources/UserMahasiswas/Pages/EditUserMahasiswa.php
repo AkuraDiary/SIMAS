@@ -13,6 +13,24 @@ class EditUserMahasiswa extends EditRecord
 {
     protected static string $resource = UserMahasiswaResource::class;
 
+    protected ?array $pendingUserData = null;
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $this->pendingUserData = [
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+        ];
+
+        unset($data['email'], $data['phone']);
+
+        return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        $this->record->user?->update($this->pendingUserData);
+    }
     protected function getHeaderActions(): array
     {
         return [

@@ -36,6 +36,14 @@ class UserMahasiswaForm
                     ])
                     ->default('AKTIF')
                     ->required(),
+                TextInput::make('email')
+                    ->email()
+                    ->required()
+                    ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->email)),
+                TextInput::make('phone')
+                    ->label('Nomor Telepon')
+                    ->tel()
+                    ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->phone)),
                 Select::make('prodi_id')
                     ->label('Prodi')
                     ->relationship('prodi', 'nama_unit')
