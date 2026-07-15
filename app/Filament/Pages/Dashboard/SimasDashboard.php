@@ -14,7 +14,7 @@ class SimasDashboard extends BaseDashboard
 {
     protected static ?string $title = 'Dashboard';
 
-    public static string|BackedEnum|null $navigationIcon = 'gmdi-dashboard-r';
+    public static string|BackedEnum|null $navigationIcon = 'dashboard-r';
 
     public function getWidgets(): array
     {
