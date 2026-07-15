@@ -22,20 +22,21 @@ class UserMahasiswasTable
     public static function configure(Table $table): Table
     {
         return $table
-        ->searchPlaceholder('Cari nama, email, atau NIM...')
-        
+            ->searchPlaceholder('Cari nama, email, atau NIM...')
+
             ->columns([
                 ImageColumn::make('avatar')
                     ->label('')
                     ->circular()
                     ->getStateUsing(fn() => null)
-                    ->defaultImageUrl(fn($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->nama_lengkap) ),
-            
-                TextColumn::make('nama_lengkap')
-                    ->label('Nama Pengguna')
-                    ->searchable(),
+                    ->defaultImageUrl(fn($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->nama_lengkap)),
                 TextColumn::make('nim')
+                ->label('NIM')
                     ->searchable(),
+                TextColumn::make('nama_lengkap')
+                    ->label('Nama')
+                    ->searchable(),
+
                 TextColumn::make('user.email')
                     ->label('Email')
                     ->placeholder('-')
@@ -44,6 +45,7 @@ class UserMahasiswasTable
                     ->label('Prodi')
                     ->searchable(),
                 TextColumn::make('status')
+                    ->label("Status Mahasiswa")
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
                         'AKTIF' => 'success',
@@ -80,7 +82,7 @@ class UserMahasiswasTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            
+
             ->filters([
                 SelectFilter::make('prodi_id')
                     ->label('Prodi')
@@ -107,7 +109,7 @@ class UserMahasiswasTable
                     RestoreBulkAction::make(),
                 ]),
             ])
-            
+
             ->emptyStateHeading('Tidak Ada Data Akun Mahasiswa')
             ->emptyStateDescription('');
     }
