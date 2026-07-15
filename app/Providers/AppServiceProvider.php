@@ -27,8 +27,6 @@ class AppServiceProvider extends ServiceProvider
     }
 
     protected $policies = [
-        
-        UnitKerja::class => UnitKerjaPolicy::class,
         Surat::class => SuratPolicy::class,
         UserMahasiswa::class => UserMahasiswaPolicy::class,
         UserPegawai::class => UserPegawaiPolicy::class
