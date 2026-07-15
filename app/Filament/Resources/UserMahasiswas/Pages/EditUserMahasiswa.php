@@ -134,6 +134,7 @@ class EditUserMahasiswa extends EditRecord
                         ->success()
                         ->send();
                 }),
+
             ForceDeleteAction::make(),
             RestoreAction::make(),
         ];

@@ -14,13 +14,39 @@ class UserPegawaiInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('user.id')
-                    ->label('User'),
-                TextEntry::make('nip')
-                    ->placeholder('-'),
-                TextEntry::make('nama_lengkap'),
+                Section::make('Identitas Pegawai')
+                    ->icon('heroicon-o-identification')
+                    ->schema([
+                        TextEntry::make('nip')
+                            ->placeholder('-'),
+                        TextEntry::make('nama_lengkap'),
 
-                Section::make('Riwayat Jabatan')
+                    ]),
+
+                Section::make('Informasi Akun & Kontak')
+                    ->icon('heroicon-o-at-symbol')
+
+                    ->schema([
+                        TextEntry::make('user.username')
+                            ->label('Username')
+                            ->copyable(),
+                        TextEntry::make('user.email')
+                            ->label('Email')
+                            ->copyable()
+                            ->placeholder('-'),
+                        TextEntry::make('user.phone')
+                            ->label('Nomor Telepon')
+                            ->placeholder('-'),
+                        TextEntry::make('user.is_active')
+                            ->label('Status Akun')
+                            ->badge()
+                            ->formatStateUsing(fn(bool $state): string => $state ? 'Aktif' : 'Belum Aktivasi')
+                            ->color(fn(bool $state): string => $state ? 'success' : 'gray'),
+                    ])
+                    ->columns(2),
+
+
+                Section::make('Informasi Jabatan')
                     ->icon('heroicon-o-briefcase')
                     ->schema([
                         RepeatableEntry::make('jabatans')
@@ -39,16 +65,22 @@ class UserPegawaiInfolist
                                     }),
                             ])
                             ->columns(3),
-                    ]),
-                TextEntry::make('deleted_at')
-                    ->dateTime()
-                    ->visible(fn(UserPegawai $record): bool => $record->trashed()),
-                TextEntry::make('created_at')
-                    ->dateTime()
-                    ->placeholder('-'),
-                TextEntry::make('updated_at')
-                    ->dateTime()
-                    ->placeholder('-'),
+                    ])->columnSpanFull(),
+
+                Section::make('Metadata')
+                    ->icon('heroicon-o-clock')
+
+                    ->collapsible()
+                    ->collapsed()
+                    ->schema([
+                        TextEntry::make('created_at')->dateTime()->placeholder('-'),
+                        TextEntry::make('updated_at')->dateTime()->placeholder('-'),
+                        TextEntry::make('deleted_at')->dateTime()->visible(fn($record) => $record->trashed()),
+                    ])
+                    ->columns(3)
+                    ->columnSpanFull(),
+
+
 
             ]);
     }

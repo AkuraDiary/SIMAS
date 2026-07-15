@@ -44,7 +44,7 @@ class UserMahasiswaInfolist
                     ])
                     ->columns(2),
 
-                Section::make('Akun & Kontak')
+                Section::make('Informasi Akun & Kontak')
                     ->icon('heroicon-o-at-symbol')
 
                     ->schema([

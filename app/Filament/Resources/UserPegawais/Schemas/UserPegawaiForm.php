@@ -7,6 +7,7 @@ use App\Models\UnitKerja;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class UserPegawaiForm
@@ -15,59 +16,70 @@ class UserPegawaiForm
     {
         return $schema
             ->components([
-                // No user_id field — the linked User is provisioned automatically
-                // (username/password = NIP), see UserProvisioningService::createStaf().
-                TextInput::make('nip')
-                    ->required()
-                    ->disabled(fn(string $context): bool => $context === 'edit')
-                    ->dehydrated(),
-                TextInput::make('nama_lengkap')
-                    ->required(),
-                TextInput::make('email')
-                    ->email()
-                    ->required()
-                    ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->email)),
-                TextInput::make('phone')
-                    ->label('Nomor Telepon')
-                    ->tel()
-                    ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->phone)),
 
-                Repeater::make('jabatan_assignments')
-                    ->label('Jabatan')
+                Section::make('Identitas Pegawai')
+                    ->description('Data pokok Pegawai.')
+                    ->icon('heroicon-o-identification')
                     ->schema([
-                        Select::make('unit_kerja_id')
-                            ->label('Unit Kerja')
-                            ->options(fn() => UnitKerja::query()->where('is_active', true)->pluck('nama_unit', 'id'))
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                        Select::make('jabatan_id')
-                            ->label('Jabatan')
-                            ->options(fn() => Jabatan::query()->pluck('nama_jabatan', 'id'))
-                            ->searchable()
-                            ->preload()
+                        // No user_id field — the linked User is provisioned automatically
+                        // (username/password = NIP), see UserProvisioningService::createStaf().
+                        TextInput::make('nip')
+                            ->required()
+                            ->disabled(fn(string $context): bool => $context === 'edit')
+                            ->dehydrated(),
+                        TextInput::make('nama_lengkap')
                             ->required(),
                     ])
                     ->columns(2)
-                    ->addActionLabel('Tambah Jabatan')
-                    ->defaultItems(1)
-                    ->visibleOn('create'),
+                    ->columnSpanFull(),
 
-                Select::make('unit_kerja_id')
-                    ->label('Unit Kerja')
-                    ->options(fn() => UnitKerja::query()->where('is_active', true)->pluck('nama_unit', 'id'))
-                    ->searchable()
-                    ->preload()
-                    ->visibleOn('edit')
-                    ->afterStateHydrated(fn($component, $record) => $component->state($record?->jabatanAktifSatu?->unit_kerja_id)),
-                Select::make('jabatan_id')
-                    ->label('Jabatan')
-                    ->options(fn() => Jabatan::query()->pluck('nama_jabatan', 'id'))
-                    ->searchable()
-                    ->preload()
-                    ->visibleOn('edit')
-                    ->afterStateHydrated(fn($component, $record) => $component->state($record?->jabatanAktifSatu?->jabatan_id)),
-               
+                Section::make('Kontak')
+                    ->description('Kontak Akun Pegawai')
+                    ->icon('heroicon-o-at-symbol')
+                    ->collapsible()
+                    ->schema([
+                        TextInput::make('email')
+                            ->email()
+                            ->required()
+                            ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->email)),
+                        TextInput::make('phone')
+                            ->label('Nomor Telepon')
+                            ->tel()
+                            ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->phone)),
+                    ])
+                    ->columnSpanFull()
+                    ->columns(2),
+
+                Section::make('Informasi Kepegawaian')
+                    ->description('Status dan penempatan unit pegawai saat ini.')
+                    ->icon('heroicon-o-academic-cap')
+                    ->schema([
+                        Repeater::make('jabatan_assignments')
+                            ->label('Jabatan')
+                            ->schema([
+                                Select::make('unit_kerja_id')
+                                    ->label('Unit Kerja')
+                                    ->options(fn() => UnitKerja::query()->where('is_active', true)->pluck('nama_unit', 'id'))
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
+                                Select::make('jabatan_id')
+                                    ->label('Jabatan')
+                                    ->options(fn() => Jabatan::query()->pluck('nama_jabatan', 'id'))
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull()
+                            ->addActionLabel('Tambah Jabatan')
+                            ->defaultItems(1),
+                    ])
+                    ->columnSpanFull()
+                    ->columns(2),
+
+
+
             ]);
     }
 }
