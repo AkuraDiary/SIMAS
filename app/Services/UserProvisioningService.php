@@ -127,7 +127,7 @@ class UserProvisioningService
             $pegawai = UserPegawai::where('nip', $data['nip'])->first();
 
             if (! $pegawai) {
-                return $this->createMahasiswa($data);
+                return $this->createPegawai($data);
             }
 
             $pegawai->update([

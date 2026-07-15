@@ -67,18 +67,7 @@ class UserPegawaiForm
                     ->preload()
                     ->visibleOn('edit')
                     ->afterStateHydrated(fn($component, $record) => $component->state($record?->jabatanAktifSatu?->jabatan_id)),
-                // Select::make('unit_kerja_id')
-                //     ->label('Unit Kerja')
-                //     ->options(fn() => UnitKerja::query()->where('is_active', true)->pluck('nama_unit', 'id'))
-                //     ->searchable()
-                //     ->preload()
-                //     ->afterStateHydrated(fn($component, $record) => $component->state($record?->jabatanAktifSatu?->unit_kerja_id)),
-                // Select::make('jabatan_id')
-                //     ->label('Jabatan')
-                //     ->options(fn() => Jabatan::query()->pluck('nama_jabatan', 'id'))
-                //     ->searchable()
-                //     ->preload()
-                //     ->afterStateHydrated(fn($component, $record) => $component->state($record?->jabatanAktifSatu?->jabatan_id)),
+               
             ]);
     }
 }
