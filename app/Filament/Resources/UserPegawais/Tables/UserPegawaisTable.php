@@ -18,8 +18,7 @@ class UserPegawaisTable
     {
         return $table
             ->columns([
-                TextColumn::make('user.id')
-                    ->searchable(),
+                
                 TextColumn::make('nip')
                     ->searchable(),
                 TextColumn::make('nama_lengkap')
@@ -36,7 +35,7 @@ class UserPegawaisTable
                 TextColumn::make('jabatanAktifSatu.unitKerja.nama_unit')
                     ->label('Unit Kerja')
                     ->placeholder('-'),
-                    
+
                 TextColumn::make('deleted_at')
                     ->dateTime()
                     ->sortable()
