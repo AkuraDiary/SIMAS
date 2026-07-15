@@ -122,24 +122,41 @@ class UserProvisioningService
         );
     }
     public function createOrUpdatePegawaiFromImport(array $data): UserPegawai
-    {
-        return DB::transaction(function () use ($data) {
-            $pegawai = UserPegawai::where('nip', $data['nip'])->first();
+{
+    return DB::transaction(function () use ($data) {
+        $pegawai = UserPegawai::where('nip', $data['nip'])->first();
 
-            if (! $pegawai) {
-                return $this->createPegawai($data);
-            }
-
-            $pegawai->update([
+        if (! $pegawai) {
+            return $this->createPegawai([
+                'nip' => $data['nip'],
                 'nama_lengkap' => $data['nama_lengkap'],
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'jabatan_assignments' => [
+                    [
+                        'unit_kerja_id' => $data['unit_kerja_id'] ?? null,
+                        'jabatan_id' => $data['jabatan_id'] ?? null,
+                    ],
+                ],
             ]);
+        }
 
-            $pegawai->user?->update([
-                'email' => $data['email'] ?? $pegawai->user->email,
-                'phone' => $data['phone'] ?? $pegawai->user->phone,
-            ]);
+        $pegawai->update([
+            'nama_lengkap' => $data['nama_lengkap'],
+        ]);
 
-            return $pegawai;
-        });
-    }
+        $pegawai->user?->update([
+            'email' => $data['email'] ?? $pegawai->user->email,
+            'phone' => $data['phone'] ?? $pegawai->user->phone,
+        ]);
+
+        $this->updateJabatanAktif(
+            $pegawai,
+            $data['unit_kerja_id'] ?? null,
+            $data['jabatan_id'] ?? null
+        );
+
+        return $pegawai;
+    });
+}
 }

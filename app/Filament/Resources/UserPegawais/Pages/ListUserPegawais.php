@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\UserPegawais\Pages;
 
+use App\Filament\Imports\UserPegawaiImporter;
 use App\Filament\Resources\UserPegawais\UserPegawaiResource;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ImportAction;
@@ -14,9 +15,9 @@ class ListUserPegawais extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            // ImportAction::make()
-            //     ->importer(UserMahasiswaImporter::class)
-            //     ->label('Import Data Mahasiswa'),
+            ImportAction::make()
+                ->importer(UserPegawaiImporter::class)
+                ->label('Import Data Pegawai'),
             // ExportAction::make()
             //     ->exporter(UserMahasiswaExporter::class)
             //     ->label('Export'),
