@@ -29,6 +29,14 @@ class UserPegawaisTable
                     ->badge()
                     ->formatStateUsing(fn(bool $state): string => $state ? 'Aktif' : 'Belum Aktivasi')
                     ->color(fn(bool $state): string => $state ? 'success' : 'gray'),
+
+                TextColumn::make('jabatanAktifSatu.jabatan.nama_jabatan')
+                    ->label('Jabatan')
+                    ->placeholder('-'),
+                TextColumn::make('jabatanAktifSatu.unitKerja.nama_unit')
+                    ->label('Unit Kerja')
+                    ->placeholder('-'),
+                    
                 TextColumn::make('deleted_at')
                     ->dateTime()
                     ->sortable()

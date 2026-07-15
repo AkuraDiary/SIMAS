@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserPegawai extends Model
@@ -30,7 +31,14 @@ class UserPegawai extends Model
 
     public function jabatans(): HasMany
     {
-        return $this->hasMany(UserPegawaiJabatan::class);
+        return $this->hasMany(UserPegawaiJabatan::class)->latest();
+    }
+
+    public function jabatanAktifSatu(): HasOne
+    {
+        return $this->hasOne(UserPegawaiJabatan::class)
+            ->where('status_jabatan', 'AKTIF')
+            ->latestOfMany();
     }
 
     public function jabatanAktif(): HasMany

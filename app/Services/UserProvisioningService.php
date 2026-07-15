@@ -72,24 +72,55 @@ class UserProvisioningService
 
     public function createPegawai(array $data): UserPegawai
     {
+
+        if (blank($data['nip'] ?? null)) {
+            throw new \InvalidArgumentException('NIP wajib diisi untuk membuat akun pegawai.');
+        }
+
         return DB::transaction(function () use ($data) {
             $user = User::create([
                 'username' => $data['nip'],
-                'password' => Hash::make($data['nip']), // TODO: replace once activation flow exists
+                'password' => Hash::make($data['nip']),
                 'tipe_entitas' => 'STAF',
                 'email' => $data['email'] ?? null,
                 'phone' => $data['phone'] ?? null,
-                'is_active' => false, // pending activation
+                'is_active' => false,
             ]);
 
-            return UserPegawai::create([
+            $pegawai = UserPegawai::create([
                 'user_id' => $user->id,
                 'nip' => $data['nip'],
                 'nama_lengkap' => $data['nama_lengkap'],
             ]);
+
+            foreach ($data['jabatan_assignments'] ?? [] as $assignment) {
+                if (blank($assignment['unit_kerja_id'] ?? null) || blank($assignment['jabatan_id'] ?? null)) {
+                    continue;
+                }
+
+                $pegawai->jabatans()->create([
+                    'unit_kerja_id' => $assignment['unit_kerja_id'],
+                    'jabatan_id' => $assignment['jabatan_id'],
+                    'status_jabatan' => 'AKTIF',
+                ]);
+            }
+
+            return $pegawai;
         });
     }
 
+
+    public function updateJabatanAktif(UserPegawai $pegawai, ?int $unitKerjaId, ?int $jabatanId): void
+    {
+        if (blank($unitKerjaId) || blank($jabatanId)) {
+            return;
+        }
+
+        $pegawai->jabatanAktif()->updateOrCreate(
+            ['status_jabatan' => 'AKTIF'],
+            ['unit_kerja_id' => $unitKerjaId, 'jabatan_id' => $jabatanId]
+        );
+    }
     public function createOrUpdatePegawaiFromImport(array $data): UserPegawai
     {
         return DB::transaction(function () use ($data) {
@@ -100,7 +131,7 @@ class UserProvisioningService
             }
 
             $pegawai->update([
-                'nama_lengkap' => $data['nama_lengkap'], 
+                'nama_lengkap' => $data['nama_lengkap'],
             ]);
 
             $pegawai->user?->update([
