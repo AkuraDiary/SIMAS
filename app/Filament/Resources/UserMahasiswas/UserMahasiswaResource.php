@@ -23,6 +23,7 @@ class UserMahasiswaResource extends Resource
     protected static ?string $model = UserMahasiswa::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::UserGroup;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 
@@ -31,7 +32,7 @@ class UserMahasiswaResource extends Resource
     protected static ?string $title = 'Akun Mahasiswa';
     protected static ?string $modelLabel = 'Akun Mahasiswa';
 
-    protected static ?string $navigationLabel = 'Data Mahasiswa'; // for navigation
+    protected static ?string $navigationLabel = 'Akun Mahasiswa'; // for navigation
 
     // for breadcrumbs
     protected static ?string $pluralModelLabel = 'Akun Mahasiswa';

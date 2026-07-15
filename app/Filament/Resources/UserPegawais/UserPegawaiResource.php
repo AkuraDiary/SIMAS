@@ -23,6 +23,7 @@ class UserPegawaiResource extends Resource
     protected static ?string $model = UserPegawai::class;
 
     protected static string|BackedEnum|null $navigationIcon =Heroicon::UserGroup;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 
@@ -31,7 +32,7 @@ class UserPegawaiResource extends Resource
     protected static ?string $title = 'Akun Pegawai';
     protected static ?string $modelLabel = 'Akun Pegawai';
 
-    protected static ?string $navigationLabel = 'Data Pegawai'; // for navigation
+    protected static ?string $navigationLabel = 'Akun Pegawai'; // for navigation
 
     // for breadcrumbs
     protected static ?string $pluralModelLabel = 'Akun Pegawai';
