@@ -101,7 +101,7 @@ class UserProvisioningService
                 $pegawai->jabatans()->create([
                     'unit_kerja_id' => $assignment['unit_kerja_id'],
                     'jabatan_id' => $assignment['jabatan_id'],
-                    'status_jabatan' => 'AKTIF',
+                    'status_jabatan' => $assignment['status_jabatan'] ?? 'AKTIF',
                 ]);
             }
 
@@ -120,6 +120,23 @@ class UserProvisioningService
             ['status_jabatan' => 'AKTIF'],
             ['unit_kerja_id' => $unitKerjaId, 'jabatan_id' => $jabatanId]
         );
+    }
+
+    public function syncJabatanAssignments(UserPegawai $pegawai, array $assignments): void
+    {
+        $pegawai->jabatans()->delete();
+
+        foreach ($assignments as $assignment) {
+            if (blank($assignment['unit_kerja_id'] ?? null) || blank($assignment['jabatan_id'] ?? null)) {
+                continue;
+            }
+
+            $pegawai->jabatans()->create([
+                'unit_kerja_id' => $assignment['unit_kerja_id'],
+                'jabatan_id' => $assignment['jabatan_id'],
+                'status_jabatan' => $assignment['status_jabatan'] ?? 'AKTIF',
+            ]);
+        }
     }
     public function createOrUpdatePegawaiFromImport(array $data): UserPegawai
 {

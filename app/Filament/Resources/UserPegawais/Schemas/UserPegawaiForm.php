@@ -69,8 +69,17 @@ class UserPegawaiForm
                                     ->searchable()
                                     ->preload()
                                     ->required(),
+                                Select::make('status_jabatan')
+                                    ->label('Status')
+                                    ->options([
+                                        'AKTIF' => 'Aktif',
+                                        'NONAKTIF' => 'Nonaktif',
+                                    ])
+                                    ->default('AKTIF')
+                                    ->required()
+                                    ->native(false),
                             ])
-                            ->columns(2)
+                            ->columns(3)
                             ->columnSpanFull()
                             ->addActionLabel('Tambah Jabatan')
                             ->defaultItems(1),

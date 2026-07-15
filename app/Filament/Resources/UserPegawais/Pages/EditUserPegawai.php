@@ -22,16 +22,28 @@ class EditUserPegawai extends EditRecord
 
     protected ?array $pendingData = null;
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['jabatan_assignments'] = $this->record->jabatans
+            ->map(fn($item) => [
+                'unit_kerja_id' => $item->unit_kerja_id,
+                'jabatan_id' => $item->jabatan_id,
+                'status_jabatan' => $item->status_jabatan,
+            ])
+            ->toArray();
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $this->pendingData = [
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'unit_kerja_id' => $data['unit_kerja_id'] ?? null,
-            'jabatan_id' => $data['jabatan_id'] ?? null,
+            'jabatan_assignments' => $data['jabatan_assignments'] ?? [],
         ];
 
-        unset($data['email'], $data['phone'], $data['unit_kerja_id'], $data['jabatan_id']);
+        unset($data['email'], $data['phone'], $data['jabatan_assignments']);
 
         return $data;
     }
@@ -43,10 +55,9 @@ class EditUserPegawai extends EditRecord
             'phone' => $this->pendingData['phone'],
         ]);
 
-        app(UserProvisioningService::class)->updateJabatanAktif(
+        app(UserProvisioningService::class)->syncJabatanAssignments(
             $this->record,
-            $this->pendingData['unit_kerja_id'],
-            $this->pendingData['jabatan_id']
+            $this->pendingData['jabatan_assignments']
         );
     }
     protected function getHeaderActions(): array
