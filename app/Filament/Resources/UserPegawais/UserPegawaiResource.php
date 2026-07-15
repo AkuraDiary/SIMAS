@@ -22,7 +22,7 @@ class UserPegawaiResource extends Resource
 {
     protected static ?string $model = UserPegawai::class;
 
-    protected static string|BackedEnum|null $navigationIcon =Heroicon::UserGroup;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::UserGroup;
     protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'nama_lengkap';

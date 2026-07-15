@@ -2,16 +2,19 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
-use Filament\Pages\Dashboard as BaseDashboard;
-use Illuminate\Support\Facades\Auth;
-use App\Filament\Widgets\SuperAdminStats;
-use App\Filament\Widgets\StafUnitStats;
 
+use App\Filament\Widgets\StafUnitStats;
+use App\Filament\Widgets\SuperAdminStats;
+use BackedEnum;
+use Filament\Pages\Dashboard as BaseDashboard;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Auth;
 
 class SimasDashboard extends BaseDashboard
 {
-    protected static ?string $title = 'Beranda';
+    protected static ?string $title = 'Dashboard';
+
+    public static string|BackedEnum|null $navigationIcon = 'gmdi-dashboard-r';
 
     public function getWidgets(): array
     {
