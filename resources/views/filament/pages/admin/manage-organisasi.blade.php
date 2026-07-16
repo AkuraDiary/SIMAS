@@ -161,7 +161,7 @@
     {{-- ── Filament Action Modals ─────────────────────────────────────────────── --}}
     <x-filament-actions::modals />
 
-    {{-- ── Page Header Actions ────────────────────────────── --}}
+    {{-- ── Page Header Actions ────────────────────────────── 
     <div class="flex justify-end gap-4 mb-3">
         <x-filament::button
             color="gray"
@@ -172,6 +172,7 @@
         </x-filament::button>
         {{ $this->addLevelAction }}
     </div>
+    --}}
 
     {{-- ── Canvas ──────────────────────────────────────────────────────────────── --}}
     <div
@@ -220,30 +221,45 @@
         <div
             id="org-canvas-inner"
             x-bind:style="`transform: translate(${translateX}px, ${translateY}px) scale(${scale});`">
-           
+
             @if (!empty($treeData))
-            {{-- Render root nodes side-by-side if there are multiple roots --}}
-            <div class="flex gap-24 items-start justify-center">
-                @foreach ($treeData as $root)
-                @include('filament.pages.admin._unit-node', [
-                'unit' => $root,
-                'isRoot' => true,
-                ])
-                @endforeach
-            </div>
+                {{-- Multiple root nodes rendered side-by-side --}}
+                <div style="display:flex; gap:6rem; align-items:flex-start; justify-content:center;">
+                    @foreach ($treeData as $root)
+                        @include('filament.pages.admin._unit-node', [
+                            'unit'   => $root,
+                            'isRoot' => true,
+                        ])
+                    @endforeach
+                </div>
+
             @else
-            {{-- Empty state: no units yet --}}
-            <div class="flex flex-col items-center gap-4 py-16 text-gray-400 dark:text-gray-600">
-                <x-icon name="work" class="h-14 w-14" />
-                <p class="text-sm">Belum ada unit kerja.</p>
-                <x-filament::button
-                    icon="heroicon-o-plus"
-                    wire:click="mountAction('createUnit')">
-                    Buat Unit Utama Pertama
-                </x-filament::button>
-            </div>
+                {{-- Empty state ── no units exist yet --}}
+                <div style="display:flex; flex-direction:column; align-items:center; gap:1.25rem; padding:5rem 2rem;">
+
+                    {{-- Illustration: work.svg asset --}}
+                    <span style="display:inline-flex; width:3.5rem; height:3.5rem; overflow:hidden; color:#d1d5db;">
+                        <x-icon name="work" style="width:100%; height:100%;" />
+                    </span>
+
+                    <p style="font-size:0.875rem; color:#9ca3af; margin:0;">Belum ada unit kerja.</p>
+
+                    <button
+                        type="button"
+                        wire:click="mountAction('createUnit')"
+                        style="display:inline-flex; align-items:center; gap:0.375rem; padding:0.5rem 1.25rem; border-radius:0.5rem; border:none; background:var(--color-primary-600,#4f46e5); color:#ffffff; font-size:0.875rem; font-weight:500; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.15); transition:background 0.15s;"
+                        onmouseover="this.style.background='var(--color-primary-500,#6366f1)';"
+                        onmouseout="this.style.background='var(--color-primary-600,#4f46e5)';"
+                    >
+                        {{-- plus.svg asset --}}
+                        <span style="display:inline-flex; width:1rem; height:1rem; overflow:hidden; flex-shrink:0;">
+                            <x-icon name="plus" style="width:100%; height:100%;" />
+                        </span>
+                        Buat Unit Utama Pertama
+                    </button>
+                </div>
             @endif
-            
+
         </div>
     </div>
 
