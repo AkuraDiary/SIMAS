@@ -2,12 +2,12 @@
 
 namespace App\Filament\Resources\UserPegawais\Schemas;
 
-use App\Models\Jabatan;
 use App\Models\UnitKerja;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 class UserPegawaiForm
@@ -62,17 +62,36 @@ class UserPegawaiForm
                                     ->options(fn() => UnitKerja::query()->where('is_active', true)->pluck('nama_unit', 'id'))
                                     ->searchable()
                                     ->preload()
-                                    ->required(),
+                                    ->required()
+                                    // Trigger a re-render so jabatan_id options update
+                                    ->live(),
+
                                 Select::make('jabatan_id')
                                     ->label('Jabatan')
-                                    ->options(fn() => Jabatan::query()->pluck('nama_jabatan', 'id'))
+                                    // Options are filtered to the selected unit only.
+                                    // Empty while no unit is selected.
+                                    ->options(function (Get $get): array {
+                                        $unitId = $get('unit_kerja_id');
+                                        if (!$unitId) {
+                                            return [];
+                                        }
+                                        return \App\Models\Jabatan::where('unit_kerja_id', $unitId)
+                                            ->orderBy('level_jabatan')
+                                            ->orderBy('nama_jabatan')
+                                            ->pluck('nama_jabatan', 'id')
+                                            ->all();
+                                    })
                                     ->searchable()
-                                    ->preload()
-                                    ->required(),
+                                    ->required()
+                                    ->helperText(fn(Get $get) => $get('unit_kerja_id')
+                                        ? null
+                                        : 'Pilih unit terlebih dahulu.'
+                                    ),
+
                                 Select::make('status_jabatan')
                                     ->label('Status')
                                     ->options([
-                                        'AKTIF' => 'Aktif',
+                                        'AKTIF'    => 'Aktif',
                                         'NONAKTIF' => 'Nonaktif',
                                     ])
                                     ->default('AKTIF')

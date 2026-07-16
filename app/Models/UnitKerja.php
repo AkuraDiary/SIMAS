@@ -50,6 +50,15 @@ class UnitKerja extends Model
     }
 
     /**
+     * Position titles defined for this unit.
+     * Order by level_jabatan for consistent display (level 1 = most senior).
+     */
+    public function jabatans(): HasMany
+    {
+        return $this->hasMany(Jabatan::class)->orderBy('level_jabatan');
+    }
+
+    /**
      * Active/inactive jabatan assignments of staff placed in this unit.
      * A unit's "staff roster" is now this relation (not a direct users() FK),
      * since a user's unit is assigned via user_pegawai_jabatans, not a column on users.
