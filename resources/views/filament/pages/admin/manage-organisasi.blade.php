@@ -220,6 +220,7 @@
         <div
             id="org-canvas-inner"
             x-bind:style="`transform: translate(${translateX}px, ${translateY}px) scale(${scale});`">
+           
             @if (!empty($treeData))
             {{-- Render root nodes side-by-side if there are multiple roots --}}
             <div class="flex gap-24 items-start justify-center">
@@ -242,6 +243,7 @@
                 </x-filament::button>
             </div>
             @endif
+            
         </div>
     </div>
 
