@@ -28,7 +28,7 @@ class ManageOrganisasi extends Page implements HasActions
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::BuildingOffice2;
     protected static ?string $navigationLabel = 'Organisasi';
-    protected static ?string $title           = 'Manajemen Organisasi';
+    protected static ?string $title           = Null;
     protected static ?string $slug            = 'organisasi';
     protected static ?int    $navigationSort  = 0;
 

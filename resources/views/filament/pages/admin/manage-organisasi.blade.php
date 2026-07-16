@@ -36,45 +36,17 @@
             transition: transform 0.05s linear;
         }
 
-        /* ── Connector bracket between siblings ──
-           Each .org-child-slot gets ::before (vertical stub) already rendered
-           in Blade; the horizontal bar is drawn here as a border-top on the row.
-           We use a pseudo-element so only the span between first and last children
-           is covered. */
-        .org-children-row {
-            position: relative;
-        }
-
-        .org-children-row::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            /* span from center of first child to center of last child */
-            left: calc(var(--child-w, 13rem) / 2 + 1rem);
-            /* px-4 = 1rem */
-            right: calc(var(--child-w, 13rem) / 2 + 1rem);
-            height: 1px;
-            background: hsl(220 13% 78%);
-        }
-
-        .dark .org-children-row::before {
-            background: hsl(220 13% 32%);
-        }
-
-        /* Hide horizontal bar when only one child + placeholder exist (≤ 2 slots) */
-        .org-children-row:has(.org-child-slot:nth-child(2):last-child)::before {
-            display: none;
+        /* ── Children group container (dashed rounded box) ──
+           Replaces the old horizontal-bracket connector approach.
+           The border itself acts as the visual horizontal rail;
+           vertical drops inside connect to each child card. */
+        .org-children-group {
+            /* border/radius/padding defined inline via Tailwind */
         }
 
         /* ── Card action button base ── */
-        .org-action-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.375rem;
-            padding: 0.2rem;
-            transition: background-color 0.15s, color 0.15s;
-        }
+        .org-card { transition: box-shadow 0.15s, border-color 0.15s; }
+        .org-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
 
         /* ── Toolbar glass card ── */
         .org-toolbar {
