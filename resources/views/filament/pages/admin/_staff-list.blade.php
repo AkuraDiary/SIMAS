@@ -85,6 +85,9 @@
         <span style="font-size:1.25rem; font-weight:800; line-height:1;">{{ $totalStaff }}</span>
         <span style="font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; opacity:0.7;">Staf</span>
     </div>
+
+    {{-- Assign Staff Button --}}
+  
 </div>
 
 {{-- ── Jabatan count chips ──────────────────────────────────────────────────── --}}

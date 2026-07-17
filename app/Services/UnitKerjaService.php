@@ -226,18 +226,55 @@ class UnitKerjaService
         foreach ($rows as $row) {
             if (!empty($row['id'])) {
                 // Update existing
-                Jabatan::where('id', $row['id'])->update([
-                    'nama_jabatan'  => $row['nama_jabatan'],
-                    'level_jabatan' => $row['level_jabatan'] ?? null,
-                ]);
+                $jabatan = Jabatan::find($row['id']);
+                if ($jabatan) {
+                    $jabatan->update([
+                        'nama_jabatan'  => $row['nama_jabatan'],
+                        'level_jabatan' => $row['level_jabatan'] ?? null,
+                    ]);
+                }
             } else {
                 // Create new, scoped to this unit
-                Jabatan::create([
+                $jabatan = Jabatan::create([
                     'unit_kerja_id' => $unit->id,
                     'nama_jabatan'  => $row['nama_jabatan'],
                     'level_jabatan' => $row['level_jabatan'] ?? null,
                 ]);
             }
+            
+            if (isset($jabatan)) {
+                $this->syncJabatanPegawais($jabatan, $unit, $row['user_pegawai_ids'] ?? []);
+            }
+        }
+    }
+
+    /**
+     * Sync pegawais assigned to a Jabatan.
+     */
+    private function syncJabatanPegawais(Jabatan $jabatan, UnitKerja $unit, array $pegawaiIds): void
+    {
+        $existing = $jabatan->pegawaiJabatans()->where('status_jabatan', 'AKTIF')->pluck('user_pegawai_id')->all();
+        
+        $toDeactivate = array_diff($existing, $pegawaiIds);
+        $toActivate   = array_diff($pegawaiIds, $existing);
+
+        if ($toDeactivate) {
+            $jabatan->pegawaiJabatans()
+                ->whereIn('user_pegawai_id', $toDeactivate)
+                ->update(['status_jabatan' => 'NONAKTIF']);
+        }
+
+        foreach ($toActivate as $pegawaiId) {
+            \App\Models\UserPegawaiJabatan::updateOrCreate(
+                [
+                    'user_pegawai_id' => $pegawaiId,
+                    'unit_kerja_id'   => $unit->id,
+                    'jabatan_id'      => $jabatan->id,
+                ],
+                [
+                    'status_jabatan'  => 'AKTIF',
+                ]
+            );
         }
     }
 }

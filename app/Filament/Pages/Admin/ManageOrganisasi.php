@@ -134,6 +134,14 @@ class ManageOrganisasi extends Page implements HasActions
                     ->minValue(1)
                     ->placeholder('1')
                     ->helperText('Angka (1 = paling senior)'),
+                    
+                Select::make('user_pegawai_ids')
+                    ->label('Pegawai Ditugaskan')
+                    ->multiple()
+                    ->options(\App\Models\UserPegawai::pluck('nama_lengkap', 'id'))
+                    ->searchable()
+                    ->preload()
+                    ->columnSpanFull(),
             ])
             ->addActionLabel('+ Tambah Jabatan')
             ->defaultItems(0)
@@ -237,9 +245,10 @@ class ManageOrganisasi extends Page implements HasActions
                     // jabatans ordered by level_jabatan (from HasMany default order)
                     'jabatans'      => $unit->jabatans
                         ->map(fn($j) => [
-                            'id'            => $j->id,
-                            'nama_jabatan'  => $j->nama_jabatan,
-                            'level_jabatan' => $j->level_jabatan,
+                            'id'               => $j->id,
+                            'nama_jabatan'     => $j->nama_jabatan,
+                            'level_jabatan'    => $j->level_jabatan,
+                            'user_pegawai_ids' => $j->pegawaiJabatans()->where('status_jabatan', 'AKTIF')->pluck('user_pegawai_id')->all(),
                         ])
                         ->values()
                         ->all(),
@@ -307,5 +316,50 @@ class ManageOrganisasi extends Page implements HasActions
             ))
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Tutup');
+    }
+
+    /**
+     * Assign a Pegawai directly to a unit.
+     * Argument: { unitId: int }
+     */
+    public function assignStaffAction(): Action
+    {
+        return Action::make('assignStaff')
+            ->label('Assign Pegawai')
+            ->modalHeading('Penugasan Pegawai ke Unit')
+            ->modalSubmitActionLabel('Simpan')
+            ->schema([
+                Select::make('user_pegawai_id')
+                    ->label('Pegawai')
+                    ->options(\App\Models\UserPegawai::pluck('nama_lengkap', 'id'))
+                    ->required()
+                    ->searchable(),
+                Select::make('jabatan_id')
+                    ->label('Jabatan')
+                    ->options(fn(array $arguments) => app(UnitKerjaService::class)->jabatansForUnitSelect($arguments['unitId']))
+                    ->required()
+                    ->searchable(),
+                Select::make('status_jabatan')
+                    ->label('Status')
+                    ->options([
+                        'AKTIF' => 'Aktif',
+                        'NONAKTIF' => 'Nonaktif',
+                    ])
+                    ->default('AKTIF')
+                    ->required(),
+            ])
+            ->action(function (array $data, array $arguments): void {
+                try {
+                    $data['unit_kerja_id'] = $arguments['unitId'];
+                    \App\Models\UserPegawaiJabatan::create($data);
+                    Notification::make()->title('Pegawai berhasil ditugaskan')->success()->send();
+                    $this->refreshTree();
+                    
+                    // Re-open viewStaff to show updated list
+                    $this->replaceMountedAction('viewStaff', ['unitId' => $arguments['unitId']]);
+                } catch (\Throwable $e) {
+                    Notification::make()->title('Gagal menugaskan pegawai')->body($e->getMessage())->danger()->send();
+                }
+            });
     }
 }
