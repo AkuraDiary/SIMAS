@@ -105,7 +105,7 @@ class TemplateResource extends Resource
                     ]),
 
                 Section::make('Placeholders (Variabel Isian)')
-                    
+
                     ->description('Definisikan placeholder yang akan digunakan di dalam template. Pengguna akan diminta mengisi nilai ini saat membuat surat.')
                     ->schema([
                         KeyValue::make('field_variables')
@@ -193,25 +193,25 @@ class TemplateResource extends Resource
                                     ->action(function (Set $set, Get $get) {
                                         $state = $get('content_html');
                                         if (!$state) return;
-                                        
+
                                         preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $state, $matches);
                                         $fields = array_unique($matches[1] ?? []);
                                         $current = $get('field_variables') ?? [];
-                                        
+
                                         // Add new fields
                                         foreach ($fields as $field) {
                                             if (!isset($current[$field])) {
                                                 $current[$field] = ucwords(str_replace('_', ' ', $field));
                                             }
                                         }
-                                        
+
                                         // Optional: Automatically clean up deleted fields (only if you want)
                                         foreach ($current as $key => $val) {
                                             if (!in_array($key, $fields)) {
                                                 unset($current[$key]);
                                             }
                                         }
-                                        
+
                                         $set('field_variables', $current);
                                         \Filament\Notifications\Notification::make()->title('Placeholders disinkronkan!')->success()->send();
                                     })
@@ -306,10 +306,10 @@ class TemplateResource extends Resource
                                             \Filament\Notifications\Notification::make()->title('Upload file DOCX terlebih dahulu')->warning()->send();
                                             return;
                                         }
-                                        
+
                                         $file = is_array($files) ? array_values($files)[0] : $files;
                                         $path = null;
-                                        
+
                                         if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
                                             $path = $file->getRealPath();
                                         } elseif (is_string($file)) {
@@ -318,37 +318,37 @@ class TemplateResource extends Resource
                                                 $path = $media->getPath();
                                             }
                                         }
-                                        
+
                                         if (! $path || ! file_exists($path)) {
                                             \Filament\Notifications\Notification::make()->title('File DOCX tidak ditemukan. Pastikan file sudah selesai di-upload.')->danger()->send();
                                             return;
                                         }
-                                        
+
                                         try {
                                             $phpWord = \PhpOffice\PhpWord\IOFactory::load($path);
                                             $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
-                                            
+
                                             $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
                                             $htmlWriter->save($tmpHtmlFile);
                                             $html = file_get_contents($tmpHtmlFile);
                                             unlink($tmpHtmlFile);
-                                            
+
                                             // Extract body
                                             if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
                                                 $html = $matches[1];
                                             }
-                                            
+
                                             // Parse {{ fields }}
                                             preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $html, $fieldMatches);
                                             $fields = array_unique($fieldMatches[1] ?? []);
-                                            
+
                                             // Highlight
                                             $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
-                                            
+
                                             $set('content_html', $html);
                                             $set('render_engine', 'HTML');
                                             $set('preview_html', null); // clear preview since we moved to editor
-                                            
+
                                             $currentFields = $get('field_variables') ?? [];
                                             foreach ($fields as $field) {
                                                 if (!isset($currentFields[$field])) {
@@ -356,7 +356,7 @@ class TemplateResource extends Resource
                                                 }
                                             }
                                             $set('field_variables', $currentFields);
-                                            
+
                                             \Filament\Notifications\Notification::make()->title('Berhasil dikonversi ke HTML. Mode diubah menjadi Buat dari Awal.')->success()->send();
                                         } catch (\Exception $e) {
                                             \Filament\Notifications\Notification::make()->title('Gagal memproses file DOCX: ' . $e->getMessage())->danger()->send();
@@ -391,21 +391,14 @@ class TemplateResource extends Resource
                 'xl' => 3,
             ])
             ->columns([
-                Stack::make([
-                    View::make('filament.tables.columns.template-card'),
-                ])
+                // Stack::make([
+                View::make('filament.tables.columns.template-card'),
+                // ])
             ])
             ->filters([
                 SelectFilter::make('kategori_id')
                     ->relationship('kategori', 'nama_kategori')
                     ->label('Kategori'),
-                SelectFilter::make('aksesibilitas')
-                    ->options([
-                        'PUBLIK' => 'Publik',
-                        'MAHASISWA' => 'Mahasiswa',
-                        'INTERNAL' => 'Internal',
-                    ])
-                    ->label('Aksesibilitas'),
                 \Filament\Tables\Filters\Filter::make('visibility_type')
                     ->form([
                         Select::make('visibilitas')
@@ -427,20 +420,13 @@ class TemplateResource extends Resource
                     }),
                 SelectFilter::make('is_active')
                     ->options([
-                        '1' => 'Active',
+                        '1' => 'Aktif',
                         '0' => 'Draft',
                     ])
                     ->label('Status'),
             ])
-            ->recordActions([
-                EditAction::make()->hiddenLabel()->tooltip('Edit Template'),
-                DeleteAction::make()->hiddenLabel()->tooltip('Hapus Template'),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->filtersLayout(\Filament\Tables\Enums\FiltersLayout::AboveContent)
+            ->filtersFormColumns(3);
     }
 
     public static function getRelations(): array

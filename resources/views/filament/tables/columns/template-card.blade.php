@@ -1,36 +1,52 @@
-<div class="flex flex-col h-full bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-all hover:shadow-md">
-    <div class="flex justify-between items-start mb-4">
-        @if ($getRecord()->is_active)
-            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+<div 
+style="transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), filter 0.5s ease;"
+onmouseover="this.style.transform='scale(1.05)';"
+onmouseout="this.style.transform='scale(1)';">
+    <!-- Top Half: Gray background with icon -->
+    <div style="position: relative; height: 160px; background-color: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+        <!-- Status Badge -->
+        <div style="position: absolute; top: 1rem; right: 1rem;">
+            @if ($getRecord()->is_active)
+            <span style="display: inline-flex; align-items: center; padding: 0.2rem 0.5rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; border-radius: 0.25rem; background-color: #d1fae5; color: #047857;">
                 ACTIVE
             </span>
-        @else
-            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            @else
+            <span style="display: inline-flex; align-items: center; padding: 0.2rem 0.5rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; border-radius: 0.25rem; background-color: #fef3c7; color: #b45309;">
                 DRAFT
             </span>
-        @endif
-        
-        <div class="w-12 h-12 flex items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-700">
-            @if ($getRecord()->render_engine === 'DOCX')
-                <x-heroicon-o-document class="w-6 h-6 text-gray-400" />
-            @else
-                <x-heroicon-o-document-text class="w-6 h-6 text-gray-400" />
             @endif
         </div>
+
+        <!-- Document Icon -->
+        <x-heroicon-o-document style="width: 3.5rem; height: 3.5rem; color: #cbd5e1;" />
     </div>
-    
-    <div class="flex-1">
-        <h3 class="text-base font-bold text-gray-900 dark:text-white leading-tight mb-2">
+
+    <!-- Bottom Half: Content and Footer -->
+    <div style="padding: 1.25rem; flex: 1 1 0%; display: flex; flex-direction: column;">
+        <h3 style="font-size: 1.125rem; font-weight: 700; color: #1f2937; margin-bottom: 0.5rem; margin-top: 0;">
             {{ $getRecord()->nama_template }}
         </h3>
-        <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">
-            {{ $getRecord()->deskripsi ?: 'Tidak ada deskripsi.' }}
+
+        <p style="font-size: 0.8rem; color: #6b7280; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: auto;">
+            {{ $getRecord()->deskripsi ?: 'No description provided.' }}
         </p>
-    </div>
-    
-    <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-        <span class="text-[10px] text-gray-400 font-medium tracking-wide">
-            Last edit: {{ $getRecord()->updated_at->format('M d, Y') }}
-        </span>
+
+        <!-- Footer -->
+        <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">
+                Last edit: {{ $getRecord()->updated_at->format('M d, Y') }}
+            </span>
+
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <a href="{{ \App\Filament\Resources\TemplateResource\TemplateResource::getUrl('edit', ['record' => $getRecord()]) }}" style="color: #64748b; transition: color 0.2s;" onmouseover="this.style.color='#0f172a'" onmouseout="this.style.color='#64748b'">
+                    <x-heroicon-o-eye style="width: 1.25rem; height: 1.25rem;" />
+                </a>
+
+                <a href="{{ \App\Filament\Resources\TemplateResource\TemplateResource::getUrl('edit', ['record' => $getRecord()]) }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.75rem; background-color: #e0e7ff; color: #4338ca; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; text-decoration: none; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#c7d2fe'" onmouseout="this.style.backgroundColor='#e0e7ff'">
+                    <x-heroicon-o-pencil style="width: 0.875rem; height: 0.875rem;" />
+                    Edit
+                </a>
+            </div>
+        </div>
     </div>
 </div>

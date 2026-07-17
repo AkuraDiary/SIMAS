@@ -21,15 +21,10 @@ class ListTemplates extends ListRecords
         ];
     }
    
-
-    public function getTabs(): array
+    protected function getHeaderWidgets(): array
     {
         return [
-            'all' => Tab::make('Semua'),
-            'active' => Tab::make('Aktif')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('is_active', true)),
-            'draft' => Tab::make('Draft')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('is_active', false)),
+            \App\Filament\Resources\TemplateResource\Widgets\TemplateStatsWidget::class,
         ];
     }
 }
