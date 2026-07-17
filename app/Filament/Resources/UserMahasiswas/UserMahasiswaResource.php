@@ -27,7 +27,6 @@ class UserMahasiswaResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 
-
     protected static ?string $label = 'Akun Mahasiswa';
     protected static ?string $title = 'Akun Mahasiswa';
     protected static ?string $modelLabel = 'Akun Mahasiswa';
