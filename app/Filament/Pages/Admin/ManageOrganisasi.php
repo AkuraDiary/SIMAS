@@ -28,10 +28,14 @@ class ManageOrganisasi extends Page implements HasActions
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::BuildingOffice2;
     protected static ?string $navigationLabel = 'Organisasi';
-    protected static ?string $title           = Null;
-    protected static ?string $slug            = 'organisasi';
+    protected static ?string $title           = '';//'Kelola Struktur Organisasi';
+    // protected static ?string $slug            = 'organisasi';
     protected static ?int    $navigationSort  = 0;
 
+    public function hasBreadcrumbs(): bool
+    {
+        return false; // Removes the breadcrumbs
+    }
     protected string $view = 'filament.pages.admin.manage-organisasi';
 
     // ── State ─────────────────────────────────────────────────────────────────
@@ -96,9 +100,10 @@ class ManageOrganisasi extends Page implements HasActions
                 ->searchable()
                 ->nullable()
                 ->required($parentRequired)
-                ->helperText($parentRequired
-                    ? 'Pilih unit induk untuk unit baru ini.'
-                    : 'Kosongkan jika ini adalah unit tingkat teratas.'
+                ->helperText(
+                    $parentRequired
+                        ? 'Pilih unit induk untuk unit baru ini.'
+                        : 'Kosongkan jika ini adalah unit tingkat teratas.'
                 ),
 
             Toggle::make('is_active')
@@ -281,21 +286,25 @@ class ManageOrganisasi extends Page implements HasActions
     }
 
     /**
-     * Show active staff assigned to a unit in a read-only modal.
+     * Show active staff assigned to a unit, grouped by jabatan level.
      * Argument: { unitId: int }
      */
     public function viewStaffAction(): Action
     {
         return Action::make('viewStaff')
-            ->modalHeading(fn(array $arguments): string =>
-                'Staf Aktif — ' . (UnitKerja::find($arguments['unitId'])?->nama_unit ?? '')
+            ->modalHeading(
+                fn(array $arguments): string =>
+                UnitKerja::with('jenisUnit')->find($arguments['unitId'])?->nama_unit ?? 'Staf Unit'
             )
-            ->modalContent(fn(array $arguments): View =>
-                view('filament.pages.admin._staff-list', [
+            ->modalWidth('lg')
+            ->modalContent(fn(array $arguments): View => view(
+                'filament.pages.admin._staff-list',
+                [
+                    'unit'      => UnitKerja::with(['jenisUnit', 'jabatans'])->findOrFail($arguments['unitId']),
                     'staffList' => app(UnitKerjaService::class)
                         ->getStaffForUnit(UnitKerja::findOrFail($arguments['unitId'])),
-                ])
-            )
+                ]
+            ))
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Tutup');
     }

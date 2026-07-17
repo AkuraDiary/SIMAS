@@ -184,12 +184,18 @@ class UnitKerjaService
 
     /**
      * Staff actively assigned to a unit, with their profile and position data.
+     * Ordered by jabatan level_jabatan (1 = most senior) so the list is hierarchical.
      */
     public function getStaffForUnit(UnitKerja $unit): Collection
     {
         return $unit->pegawaiJabatans()
             ->with(['pegawai.user', 'jabatan'])
             ->where('status_jabatan', 'AKTIF')
+            ->join('jabatans', 'jabatans.id', '=', 'user_pegawai_jabatans.jabatan_id')
+            ->orderByRaw('jabatans.level_jabatan IS NULL ASC')
+            ->orderBy('jabatans.level_jabatan')
+            ->orderBy('jabatans.nama_jabatan')
+            ->select('user_pegawai_jabatans.*')
             ->get();
     }
 

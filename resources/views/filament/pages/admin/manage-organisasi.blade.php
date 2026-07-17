@@ -8,7 +8,7 @@
             position: relative;
             overflow: hidden;
             width: 100%;
-            height: calc(100vh - 14rem);
+            height: calc(107vh - 14rem);
             min-height: 400px;
             background-color: hsl(220 14% 96%);
             border-radius: 0.75rem;
