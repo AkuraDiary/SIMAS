@@ -19,6 +19,7 @@ class Template extends Model implements HasMedia
         'kategori_id',
         'entry_point_unit_id',
         'nama_template',
+        'deskripsi',
         'tipe_surat',
         'aksesibilitas',
         'field_variables',
