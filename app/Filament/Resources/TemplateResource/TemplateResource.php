@@ -2,34 +2,34 @@
 
 namespace App\Filament\Resources\TemplateResource;
 
+use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use App\Filament\Resources\TemplateResource\Pages;
 use App\Models\Template;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
-// use Filament\Forms\Set;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Hidden;
-use Illuminate\Support\HtmlString;
-use AmidEsfahani\FilamentTinyEditor\TinyEditor;
-use Filament\Actions\Action;
+use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
-use Filament\Tables\Columns\Layout\View;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\Layout\Stack;
+use Filament\Tables\Columns\Layout\View;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Support\HtmlString;
 
 class TemplateResource extends Resource
 {
@@ -91,7 +91,7 @@ class TemplateResource extends Resource
                                 if (! $record) return 'GLOBAL';
                                 return $record->unitAkses()->exists() ? 'SPECIFIC' : 'GLOBAL';
                             })
-                            
+
                             ->visible(fn(Get $get) => $get('aksesibilitas') === 'INTERNAL')
                             ->required(fn(Get $get) => $get('aksesibilitas') === 'INTERNAL')
                             ->reactive(),
@@ -105,14 +105,45 @@ class TemplateResource extends Resource
                     ]),
 
                 Section::make('Placeholders (Variabel Isian)')
-                    ->icon('heroicon-o-variable')
+                    
                     ->description('Definisikan placeholder yang akan digunakan di dalam template. Pengguna akan diminta mengisi nilai ini saat membuat surat.')
                     ->schema([
                         KeyValue::make('field_variables')
                             ->label('Daftar Placeholder')
-                            ->keyLabel('Kode (contoh: TANGGAL)')
+                            ->keyLabel('Kode (contoh: tanggal)')
                             ->valueLabel('Deskripsi / Label Input')
                             ->reorderable()
+                            ->hintAction(
+                                Action::make('syncToEditor')
+                                    ->label('Sync ke Editor')
+                                    ->icon('heroicon-m-arrow-right-on-rectangle')
+                                    ->visible(fn(Get $get) => $get('render_engine') === 'HTML')
+                                    ->action(function (Set $set, Get $get) {
+                                        $currentVars = $get('field_variables');
+                                        if (empty($currentVars)) {
+                                            \Filament\Notifications\Notification::make()->title('Daftar placeholder kosong!')->warning()->send();
+                                            return;
+                                        }
+
+                                        $html = $get('content_html') ?? '';
+                                        $addedCount = 0;
+
+                                        foreach (array_keys($currentVars) as $key) {
+                                            // Check if key already exists in HTML
+                                            if (strpos($html, '{{ ' . $key . ' }}') === false && strpos($html, '{{' . $key . '}}') === false) {
+                                                $html .= '<p>{{ ' . $key . ' }}</p>';
+                                                $addedCount++;
+                                            }
+                                        }
+
+                                        if ($addedCount > 0) {
+                                            $set('content_html', $html);
+                                            \Filament\Notifications\Notification::make()->title($addedCount . ' Placeholder ditambahkan ke akhir editor!')->success()->send();
+                                        } else {
+                                            \Filament\Notifications\Notification::make()->title('Semua placeholder sudah ada di editor.')->info()->send();
+                                        }
+                                    })
+                            )
                             ->columnSpanFull(),
                     ]),
 
@@ -146,7 +177,7 @@ class TemplateResource extends Resource
                             ->columnSpanFull(),
                     ])->columns(2),
 
-                Section::make('Isi Template (HTML)')
+                Section::make('Isi Template')
                     ->visible(fn(Get $get) => $get('render_engine') === 'HTML')
                     ->schema([
                         TinyEditor::make('content_html')
@@ -155,6 +186,36 @@ class TemplateResource extends Resource
                             ->placeholder('Mulai mengetik template Anda di sini...')
                             ->fileAttachmentsDisk('public')
                             ->fileAttachmentsDirectory('template-attachments')
+                            ->hintAction(
+                                Action::make('scanHtmlPlaceholders')
+                                    ->label('Scan Placeholders')
+                                    ->icon('heroicon-m-arrow-path')
+                                    ->action(function (Set $set, Get $get) {
+                                        $state = $get('content_html');
+                                        if (!$state) return;
+                                        
+                                        preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $state, $matches);
+                                        $fields = array_unique($matches[1] ?? []);
+                                        $current = $get('field_variables') ?? [];
+                                        
+                                        // Add new fields
+                                        foreach ($fields as $field) {
+                                            if (!isset($current[$field])) {
+                                                $current[$field] = ucwords(str_replace('_', ' ', $field));
+                                            }
+                                        }
+                                        
+                                        // Optional: Automatically clean up deleted fields (only if you want)
+                                        foreach ($current as $key => $val) {
+                                            if (!in_array($key, $fields)) {
+                                                unset($current[$key]);
+                                            }
+                                        }
+                                        
+                                        $set('field_variables', $current);
+                                        \Filament\Notifications\Notification::make()->title('Placeholders disinkronkan!')->success()->send();
+                                    })
+                            )
                             ->columnSpanFull(),
                     ])->columnSpanFull(),
 
@@ -167,10 +228,78 @@ class TemplateResource extends Resource
                             ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'])
                             ->maxSize(10240)
                             ->columnSpanFull()
-                            ->hintAction(
+                            ->hintActions([
                                 Action::make('scanPlaceholders')
                                     ->label('Scan Placeholders & Preview')
                                     ->icon('heroicon-m-magnifying-glass')
+                                    ->action(function (\Filament\Forms\Components\SpatieMediaLibraryFileUpload $component, Set $set, Get $get) {
+                                        $files = $component->getState();
+                                        if (empty($files)) {
+                                            \Filament\Notifications\Notification::make()->title('Upload file DOCX terlebih dahulu')->warning()->send();
+                                            return;
+                                        }
+
+                                        $file = is_array($files) ? array_values($files)[0] : $files;
+                                        $path = null;
+
+                                        if ($file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                                            $path = $file->getRealPath();
+                                        } elseif (is_string($file)) {
+                                            $media = \Spatie\MediaLibrary\MediaCollections\Models\Media::findByUuid($file);
+                                            if ($media) {
+                                                $path = $media->getPath();
+                                            }
+                                        }
+
+                                        if (! $path || ! file_exists($path)) {
+                                            \Filament\Notifications\Notification::make()->title('File DOCX tidak ditemukan. Pastikan file sudah selesai di-upload.')->danger()->send();
+                                            return;
+                                        }
+
+                                        try {
+                                            $phpWord = \PhpOffice\PhpWord\IOFactory::load($path);
+                                            $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
+
+                                            $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
+                                            $htmlWriter->save($tmpHtmlFile);
+                                            $html = file_get_contents($tmpHtmlFile);
+                                            unlink($tmpHtmlFile);
+
+                                            // Extract body
+                                            if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
+                                                $html = $matches[1];
+                                            }
+
+                                            // Parse {{ fields }}
+                                            preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $html, $fieldMatches);
+                                            $fields = array_unique($fieldMatches[1] ?? []);
+
+                                            // Highlight
+                                            $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
+
+                                            // Save to preview instead of switching to HTML mode
+                                            $set('preview_html', $html);
+
+                                            $currentFields = $get('field_variables') ?? [];
+                                            foreach ($fields as $field) {
+                                                if (!isset($currentFields[$field])) {
+                                                    $currentFields[$field] = ucwords(str_replace('_', ' ', $field));
+                                                }
+                                            }
+                                            $set('field_variables', $currentFields);
+
+                                            \Filament\Notifications\Notification::make()->title('Placeholders berhasil dipindai & preview dibuat!')->success()->send();
+                                        } catch (\Exception $e) {
+                                            \Filament\Notifications\Notification::make()->title('Gagal memproses file DOCX: ' . $e->getMessage())->danger()->send();
+                                        }
+                                    }),
+                                Action::make('convertToHtml')
+                                    ->label('Convert to HTML')
+                                    ->icon('heroicon-m-exclamation-triangle')
+                                    ->color('danger')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Peringatan Konversi Format')
+                                    ->modalDescription('Mengonversi file DOCX ke HTML (Rich Text Editor) memungkinkan Anda untuk mengeditnya secara langsung di browser, namun berisiko merusak layout asli (seperti margin, gambar latar, dan penomoran halaman). Apakah Anda yakin ingin melanjutkan?')
                                     ->action(function (\Filament\Forms\Components\SpatieMediaLibraryFileUpload $component, Set $set, Get $get) {
                                         $files = $component->getState();
                                         if (empty($files)) {
@@ -216,8 +345,9 @@ class TemplateResource extends Resource
                                             // Highlight
                                             $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
                                             
-                                            // Save to preview instead of switching to HTML mode
-                                            $set('preview_html', $html);
+                                            $set('content_html', $html);
+                                            $set('render_engine', 'HTML');
+                                            $set('preview_html', null); // clear preview since we moved to editor
                                             
                                             $currentFields = $get('field_variables') ?? [];
                                             foreach ($fields as $field) {
@@ -227,19 +357,27 @@ class TemplateResource extends Resource
                                             }
                                             $set('field_variables', $currentFields);
                                             
-                                            \Filament\Notifications\Notification::make()->title('Placeholders berhasil dipindai & preview dibuat!')->success()->send();
+                                            \Filament\Notifications\Notification::make()->title('Berhasil dikonversi ke HTML. Mode diubah menjadi Buat dari Awal.')->success()->send();
                                         } catch (\Exception $e) {
                                             \Filament\Notifications\Notification::make()->title('Gagal memproses file DOCX: ' . $e->getMessage())->danger()->send();
                                         }
                                     })
-                            ),
-                            
+                            ]),
+
                         Hidden::make('preview_html'),
-                        
-                        Placeholder::make('docx_preview')
+                        TextEntry::make('docx_preview')
                             ->label('Preview Dokumen')
-                            ->content(fn(Get $get) => new HtmlString('<div style="border:1px solid #ccc; padding: 2rem; background: #fff; color: #000; max-height: 500px; overflow-y: auto;">' . ($get('preview_html') ?: '<p style="color: #666; text-align: center;">Klik "Scan Placeholders & Preview" di bagian Upload File untuk melihat preview.</p>') . '</div>'))
-                            ->columnSpanFull(),
+                            ->state(fn(Get $get) => new HtmlString(
+                                '<div style="border:1px solid #ccc; padding: 2rem; background: #fff; color: #000; max-height: 500px; overflow-y: auto;">' .
+                                    ($get('preview_html') ?: '<p style="color: #666; text-align: center;">Klik "Scan Placeholders & Preview" di bagian Upload File untuk melihat preview.</p>') .
+                                    '</div>'
+                            ))
+                            ->html() // Explicitly tells Filament to render the HtmlString wrapper as raw HTML
+                            ->columnSpanFull()
+                        // Placeholder::make('docx_preview')
+                        //     ->label('Preview Dokumen')
+                        //     ->content(fn(Get $get) => new HtmlString('<div style="border:1px solid #ccc; padding: 2rem; background: #fff; color: #000; max-height: 500px; overflow-y: auto;">' . ($get('preview_html') ?: '<p style="color: #666; text-align: center;">Klik "Scan Placeholders & Preview" di bagian Upload File untuk melihat preview.</p>') . '</div>'))
+                        //     ->columnSpanFull(),
                     ])
                     ->columnSpanFull(),
             ]);
@@ -293,15 +431,15 @@ class TemplateResource extends Resource
                         '0' => 'Draft',
                     ])
                     ->label('Status'),
-                ])
-                ->recordActions([
-                    EditAction::make()->hiddenLabel()->tooltip('Edit Template'),
-                    DeleteAction::make()->hiddenLabel()->tooltip('Hapus Template'),
-                ])
-                ->toolbarActions([
-                    BulkActionGroup::make([
-                        DeleteBulkAction::make(),
-                    ]),
+            ])
+            ->recordActions([
+                EditAction::make()->hiddenLabel()->tooltip('Edit Template'),
+                DeleteAction::make()->hiddenLabel()->tooltip('Hapus Template'),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
             ]);
     }
 
