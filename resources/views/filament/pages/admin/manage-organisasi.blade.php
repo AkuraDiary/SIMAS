@@ -193,7 +193,7 @@
                 <x-heroicon-o-magnifying-glass-minus class="h-4 w-4" />
             </button>
             <button type="button" title="Sesuaikan Layar" x-on:click.stop="fitToScreen()">
-                <x-heroicon-o-arrows-pointing-out class="h-4 w-4" />
+                <x-heroicon-o-arrows-pointing-in class="h-4 w-4" />
             </button>
         </div>
 

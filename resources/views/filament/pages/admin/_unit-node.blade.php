@@ -56,7 +56,8 @@ $typeIcon = $isAkademis ? 'school-o' : ($isAdministrasi ? 'work' : 'o-building-o
          transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), filter 0.5s ease;
     "
         onmouseover="this.style.transform='scale(1.05)'; this.style.filter='brightness(1.15)';"
-        onmouseout="this.style.transform='scale(1)'; this.style.filter='brightness(1)';">
+        onmouseout="this.style.transform='scale(1)'; this.style.filter='brightness(1)';"
+        wire:click="mountAction('viewStaff',  { unitId: {{ $unit['id'] }} })" >
         <div style="padding: 0.75rem 0.875rem;">
 
             {{-- Row 1 — jenis label + type icon --}}
