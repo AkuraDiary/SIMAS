@@ -259,28 +259,12 @@ class TemplateResource extends Resource
                                         }
 
                                         try {
-                                            $phpWord = \PhpOffice\PhpWord\IOFactory::load($path);
-                                            $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
+                                            $service = app(\App\Services\DocxTemplateService::class);
+                                            $html = $service->convertToHtml($path);
+                                            $fields = $service->extractPlaceholders($html);
+                                            $highlighted = $service->highlightPlaceholders($html);
 
-                                            $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
-                                            $htmlWriter->save($tmpHtmlFile);
-                                            $html = file_get_contents($tmpHtmlFile);
-                                            unlink($tmpHtmlFile);
-
-                                            // Extract body
-                                            if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
-                                                $html = $matches[1];
-                                            }
-
-                                            // Parse {{ fields }}
-                                            preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $html, $fieldMatches);
-                                            $fields = array_unique($fieldMatches[1] ?? []);
-
-                                            // Highlight
-                                            $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
-
-                                            // Save to preview instead of switching to HTML mode
-                                            $set('preview_html', $html);
+                                            $set('preview_html', $highlighted);
 
                                             $currentFields = $get('field_variables') ?? [];
                                             foreach ($fields as $field) {
@@ -327,25 +311,9 @@ class TemplateResource extends Resource
                                         }
 
                                         try {
-                                            $phpWord = \PhpOffice\PhpWord\IOFactory::load($path);
-                                            $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
-
-                                            $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
-                                            $htmlWriter->save($tmpHtmlFile);
-                                            $html = file_get_contents($tmpHtmlFile);
-                                            unlink($tmpHtmlFile);
-
-                                            // Extract body
-                                            if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
-                                                $html = $matches[1];
-                                            }
-
-                                            // Parse {{ fields }}
-                                            preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $html, $fieldMatches);
-                                            $fields = array_unique($fieldMatches[1] ?? []);
-
-                                            // Highlight
-                                            $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
+                                            $service = app(\App\Services\DocxTemplateService::class);
+                                            $html = $service->convertToHtml($path);
+                                            $fields = $service->extractPlaceholders($html);
 
                                             $set('content_html', $html);
                                             $set('render_engine', 'HTML');
@@ -448,16 +416,9 @@ class TemplateResource extends Resource
                             $media = $record->getFirstMedia('template_file');
                             if ($media && file_exists($media->getPath())) {
                                 try {
-                                    $phpWord = \PhpOffice\PhpWord\IOFactory::load($media->getPath());
-                                    $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
-                                    $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
-                                    $htmlWriter->save($tmpHtmlFile);
-                                    $html = file_get_contents($tmpHtmlFile);
-                                    unlink($tmpHtmlFile);
-                                    if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
-                                        $html = $matches[1];
-                                    }
-                                    $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
+                                    $service = app(\App\Services\DocxTemplateService::class);
+                                    $rawHtml = $service->convertToHtml($media->getPath());
+                                    $html = $service->highlightPlaceholders($rawHtml);
                                 } catch (\Exception $e) {
                                     $html = '<p style="color: red; text-align: center;">Gagal merender DOCX: ' . $e->getMessage() . '</p>';
                                 }
