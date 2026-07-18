@@ -16,21 +16,14 @@ class SimasDashboard extends BaseDashboard
 
     public static string|BackedEnum|null $navigationIcon = 'dashboard-r';
 
-    public function getWidgets(): array
-    {
-        $user = Auth::user();
+    protected string $view = 'filament.pages.dashboard-simas-dashboard';
 
-        return match ($user->tipe_entitas) {
-            'ADMIN' => [
-                SuperAdminStats::class,
-                // SuperAdminSuratChart::class,
-            ],
-            'STAF' => [
-                StafUnitStats::class,
-                // StafUnitInboxStats::class,
-            ],
-            default => [],
-        };
+    public function getViewData(): array
+    {
+        return [
+            'totalPengguna' => \App\Models\User::count(),
+            'templateAktif' => \App\Models\Template::where('is_active', true)->count(),
+            'unitOrganisasi' => \App\Models\UnitKerja::count(),
+        ];
     }
-    // protected string $view = 'filament.pages.dashboard-simas-dashboard';
 }
