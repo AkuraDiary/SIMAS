@@ -25,8 +25,10 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\Layout\View;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
@@ -391,9 +393,10 @@ class TemplateResource extends Resource
                 'xl' => 3,
             ])
             ->columns([
-                // Stack::make([
-                View::make('filament.tables.columns.template-card'),
-                // ])
+
+                View::make('filament.tables.columns.template-card')
+
+
             ])
             ->filters([
                 SelectFilter::make('kategori_id')
@@ -425,8 +428,55 @@ class TemplateResource extends Resource
                     ])
                     ->label('Status'),
             ])
-            ->filtersLayout(\Filament\Tables\Enums\FiltersLayout::AboveContent)
-            ->filtersFormColumns(3);
+            ->filtersLayout(FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
+            ->recordAction(null)
+            ->recordUrl(null)
+            ->recordActions([
+                Action::make('preview')
+                    ->visible()
+                    ->extraAttributes([
+                        'class' => 'hidden', // Hides the default button from the UI
+                    ])
+                    ->icon(Heroicon::Eye)
+                    ->modalHeading(fn($record) => 'Preview: ' . $record->nama_template)
+                    ->modalContent(function ($record) {
+                        $html = '';
+                        if ($record->render_engine === 'HTML') {
+                            $html = $record->content_html;
+                        } else {
+                            $media = $record->getFirstMedia('template_file');
+                            if ($media && file_exists($media->getPath())) {
+                                try {
+                                    $phpWord = \PhpOffice\PhpWord\IOFactory::load($media->getPath());
+                                    $htmlWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'HTML');
+                                    $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
+                                    $htmlWriter->save($tmpHtmlFile);
+                                    $html = file_get_contents($tmpHtmlFile);
+                                    unlink($tmpHtmlFile);
+                                    if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
+                                        $html = $matches[1];
+                                    }
+                                    $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<mark style="background-color: #ffeb3b; font-weight: bold;">{{ $1 }}</mark>', $html);
+                                } catch (\Exception $e) {
+                                    $html = '<p style="color: red; text-align: center;">Gagal merender DOCX: ' . $e->getMessage() . '</p>';
+                                }
+                            } else {
+                                $html = '<p style="color: #666; text-align: center;">Belum ada file template DOCX yang diupload.</p>';
+                            }
+                        }
+                        return new \Illuminate\Support\HtmlString(
+                            '<div style="padding: 2rem; background: #fff; color: #000; max-height: 500px; overflow-y: auto;">' .
+                                ($html ?: '<p style="color: #666; text-align: center;">Template kosong.</p>') .
+                                '</div>'
+                        );
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup'),
+
+                // EditAction::make("Edit")->icon(Heroicon::Pencil),
+            ])
+            ->recordActionsAlignment('end');
     }
 
     public static function getRelations(): array

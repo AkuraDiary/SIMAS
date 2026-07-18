@@ -22,8 +22,6 @@ class TemplateStatsWidget extends BaseWidget
         $draftCount = Template::where('is_active', false)->count();
 
         return [
-
-
             Stat::make('Active Templates', $activeCount)
                 ->description('Templates available for use')
                 ->descriptionIcon('heroicon-m-check-badge', \Filament\Support\Enums\IconPosition::Before)
@@ -32,8 +30,6 @@ class TemplateStatsWidget extends BaseWidget
                 ->description('Templates in progress')
                 ->descriptionIcon('heroicon-m-pencil-square', \Filament\Support\Enums\IconPosition::Before)
                 ->color('warning'),
-
-
         ];
     }
 }
