@@ -9,6 +9,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -125,6 +126,16 @@ class EditUserPegawai extends EditRecord
                                 ->revealable()
                                 ->same('new_password')
                                 ->visible(fn($get) => filled($get('new_password'))),
+                            Select::make('is_active')
+                                ->label("Aktivasi Akun Manual")
+                                ->options([
+                                    '1' => 'Aktif',
+                                    '0' => 'Non Aktif',
+                                ])
+                                ->helperText("Peringatan: Mengubah status akan langsung mempengaruhi hak akses login pengguna.")
+                                ->default(fn() => $this->record->user?->is_active)
+                                ->preload(),
+
                         ]),
                 ])
                 ->action(function (array $data) {
@@ -143,6 +154,7 @@ class EditUserPegawai extends EditRecord
                         'username' => $data['username'],
                         'email' => $data['email'] ?? null,
                         'phone' => $data['phone'] ?? null,
+                        'is_active' => $data['is_active'] ?? null,
                     ];
 
                     if (filled($data['new_password'])) {
@@ -156,7 +168,7 @@ class EditUserPegawai extends EditRecord
                         ->success()
                         ->send();
                 }),
-                
+
             ForceDeleteAction::make(),
             RestoreAction::make(),
         ];
