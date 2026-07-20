@@ -166,11 +166,29 @@ class TemplateResource extends Resource
                                                 'number' => 'Angka',
                                                 'date' => 'Tanggal',
                                                 'repeater' => 'Daftar Berulang (Tabel/List)',
+                                                'signature' => 'Tanda Tangan',
                                             ])
                                             ->default('text')
                                             ->required()
                                             ->live(),
                                     ]),
+                                Grid::make(2)
+                                    ->schema([
+                                        Select::make('signature_type')
+                                            ->label('Peran Tanda Tangan')
+                                            ->options([
+                                                'primary' => 'Utama (Primary)',
+                                                'secondary' => 'Mengetahui (Secondary/Tertiary)',
+                                            ])
+                                            ->default('primary')
+                                            ->required(fn(Get $get) => $get('type') === 'signature'),
+                                        Toggle::make('is_optional_signature')
+                                            ->label('Sifat Opsional (Bisa dikosongkan)')
+                                            ->default(false)
+                                            ->inline(false),
+                                    ])
+                                    ->visible(fn(Get $get) => $get('type') === 'signature')
+                                    ->columnSpanFull(),
                                 Repeater::make('repeater_fields')
                                     ->label('Sub-placeholder untuk Daftar Berulang')
                                     ->schema([
