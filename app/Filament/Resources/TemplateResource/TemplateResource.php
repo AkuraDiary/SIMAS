@@ -19,8 +19,11 @@ use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Repeater;
+
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -67,6 +70,13 @@ class TemplateResource extends Resource
                             ->label('Deskripsi')
                             ->placeholder('Jelaskan penggunaan template ini...')
                             ->columnSpanFull(),
+
+                        Toggle::make('is_active')
+                            ->label('Template Aktif')
+                            ->default(false)
+                            ->helperText('Jika nonaktif, template akan berstatus DRAFT dan hanya admin yang bisa melihatnya.')
+                            ->columnSpanFull(),
+
                     ])->columns(2),
 
                 Section::make('Pengaturan Visibilitas')
@@ -105,16 +115,121 @@ class TemplateResource extends Resource
                             ->visible(fn(Get $get) => $get('visibility_type') === 'SPECIFIC')
                             ->required(fn(Get $get) => $get('visibility_type') === 'SPECIFIC'),
                     ]),
+                Section::make('Mode Template')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->schema([
+                        Select::make('render_engine')
+                            ->label('Metode Pembuatan')
+                            ->options([
+                                'HTML' => 'Buat dari Awal (Rich Text)',
+                                'DOCX' => 'Upload Dokumen (Word)',
+                            ])
+                            ->default('HTML')
+                            ->reactive()
+                            ->required(),
+
+                        Select::make('tipe_surat')
+                            ->options([
+                                'INTERNAL' => 'Internal',
+                                'PENGAJUAN' => 'Pengajuan',
+                                'TERBITAN' => 'Terbitan',
+                                'EKSTERNAL' => 'Eksternal',
+                            ])
+                            ->default('INTERNAL')
+                            ->required(),
+                    ])->columns(2)
+                    ->columnSpanFull(),
 
                 Section::make('Placeholders (Variabel Isian)')
-
+                    ->columnSpanFull()
                     ->description('Definisikan placeholder yang akan digunakan di dalam template. Pengguna akan diminta mengisi nilai ini saat membuat surat.')
                     ->schema([
-                        KeyValue::make('field_variables')
+                        Repeater::make('field_variables')
                             ->label('Daftar Placeholder')
-                            ->keyLabel('Kode (contoh: tanggal)')
-                            ->valueLabel('Deskripsi / Label Input')
-                            ->reorderable()
+                            ->schema([
+                                Grid::make(3)
+                                    ->schema([
+                                        TextInput::make('key')
+                                            ->label('Kode Placeholder')
+                                            ->placeholder('contoh: nama')
+                                            ->required()
+                                            ->alphaDash(),
+                                        TextInput::make('label')
+                                            ->label('Label Input (Untuk User)')
+                                            ->placeholder('contoh: Nama Lengkap')
+                                            ->required(),
+                                        Select::make('type')
+                                            ->label('Tipe Input')
+                                            ->options([
+                                                'text' => 'Teks Pendek',
+                                                'long_text' => 'Teks Panjang',
+                                                'number' => 'Angka',
+                                                'date' => 'Tanggal',
+                                                'repeater' => 'Daftar Berulang (Tabel/List)',
+                                            ])
+                                            ->default('text')
+                                            ->required()
+                                            ->live(),
+                                    ]),
+                                Repeater::make('repeater_fields')
+                                    ->label('Sub-placeholder untuk Daftar Berulang')
+                                    ->schema([
+                                        Grid::make(2)
+                                            ->schema([
+                                                TextInput::make('key')
+                                                    ->label('Sub-kode')
+                                                    ->placeholder('contoh: nama')
+                                                    ->required()
+                                                    ->alphaDash(),
+                                                TextInput::make('label')
+                                                    ->label('Sub-label')
+                                                    ->placeholder('contoh: Nama')
+                                                    ->required(),
+                                            ])
+                                    ])
+                                    ->visible(fn(Get $get) => $get('type') === 'repeater')
+                                    ->columnSpanFull()
+                                    ->grid(2)
+                            ])
+                            ->collapsible()
+                             ->itemLabel(function ($state) {
+                                 if (!is_array($state)) return null;
+                                 
+                                 $label = $state['label'] ?? null;
+                                 if (!is_string($label) && !is_numeric($label)) {
+                                     $label = null;
+                                 }
+                                 
+                                 $key = $state['key'] ?? null;
+                                 if (!is_string($key) && !is_numeric($key)) {
+                                     $key = null;
+                                 }
+                                 
+                                 return $label ? ($label . ' ({{ ' . $key . ' }})') : null;
+                             })
+                            ->afterStateHydrated(function ($component, $state) {
+                                if (empty($state)) return;
+                                $isOldFormat = false;
+                                foreach ($state as $key => $value) {
+                                    // In old format, value is a simple string.
+                                    // In new format, Filament uses UUID string keys, but value is an array.
+                                    if (is_string($key) && !is_array($value)) {
+                                        $isOldFormat = true;
+                                        break;
+                                    }
+                                }
+                                if ($isOldFormat) {
+                                    $newFormat = [];
+                                    foreach ($state as $key => $value) {
+                                        $newFormat[] = [
+                                            'key' => $key,
+                                            'label' => is_string($value) ? $value : 'Unknown',
+                                            'type' => 'text',
+                                        ];
+                                    }
+                                    $component->state($newFormat);
+                                }
+                            })
                             ->hintAction(
                                 Action::make('syncToEditor')
                                     ->label('Sync ke Editor')
@@ -130,17 +245,38 @@ class TemplateResource extends Resource
                                         $html = $get('content_html') ?? '';
                                         $addedCount = 0;
 
-                                        foreach (array_keys($currentVars) as $key) {
-                                            // Check if key already exists in HTML
-                                            if (strpos($html, '{{ ' . $key . ' }}') === false && strpos($html, '{{' . $key . '}}') === false) {
-                                                $html .= '<p>{{ ' . $key . ' }}</p>';
-                                                $addedCount++;
+                                        foreach ($currentVars as $var) {
+                                            $key = $var['key'] ?? null;
+                                            if (!$key) continue;
+                                            $type = $var['type'] ?? 'text';
+
+                                            if ($type === 'repeater') {
+                                                // Check if loop block already exists in HTML
+                                                if (strpos($html, '[loop:' . $key . ']') === false) {
+                                                    $subContent = '';
+                                                    $subFields = $var['repeater_fields'] ?? [];
+                                                    foreach ($subFields as $sf) {
+                                                        $sfKey = $sf['key'] ?? null;
+                                                        $sfLabel = $sf['label'] ?? '';
+                                                        if ($sfKey) {
+                                                            $subContent .= $sfLabel . ': {{ ' . $sfKey . ' }}<br>';
+                                                        }
+                                                    }
+                                                    $html .= "<p>[loop:{$key}]<br>{$subContent}[/loop:{$key}]</p>";
+                                                    $addedCount++;
+                                                }
+                                            } else {
+                                                // Check if key already exists in HTML
+                                                if (strpos($html, '{{ ' . $key . ' }}') === false && strpos($html, '{{' . $key . '}}') === false) {
+                                                    $html .= '<p>{{ ' . $key . ' }}</p>';
+                                                    $addedCount++;
+                                                }
                                             }
                                         }
 
                                         if ($addedCount > 0) {
                                             $set('content_html', $html);
-                                            \Filament\Notifications\Notification::make()->title($addedCount . ' Placeholder ditambahkan ke akhir editor!')->success()->send();
+                                            \Filament\Notifications\Notification::make()->title($addedCount . ' Placeholder/Loop ditambahkan ke akhir editor!')->success()->send();
                                         } else {
                                             \Filament\Notifications\Notification::make()->title('Semua placeholder sudah ada di editor.')->info()->send();
                                         }
@@ -149,35 +285,7 @@ class TemplateResource extends Resource
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Mode Template')
-                    ->icon('heroicon-o-document-duplicate')
-                    ->schema([
-                        Select::make('render_engine')
-                            ->label('Metode Pembuatan')
-                            ->options([
-                                'HTML' => 'Buat dari Awal (Rich Text)',
-                                'DOCX' => 'Upload Dokumen (Word)',
-                            ])
-                            ->default('HTML')
-                            ->reactive()
-                            ->required(),
 
-                        Toggle::make('is_active')
-                            ->label('Template Aktif')
-                            ->default(false)
-                            ->helperText('Jika nonaktif, template akan berstatus DRAFT dan hanya admin yang bisa melihatnya.'),
-
-                        Select::make('tipe_surat')
-                            ->options([
-                                'INTERNAL' => 'Internal',
-                                'PENGAJUAN' => 'Pengajuan',
-                                'TERBITAN' => 'Terbitan',
-                                'EKSTERNAL' => 'Eksternal',
-                            ])
-                            ->default('INTERNAL')
-                            ->required()
-                            ->columnSpanFull(),
-                    ])->columns(2),
 
                 Section::make('Isi Template')
                     ->visible(fn(Get $get) => $get('render_engine') === 'HTML')
@@ -199,20 +307,27 @@ class TemplateResource extends Resource
                                         preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $state, $matches);
                                         $fields = array_unique($matches[1] ?? []);
                                         $current = $get('field_variables') ?? [];
+                                        $existingKeys = array_column($current, 'key');
 
                                         // Add new fields
                                         foreach ($fields as $field) {
-                                            if (!isset($current[$field])) {
-                                                $current[$field] = ucwords(str_replace('_', ' ', $field));
+                                            if (!in_array($field, $existingKeys)) {
+                                                $current[] = [
+                                                    'key' => $field,
+                                                    'label' => ucwords(str_replace('_', ' ', $field)),
+                                                    'type' => 'text',
+                                                ];
                                             }
                                         }
 
-                                        // Optional: Automatically clean up deleted fields (only if you want)
-                                        foreach ($current as $key => $val) {
+                                        // Automatically clean up deleted fields
+                                        foreach ($current as $index => $var) {
+                                            $key = $var['key'] ?? '';
                                             if (!in_array($key, $fields)) {
-                                                unset($current[$key]);
+                                                unset($current[$index]);
                                             }
                                         }
+                                        $current = array_values($current);
 
                                         $set('field_variables', $current);
                                         \Filament\Notifications\Notification::make()->title('Placeholders disinkronkan!')->success()->send();
@@ -267,9 +382,10 @@ class TemplateResource extends Resource
                                             $set('preview_html', $highlighted);
 
                                             $currentFields = $get('field_variables') ?? [];
+                                            $existingKeys = array_column($currentFields, 'key');
                                             foreach ($fields as $field) {
-                                                if (!isset($currentFields[$field])) {
-                                                    $currentFields[$field] = ucwords(str_replace('_', ' ', $field));
+                                                if (!in_array($field['key'], $existingKeys)) {
+                                                    $currentFields[] = $field;
                                                 }
                                             }
                                             $set('field_variables', $currentFields);
@@ -320,9 +436,10 @@ class TemplateResource extends Resource
                                             $set('preview_html', null); // clear preview since we moved to editor
 
                                             $currentFields = $get('field_variables') ?? [];
+                                            $existingKeys = array_column($currentFields, 'key');
                                             foreach ($fields as $field) {
-                                                if (!isset($currentFields[$field])) {
-                                                    $currentFields[$field] = ucwords(str_replace('_', ' ', $field));
+                                                if (!in_array($field['key'], $existingKeys)) {
+                                                    $currentFields[] = $field;
                                                 }
                                             }
                                             $set('field_variables', $currentFields);
