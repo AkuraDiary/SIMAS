@@ -304,26 +304,24 @@ class TemplateResource extends Resource
                                         $state = $get('content_html');
                                         if (!$state) return;
 
-                                        preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $state, $matches);
-                                        $fields = array_unique($matches[1] ?? []);
+                                        $service = app(\App\Services\DocxTemplateService::class);
+                                        $fields = $service->extractPlaceholders($state);
+
                                         $current = $get('field_variables') ?? [];
                                         $existingKeys = array_column($current, 'key');
 
                                         // Add new fields
                                         foreach ($fields as $field) {
-                                            if (!in_array($field, $existingKeys)) {
-                                                $current[] = [
-                                                    'key' => $field,
-                                                    'label' => ucwords(str_replace('_', ' ', $field)),
-                                                    'type' => 'text',
-                                                ];
+                                            if (!in_array($field['key'], $existingKeys)) {
+                                                $current[] = $field;
                                             }
                                         }
 
                                         // Automatically clean up deleted fields
+                                        $fieldKeys = array_column($fields, 'key');
                                         foreach ($current as $index => $var) {
                                             $key = $var['key'] ?? '';
-                                            if (!in_array($key, $fields)) {
+                                            if (!in_array($key, $fieldKeys)) {
                                                 unset($current[$index]);
                                             }
                                         }
