@@ -208,27 +208,8 @@ class TemplateResource extends Resource
                                  return $label ? ($label . ' ({{ ' . $key . ' }})') : null;
                              })
                             ->afterStateHydrated(function ($component, $state) {
-                                if (empty($state)) return;
-                                $isOldFormat = false;
-                                foreach ($state as $key => $value) {
-                                    // In old format, value is a simple string.
-                                    // In new format, Filament uses UUID string keys, but value is an array.
-                                    if (is_string($key) && !is_array($value)) {
-                                        $isOldFormat = true;
-                                        break;
-                                    }
-                                }
-                                if ($isOldFormat) {
-                                    $newFormat = [];
-                                    foreach ($state as $key => $value) {
-                                        $newFormat[] = [
-                                            'key' => $key,
-                                            'label' => is_string($value) ? $value : 'Unknown',
-                                            'type' => 'text',
-                                        ];
-                                    }
-                                    $component->state($newFormat);
-                                }
+                                $service = app(\App\Services\PlaceholderService::class);
+                                $component->state($service->formatHydratedVariables($state));
                             })
                             ->hintAction(
                                 Action::make('syncToEditor')
@@ -243,40 +224,13 @@ class TemplateResource extends Resource
                                         }
 
                                         $html = $get('content_html') ?? '';
-                                        $addedCount = 0;
+                                        
+                                        $service = app(\App\Services\PlaceholderService::class);
+                                        $result = $service->syncVariablesToHtml($html, $currentVars);
 
-                                        foreach ($currentVars as $var) {
-                                            $key = $var['key'] ?? null;
-                                            if (!$key) continue;
-                                            $type = $var['type'] ?? 'text';
-
-                                            if ($type === 'repeater') {
-                                                // Check if loop block already exists in HTML
-                                                if (strpos($html, '[loop:' . $key . ']') === false) {
-                                                    $subContent = '';
-                                                    $subFields = $var['repeater_fields'] ?? [];
-                                                    foreach ($subFields as $sf) {
-                                                        $sfKey = $sf['key'] ?? null;
-                                                        $sfLabel = $sf['label'] ?? '';
-                                                        if ($sfKey) {
-                                                            $subContent .= $sfLabel . ': {{ ' . $sfKey . ' }}<br>';
-                                                        }
-                                                    }
-                                                    $html .= "<p>[loop:{$key}]<br>{$subContent}[/loop:{$key}]</p>";
-                                                    $addedCount++;
-                                                }
-                                            } else {
-                                                // Check if key already exists in HTML
-                                                if (strpos($html, '{{ ' . $key . ' }}') === false && strpos($html, '{{' . $key . '}}') === false) {
-                                                    $html .= '<p>{{ ' . $key . ' }}</p>';
-                                                    $addedCount++;
-                                                }
-                                            }
-                                        }
-
-                                        if ($addedCount > 0) {
-                                            $set('content_html', $html);
-                                            \Filament\Notifications\Notification::make()->title($addedCount . ' Placeholder/Loop ditambahkan ke akhir editor!')->success()->send();
+                                        if ($result['addedCount'] > 0) {
+                                            $set('content_html', $result['html']);
+                                            \Filament\Notifications\Notification::make()->title($result['addedCount'] . ' Placeholder/Loop ditambahkan ke akhir editor!')->success()->send();
                                         } else {
                                             \Filament\Notifications\Notification::make()->title('Semua placeholder sudah ada di editor.')->info()->send();
                                         }
@@ -304,28 +258,11 @@ class TemplateResource extends Resource
                                         $state = $get('content_html');
                                         if (!$state) return;
 
-                                        $service = app(\App\Services\DocxTemplateService::class);
+                                        $service = app(\App\Services\PlaceholderService::class);
                                         $fields = $service->extractPlaceholders($state);
 
                                         $current = $get('field_variables') ?? [];
-                                        $existingKeys = array_column($current, 'key');
-
-                                        // Add new fields
-                                        foreach ($fields as $field) {
-                                            if (!in_array($field['key'], $existingKeys)) {
-                                                $current[] = $field;
-                                            }
-                                        }
-
-                                        // Automatically clean up deleted fields
-                                        $fieldKeys = array_column($fields, 'key');
-                                        foreach ($current as $index => $var) {
-                                            $key = $var['key'] ?? '';
-                                            if (!in_array($key, $fieldKeys)) {
-                                                unset($current[$index]);
-                                            }
-                                        }
-                                        $current = array_values($current);
+                                        $current = $service->syncExtractedToVariables($fields, $current);
 
                                         $set('field_variables', $current);
                                         \Filament\Notifications\Notification::make()->title('Placeholders disinkronkan!')->success()->send();
@@ -372,20 +309,18 @@ class TemplateResource extends Resource
                                         }
 
                                         try {
-                                            $service = app(\App\Services\DocxTemplateService::class);
-                                            $html = $service->convertToHtml($path);
-                                            $fields = $service->extractPlaceholders($html);
-                                            $highlighted = $service->highlightPlaceholders($html);
+                                            $docxService = app(\App\Services\DocxTemplateService::class);
+                                            $placeholderService = app(\App\Services\PlaceholderService::class);
+                                            
+                                            $html = $docxService->convertToHtml($path);
+                                            $fields = $placeholderService->extractPlaceholders($html);
+                                            $highlighted = $docxService->highlightPlaceholders($html);
 
                                             $set('preview_html', $highlighted);
 
                                             $currentFields = $get('field_variables') ?? [];
-                                            $existingKeys = array_column($currentFields, 'key');
-                                            foreach ($fields as $field) {
-                                                if (!in_array($field['key'], $existingKeys)) {
-                                                    $currentFields[] = $field;
-                                                }
-                                            }
+                                            $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
+                                            
                                             $set('field_variables', $currentFields);
 
                                             \Filament\Notifications\Notification::make()->title('Placeholders berhasil dipindai & preview dibuat!')->success()->send();
@@ -425,21 +360,18 @@ class TemplateResource extends Resource
                                         }
 
                                         try {
-                                            $service = app(\App\Services\DocxTemplateService::class);
-                                            $html = $service->convertToHtml($path);
-                                            $fields = $service->extractPlaceholders($html);
+                                            $docxService = app(\App\Services\DocxTemplateService::class);
+                                            $placeholderService = app(\App\Services\PlaceholderService::class);
+                                            
+                                            $html = $docxService->convertToHtml($path);
+                                            $fields = $placeholderService->extractPlaceholders($html);
 
                                             $set('content_html', $html);
                                             $set('render_engine', 'HTML');
                                             $set('preview_html', null); // clear preview since we moved to editor
 
                                             $currentFields = $get('field_variables') ?? [];
-                                            $existingKeys = array_column($currentFields, 'key');
-                                            foreach ($fields as $field) {
-                                                if (!in_array($field['key'], $existingKeys)) {
-                                                    $currentFields[] = $field;
-                                                }
-                                            }
+                                            $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
                                             $set('field_variables', $currentFields);
 
                                             \Filament\Notifications\Notification::make()->title('Berhasil dikonversi ke HTML. Mode diubah menjadi Buat dari Awal.')->success()->send();
