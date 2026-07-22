@@ -3,6 +3,13 @@
 namespace App\Services;
 
 use App\Models\Template;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 
 class PlaceholderService
 {
@@ -286,27 +293,38 @@ class PlaceholderService
                     break;
                 case 'signature':
                     $isOptional = $field['is_optional_signature'] ?? false;
-                    $signatureType = $field['signature_type'] ?? 'primary';
-                    $optionsQuery = \App\Models\UserPegawaiJabatan::query()
-                        ->where('status_jabatan', 'AKTIF')
-                        ->with(['pegawai.user', 'jabatan', 'unitKerja'])
-                        ->get()
-                        ->mapWithKeys(function($jabatan) {
-                            $nama = $jabatan->pegawai->nama_lengkap ?? 'Unknown';
-                            $jabatanName = $jabatan->jabatan->nama_jabatan ?? '';
-                            $unit = $jabatan->unitKerja->nama_unit ?? '';
-                            return [$jabatan->id => "{$nama} ({$jabatanName} {$unit})"];
-                        });
-
-                    $schema[] = \Filament\Forms\Components\Select::make($contentKey)
-                        ->label($label . ' (' . ($signatureType === 'primary' ? 'Utama' : 'Mengetahui') . ')')
-                        ->options($optionsQuery)
-                        ->searchable()
-                        ->required(!$isOptional);
+                    $schema[] = Fieldset::make($label)
+                        ->schema([
+                            Radio::make($contentKey . '_method')
+                                ->label('Metode Input')
+                                ->options([
+                                    'draw' => 'Gambar Langsung',
+                                    'upload' => 'Upload File Image',
+                                ])
+                                ->default('draw')
+                                ->reactive()
+                                ->afterStateUpdated(function($state, Set $set) use ($contentKey) {
+                                    $set($contentKey . '_draw', null);
+                                    $set($contentKey . '_upload', null);
+                                }),
+                            SignaturePad::make($contentKey . '_draw')
+                                ->label('Gambar Tanda Tangan')
+                                ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
+                                ->required(!$isOptional)
+                                ->columnSpanFull(),
+                            FileUpload::make($contentKey . '_upload')
+                                ->label('Upload Tanda Tangan')
+                                ->image()
+                                ->disk('public')
+                                ->directory('signatures')
+                                ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
+                                ->required(!$isOptional)
+                                ->columnSpanFull(),
+                        ]);
                     break;
                 case 'text':
                 default:
-                    $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
+                    $schema[] = TextInput::make($contentKey)
                         ->label($label)
                         ->required();
                     break;
@@ -352,10 +370,32 @@ class PlaceholderService
         }
 
         // Handle flat vars
-        foreach ($data as $key => $value) {
-            if (!is_array($value)) {
-                $html = str_replace('{{ ' . $key . ' }}', (string) $value, $html);
-                $html = str_replace('{{' . $key . '}}', (string) $value, $html);
+        foreach ($template->field_variables ?? [] as $field) {
+            $key = $field['key'] ?? '';
+            if (!$key || $field['type'] === 'repeater') continue;
+
+            if ($field['type'] === 'signature') {
+                $method = $data[$key . '_method'] ?? 'draw';
+                $val = '';
+                if ($method === 'draw') {
+                    $val = $data[$key . '_draw'] ?? '';
+                    if ($val) {
+                        $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 100px; max-width: 200px;" />';
+                    }
+                } elseif ($method === 'upload') {
+                    $path = $data[$key . '_upload'] ?? '';
+                    if ($path) {
+                        $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+                        $val = '<img src="' . htmlspecialchars($url) . '" style="max-height: 100px; max-width: 200px;" />';
+                    }
+                }
+                $html = str_replace(['{{ ' . $key . ' }}', '{{' . $key . '}}'], $val, $html);
+            } else {
+                $value = $data[$key] ?? '';
+                if (!is_array($value)) {
+                    $html = str_replace('{{ ' . $key . ' }}', (string) $value, $html);
+                    $html = str_replace('{{' . $key . '}}', (string) $value, $html);
+                }
             }
         }
 
