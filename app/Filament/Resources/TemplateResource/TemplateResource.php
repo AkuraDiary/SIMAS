@@ -332,9 +332,8 @@ class TemplateResource extends Resource
                                             
                                             $html = $docxService->convertToHtml($path);
                                             $fields = $placeholderService->extractPlaceholders($html);
-                                            $highlighted = $docxService->highlightPlaceholders($html);
 
-                                            $set('preview_html', $highlighted);
+                                            $set('content_html', $html);
 
                                             $currentFields = $get('field_variables') ?? [];
                                             $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
@@ -386,7 +385,6 @@ class TemplateResource extends Resource
 
                                             $set('content_html', $html);
                                             $set('render_engine', 'HTML');
-                                            $set('preview_html', null); // clear preview since we moved to editor
 
                                             $currentFields = $get('field_variables') ?? [];
                                             $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
@@ -399,14 +397,17 @@ class TemplateResource extends Resource
                                     })
                             ]),
 
-                        Hidden::make('preview_html'),
                         TextEntry::make('docx_preview')
                             ->label('Preview Dokumen')
-                            ->state(fn(Get $get) => new HtmlString(
-                                '<div style="border:1px solid #ccc; padding: 2rem; background: #fff; color: #000; max-height: 500px; overflow-y: auto;">' .
-                                    ($get('preview_html') ?: '<p style="color: #666; text-align: center;">Klik "Scan Placeholders & Preview" di bagian Upload File untuk melihat preview.</p>') .
-                                    '</div>'
-                            ))
+                            ->state(function(Get $get) {
+                                $content = $get('content_html');
+                                if (! $content) {
+                                    $content = '<p style="color: #666; text-align: center;">Klik "Scan Placeholders & Preview" di bagian Upload File untuk melihat preview.</p>';
+                                } else {
+                                    $content = app(\App\Services\DocxTemplateService::class)->highlightPlaceholders($content);
+                                }
+                                return new HtmlString('<div style="border:1px solid #ccc; padding: 2rem; background: #fff; color: #000; max-height: 500px; overflow-y: auto;">' . $content . '</div>');
+                            })
                             ->html() // Explicitly tells Filament to render the HtmlString wrapper as raw HTML
                             ->columnSpanFull()
                         // Placeholder::make('docx_preview')
