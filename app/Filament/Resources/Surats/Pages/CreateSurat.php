@@ -8,6 +8,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Storage;
@@ -19,6 +20,7 @@ class CreateSurat extends CreateRecord
     protected static string $resource = SuratResource::class;
     
     protected static ?string $title = 'Buat Surat';
+    protected Width|string|null $maxContentWidth = 'full';
 
     public function getBreadcrumbs(): array
     {

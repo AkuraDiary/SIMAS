@@ -2,17 +2,25 @@
 
 namespace App\Filament\Resources\Surats\Schemas;
 
+use App\Models\Template;
 use App\Models\UnitKerja;
+use App\Services\PlaceholderService;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
+use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
-
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Components\Wizard;
+use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 
@@ -20,73 +28,186 @@ class SuratForm
 {
     public static function configure(Schema $schema): Schema
     {
-
-
         return $schema
             ->components([
-                Section::make('Tujuan Surat')
-                    ->collapsible()
-                    ->columnSpanFull()
-                    ->description('Dapat diisi sekarang atau nanti sebelum surat dikirim')
-                    ->schema([
-                        Select::make('unitTujuan')
-                            ->helperText('Unit pertama dianggap sebagai tujuan utama, sisanya sebagai tembusan')
-                            ->label('Tujuan')
-                            ->multiple()
-                            ->relationship(
-                                'unitTujuan',
-                                'nama_unit',
-                                modifyQueryUsing: fn($query) => $query->where('unit_kerjas.id', '<>', Auth::user()->unit_kerja_id)
-                            )
-                            ->searchable()
-                            ->preload(),
-                        Grid::make()->schema([
-                            Select::make('tipe_surat')
-                                ->options(['INTERNAL' => 'Internal', 'EKSTERNAL' => 'Eksternal'])
-                                ->default('INTERNAL')
-                                ->dehydrated()
-                                ->reactive(),
-                            TextInput::make('pengirim_eksternal')
-                                ->label('Asal Pengirim')
-                                ->dehydrated()
-                                ->required(fn($get) => $get('tipe_surat') === 'EKSTERNAL')
-                                ->visible(fn($get) => $get('tipe_surat') === 'EKSTERNAL'),
+                Grid::make(4)->schema([
+                    // LEFT COLUMN
+                    Group::make()->schema([
+                        Section::make('Detail Surat')->schema([
+                            Radio::make('metode_pembuatan')
+                                ->label('Metode Pembuatan')
+                                ->options([
+                                    'template' => 'Gunakan Template',
+                                    'scratch' => 'Tulis dari Awal (From Scratch)',
+                                ])
+                                ->default('template')
+                                ->inline()
+                                ->live()
+                                ->afterStateUpdated(function (Set $set) {
+                                    $set('template_id', null);
+                                    $set('content', []);
+                                    $set('isi_surat', null);
+                                }),
+
+                            Select::make('template_id')
+                                ->label('Pilih Template Surat')
+                                ->options(Template::query()->pluck('nama_template', 'id'))
+                                ->required(fn(Get $get) => $get('metode_pembuatan') === 'template')
+                                ->visible(fn(Get $get) => $get('metode_pembuatan') === 'template')
+                                ->live()
+                                ->afterStateUpdated(function (Set $set) {
+                                    $set('content', []);
+                                }),
+                                
+                            Select::make('user_pegawai_jabatan_id')
+                                ->label('Kirim Sebagai (Peran / Jabatan)')
+                                ->options(function () {
+                                    $pegawai = Auth::user()->pegawai;
+                                    if (!$pegawai) return [];
+                                    return $pegawai->jabatanAktif()
+                                        ->with(['jabatan', 'unitKerja'])
+                                        ->get()
+                                        ->mapWithKeys(function ($upj) {
+                                            $jabatanName = $upj->jabatan->nama_jabatan ?? 'Unknown';
+                                            $unitName = $upj->unitKerja->nama_unit ?? 'Unknown';
+                                            return [$upj->id => "{$jabatanName} - {$unitName}"];
+                                        });
+                                })
+                                ->required()
+                                ->default(function () {
+                                    $pegawai = Auth::user()->pegawai;
+                                    if (!$pegawai) return null;
+                                    $first = $pegawai->jabatanAktif()->first();
+                                    return $first ? $first->id : null;
+                                })
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, $state) {
+                                    if ($state) {
+                                        $upj = \App\Models\UserPegawaiJabatan::find($state);
+                                        if ($upj) {
+                                            $set('unit_pengirim_id', $upj->unit_kerja_id);
+                                        }
+                                    }
+                                }),
+
+                            Grid::make()->schema([
+                                Select::make('tipe_surat')
+                                    ->options(['INTERNAL' => 'Internal', 'EKSTERNAL' => 'Eksternal'])
+                                    ->default('INTERNAL')
+                                    ->dehydrated()
+                                    ->reactive(),
+                                TextInput::make('pengirim_eksternal')
+                                    ->label('Asal Pengirim')
+                                    ->dehydrated()
+                                    ->required(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL')
+                                    ->visible(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL'),
+                            ]),
+                            
+                            Select::make('unitTujuan')
+                                ->helperText('Unit pertama dianggap sebagai tujuan utama, sisanya sebagai tembusan')
+                                ->label('Penerima (Recipient)')
+                                ->multiple()
+                                ->relationship(
+                                    'unitTujuan',
+                                    'nama_unit',
+                                    modifyQueryUsing: fn($query) => $query->where('unit_kerjas.id', '<>', Auth::user()->unit_kerja_id)
+                                )
+                                ->searchable()
+                                ->preload(),
+
+                            TextInput::make('perihal')
+                                ->label('Perihal Surat (Subject)')
+                                ->placeholder('Masukkan judul surat...')
+                                ->required(),
+
+                            // Dynamic Content / Rich Editor
+                            Group::make()->schema(function (Get $get) {
+                                if ($get('metode_pembuatan') === 'scratch') {
+                                    return [
+                                        TinyEditor::make('isi_surat')
+                                            ->profile('full')
+                                            ->label('Isi Surat (Content)')
+                                            ->placeholder('Tuliskan isi surat secara formal di sini...')
+                                            ->required()
+                                            ->columnSpanFull()
+                                    ];
+                                }
+
+                                $templateId = $get('template_id');
+                                if (!$templateId) {
+                                    return [];
+                                }
+
+                                $template = Template::find($templateId);
+                                if (!$template || empty($template->field_variables)) {
+                                    return [
+                                        TextEntry::make('info')
+                                            ->label('')
+                                            ->state('Template ini tidak memiliki formulir dinamis yang perlu diisi.')
+                                    ];
+                                }
+
+                                $service = app(PlaceholderService::class);
+                                $schema = $service->generateFilamentSchema($template->field_variables);
+                                
+                                $schema[] = TextEntry::make('preview')
+                                    ->label('Pratinjau Surat')
+                                    ->state(function (Get $get) use ($template, $service) {
+                                        $data = $get('content') ?? [];
+                                        return new \Illuminate\Support\HtmlString(
+                                            view('filament.forms.components.template-preview', [
+                                                'html' => $service->renderHtml($template, $data)
+                                            ])->render()
+                                        );
+                                    })
+                                    ->columnSpanFull();
+
+                                return $schema;
+                            })->columnSpanFull(),
                         ]),
-                    ]),
 
+                        Section::make('Lampiran File')
+                            ->schema([
+                                SpatieMediaLibraryFileUpload::make('lampirans')
+                                    ->label("Klik atau seret file ke sini")
+                                    ->helperText("PDF, DOCX, atau JPG (Maks. 10MB)")
+                                    ->multiple()
+                                    ->collection('lampiran-surat')
+                                    ->preserveFilenames()
+                                    ->conversion('thumb')
+                                    ->maxSize(10240)
+                                    ->panelLayout('integrated')
+                                    ->columnSpanFull(),
+                            ]),
+                    ])->columnSpan(['lg' => 3]),
 
-                Section::make('Isi Surat')
-                    ->columnSpanFull()
-                    ->schema([
-                        TextInput::make('nomor_agenda')
-                            ->label('Nomor Agenda')
-                            ->required(),
+                    // RIGHT COLUMN
+                    Section::make('RINGKASAN PENGIRIMAN')
+                        ->schema([
+                            TextEntry::make('pengirim_label')
+                                ->label('Pengirim')
+                                ->state(fn() => Auth::user()->name . (Auth::user()->tipe_entitas === 'ADMIN' ? ' (Admin User)' : '')),
 
-                        TextInput::make('nomor_surat')
-                            ->label('Nomor Surat')
-                            ->required(),
+                            TextEntry::make('peran_label')
+                                ->label('Peran')
+                                ->state(function (Get $get) {
+                                    $upjId = $get('user_pegawai_jabatan_id');
+                                    if (!$upjId) return '-';
+                                    $upj = \App\Models\UserPegawaiJabatan::with(['jabatan', 'unitKerja'])->find($upjId);
+                                    if (!$upj) return '-';
+                                    return ($upj->jabatan->nama_jabatan ?? 'Unknown') . ' - ' . ($upj->unitKerja->nama_unit ?? 'Unknown');
+                                }),
 
-                        TextInput::make('perihal')
-                            ->required(),
+                            TextEntry::make('tanggal_label')
+                                ->label('Tanggal')
+                                ->state(now()->translatedFormat('d F Y')),
 
-                        Textarea::make('isi_surat')
-                            ->label('Isi Surat')
-                            ->rows(10)
-                            ->columnSpanFull(),
-                    ]),
+                            TextEntry::make('tipe_label')
+                                ->label('Tipe')
+                                ->state('TERBITAN'),
+                        ])->columnSpan(['lg' => 1]),
 
-
-                Section::make('Lampiran')
-                    ->columnSpanFull()
-                    ->schema([
-                        SpatieMediaLibraryFileUpload::make('lampirans') // This links to the collection
-                            ->label("Lampiran Surat (Max 10MB)")
-                            ->multiple()
-                            ->collection('lampiran-surat')
-                            ->preserveFilenames()
-                            ->conversion('thumb')
-                            ->maxSize(10240),
-                    ]),
+                ])->columns(4)->columnSpan(4),
 
                 // Hidden Field
                 Hidden::make('status_surat')
@@ -95,7 +216,12 @@ class SuratForm
                     ->dehydrated(),
 
                 Hidden::make('unit_pengirim_id')
-                    ->default(fn() => Auth::user()->unit_kerja_id)
+                    ->default(function () {
+                        $pegawai = Auth::user()->pegawai;
+                        if (!$pegawai) return Auth::user()->unit_kerja_id;
+                        $first = $pegawai->jabatanAktif()->first();
+                        return $first ? $first->unit_kerja_id : Auth::user()->unit_kerja_id;
+                    })
                     ->dehydrated(),
 
                 Hidden::make('user_pembuat_id')

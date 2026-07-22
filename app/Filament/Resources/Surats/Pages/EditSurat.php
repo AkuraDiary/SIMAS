@@ -7,6 +7,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Filament\Support\Enums\Width;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,6 +16,7 @@ use function PHPUnit\Framework\isEmpty;
 class EditSurat extends EditRecord
 {
     protected static string $resource = SuratResource::class;
+    protected Width|string|null $maxContentWidth = 'full';
 
     public function getBreadcrumbs(): array
     {

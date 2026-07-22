@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Template;
+
 class PlaceholderService
 {
     /**
@@ -229,5 +231,137 @@ class PlaceholderService
         }
 
         return $state;
+    }
+
+    /**
+     * Generate dynamic Filament Form Schema based on the field_variables structure.
+     */
+    public function generateFilamentSchema(array $fieldVariables): array
+    {
+        $schema = [];
+
+        foreach ($fieldVariables as $field) {
+            $key = $field['key'] ?? null;
+            $label = $field['label'] ?? 'Unknown';
+            $type = $field['type'] ?? 'text';
+            
+            if (!$key) continue;
+
+            $contentKey = "content.{$key}";
+
+            switch ($type) {
+                case 'long_text':
+                    $schema[] = \Filament\Forms\Components\Textarea::make($contentKey)
+                        ->label($label)
+                        ->required();
+                    break;
+                case 'number':
+                    $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
+                        ->label($label)
+                        ->numeric()
+                        ->required();
+                    break;
+                case 'date':
+                    $schema[] = \Filament\Forms\Components\DatePicker::make($contentKey)
+                        ->label($label)
+                        ->required();
+                    break;
+                case 'repeater':
+                    $subSchema = [];
+                    $subFields = $field['repeater_fields'] ?? [];
+                    foreach ($subFields as $subField) {
+                        $subKey = $subField['key'] ?? null;
+                        $subLabel = $subField['label'] ?? 'Unknown';
+                        if ($subKey) {
+                            $subSchema[] = \Filament\Forms\Components\TextInput::make($subKey)
+                                ->label($subLabel)
+                                ->required();
+                        }
+                    }
+                    $schema[] = \Filament\Forms\Components\Repeater::make($contentKey)
+                        ->label($label)
+                        ->schema($subSchema)
+                        ->defaultItems(1)
+                        ->addActionLabel('Tambah ' . $label);
+                    break;
+                case 'signature':
+                    $isOptional = $field['is_optional_signature'] ?? false;
+                    $signatureType = $field['signature_type'] ?? 'primary';
+                    $optionsQuery = \App\Models\UserPegawaiJabatan::query()
+                        ->where('status_jabatan', 'AKTIF')
+                        ->with(['pegawai.user', 'jabatan', 'unitKerja'])
+                        ->get()
+                        ->mapWithKeys(function($jabatan) {
+                            $nama = $jabatan->pegawai->nama_lengkap ?? 'Unknown';
+                            $jabatanName = $jabatan->jabatan->nama_jabatan ?? '';
+                            $unit = $jabatan->unitKerja->nama_unit ?? '';
+                            return [$jabatan->id => "{$nama} ({$jabatanName} {$unit})"];
+                        });
+
+                    $schema[] = \Filament\Forms\Components\Select::make($contentKey)
+                        ->label($label . ' (' . ($signatureType === 'primary' ? 'Utama' : 'Mengetahui') . ')')
+                        ->options($optionsQuery)
+                        ->searchable()
+                        ->required(!$isOptional);
+                    break;
+                case 'text':
+                default:
+                    $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
+                        ->label($label)
+                        ->required();
+                    break;
+            }
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Render the template's HTML by injecting the provided data.
+     */
+    public function renderHtml(Template $template, array $data): string
+    {
+        $html = $template->content_html ?? '';
+        if (empty($html)) return '';
+
+        // Handle Repeaters / loops
+        if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\](.*?)\[\/loop:\1\]/is', $html, $loopMatches, PREG_SET_ORDER)) {
+            foreach ($loopMatches as $match) {
+                $parentKey = $match[1];
+                $blockContent = $match[2];
+
+                $repeaterData = $data[$parentKey] ?? [];
+                $renderedRows = '';
+
+                if (is_array($repeaterData)) {
+                    foreach ($repeaterData as $row) {
+                        $rowContent = $blockContent;
+                        // Replace child vars inside the loop
+                        if (is_array($row)) {
+                            foreach ($row as $childKey => $childValue) {
+                                $rowContent = str_replace('{{ ' . $childKey . ' }}', (string) $childValue, $rowContent);
+                                $rowContent = str_replace('{{' . $childKey . '}}', (string) $childValue, $rowContent);
+                            }
+                        }
+                        $renderedRows .= $rowContent;
+                    }
+                }
+
+                $html = str_replace($match[0], $renderedRows, $html);
+            }
+        }
+
+        // Handle flat vars
+        foreach ($data as $key => $value) {
+            if (!is_array($value)) {
+                $html = str_replace('{{ ' . $key . ' }}', (string) $value, $html);
+                $html = str_replace('{{' . $key . '}}', (string) $value, $html);
+            }
+        }
+
+        // Clean up remaining un-filled placeholders to make it obvious they are missing
+        $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<span style="color:#ef4444; font-weight:bold;">[$1]</span>', $html);
+
+        return $html;
     }
 }
