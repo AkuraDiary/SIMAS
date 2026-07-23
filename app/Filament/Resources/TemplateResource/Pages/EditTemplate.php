@@ -20,4 +20,19 @@ class EditTemplate extends EditRecord
             RestoreAction::make(),
         ];
     }
+
+    protected function afterSave(): void
+    {
+        if ($this->record->render_engine === 'DOCX') {
+            $media = $this->record->getFirstMedia('template_file');
+            if ($media) {
+                try {
+                    $html = app(\App\Services\DocxTemplateService::class)->convertToHtml($media->getPath());
+                    $this->record->updateQuietly(['content_html' => $html]);
+                } catch (\Exception $e) {
+                    // Ignore exception if parsing fails
+                }
+            }
+        }
+    }
 }

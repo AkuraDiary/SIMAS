@@ -260,18 +260,21 @@ class PlaceholderService
                 case 'long_text':
                     $schema[] = \Filament\Forms\Components\Textarea::make($contentKey)
                         ->label($label)
-                        ->required();
+                        ->required()
+                        ->live(debounce: 500);
                     break;
                 case 'number':
                     $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
                         ->label($label)
                         ->numeric()
-                        ->required();
+                        ->required()
+                        ->live(debounce: 500);
                     break;
                 case 'date':
                     $schema[] = \Filament\Forms\Components\DatePicker::make($contentKey)
                         ->label($label)
-                        ->required();
+                        ->required()
+                        ->live(debounce: 500);
                     break;
                 case 'repeater':
                     $subSchema = [];
@@ -282,14 +285,16 @@ class PlaceholderService
                         if ($subKey) {
                             $subSchema[] = \Filament\Forms\Components\TextInput::make($subKey)
                                 ->label($subLabel)
-                                ->required();
+                                ->required()
+                                ->live(debounce: 500);
                         }
                     }
                     $schema[] = \Filament\Forms\Components\Repeater::make($contentKey)
                         ->label($label)
                         ->schema($subSchema)
                         ->defaultItems(1)
-                        ->addActionLabel('Tambah ' . $label);
+                        ->addActionLabel('Tambah ' . $label)
+                        ->live(debounce: 500);
                     break;
                 case 'signature':
                     $isOptional = $field['is_optional_signature'] ?? false;
@@ -311,7 +316,8 @@ class PlaceholderService
                                 ->label('Gambar Tanda Tangan')
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
                                 ->required(!$isOptional)
-                                ->columnSpanFull(),
+                                ->columnSpanFull()
+                                ->live(debounce: 500),
                             FileUpload::make($contentKey . '_upload')
                                 ->label('Upload Tanda Tangan')
                                 ->image()
@@ -319,14 +325,16 @@ class PlaceholderService
                                 ->directory('signatures')
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
                                 ->required(!$isOptional)
-                                ->columnSpanFull(),
+                                ->columnSpanFull()
+                                ->live(debounce: 500),
                         ]);
                     break;
                 case 'text':
                 default:
                     $schema[] = TextInput::make($contentKey)
                         ->label($label)
-                        ->required();
+                        ->required()
+                        ->live(debounce: 500);
                     break;
             }
         }
@@ -340,6 +348,20 @@ class PlaceholderService
     public function renderHtml(Template $template, array $data): string
     {
         $html = $template->content_html ?? '';
+
+        // Self-healing: if content_html is empty but it's a DOCX template, generate it once and save it
+        if (empty($html) && $template->render_engine === 'DOCX') {
+            $media = $template->getFirstMedia('template_file');
+            if ($media && file_exists($media->getPath())) {
+                try {
+                    $html = app(\App\Services\DocxTemplateService::class)->convertToHtml($media->getPath());
+                    $template->updateQuietly(['content_html' => $html]);
+                } catch (\Exception $e) {
+                    $html = '';
+                }
+            }
+        }
+
         if (empty($html)) return '';
 
         // Handle Repeaters / loops
@@ -357,8 +379,7 @@ class PlaceholderService
                         // Replace child vars inside the loop
                         if (is_array($row)) {
                             foreach ($row as $childKey => $childValue) {
-                                $rowContent = str_replace('{{ ' . $childKey . ' }}', (string) $childValue, $rowContent);
-                                $rowContent = str_replace('{{' . $childKey . '}}', (string) $childValue, $rowContent);
+                                $rowContent = preg_replace('/\{\{\s*' . preg_quote($childKey, '/') . '\s*\}\}/', (string) $childValue, $rowContent);
                             }
                         }
                         $renderedRows .= $rowContent;
@@ -370,38 +391,48 @@ class PlaceholderService
         }
 
         // Handle flat vars
+        // Handle flat vars (text, date, number, etc.)
+        foreach ($data as $key => $value) {
+            if (!is_array($value) && $value !== null && $value !== '') {
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', (string) $value, $html);
+            }
+        }
+
+        // Handle signature vars specifically
         foreach ($template->field_variables ?? [] as $field) {
             $key = $field['key'] ?? '';
-            if (!$key || $field['type'] === 'repeater') continue;
+            if (!$key || $field['type'] !== 'signature') continue;
 
-            if ($field['type'] === 'signature') {
-                $method = $data[$key . '_method'] ?? 'draw';
-                $val = '';
-                if ($method === 'draw') {
-                    $val = $data[$key . '_draw'] ?? '';
-                    if ($val) {
-                        $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 100px; max-width: 200px;" />';
-                    }
-                } elseif ($method === 'upload') {
-                    $path = $data[$key . '_upload'] ?? '';
-                    if ($path) {
-                        $url = \Illuminate\Support\Facades\Storage::disk('public')->url($path);
-                        $val = '<img src="' . htmlspecialchars($url) . '" style="max-height: 100px; max-width: 200px;" />';
-                    }
+            $method = $data[$key . '_method'] ?? 'draw';
+            $val = '';
+            if ($method === 'draw') {
+                $val = $data[$key . '_draw'] ?? '';
+                if ($val) {
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 100px; max-width: 200px;" />';
                 }
-                $html = str_replace(['{{ ' . $key . ' }}', '{{' . $key . '}}'], $val, $html);
-            } else {
-                $value = $data[$key] ?? '';
-                if (!is_array($value)) {
-                    $html = str_replace('{{ ' . $key . ' }}', (string) $value, $html);
-                    $html = str_replace('{{' . $key . '}}', (string) $value, $html);
+            } elseif ($method === 'upload') {
+                $val = $data[$key . '_upload'] ?? '';
+                if ($val) {
+                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 100px; max-width: 200px;" />';
                 }
+            }
+
+            if ($val) {
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $val), $html);
             }
         }
 
         // Clean up remaining un-filled placeholders to make it obvious they are missing
         $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<span style="color:#ef4444; font-weight:bold;">[$1]</span>', $html);
 
-        return $html;
+        // Inject basic CSS to ensure tables and lists render properly within Tailwind's reset environment
+        $css = '<style>
+            .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+            .docx-preview-wrapper th, .docx-preview-wrapper td { border: 1px solid #d1d5db; padding: 0.5rem; text-align: left; }
+            .docx-preview-wrapper th { background-color: #f3f4f6; font-weight: bold; }
+            .docx-preview-wrapper p { margin-bottom: 0.5rem; }
+        </style>';
+
+        return '<div class="docx-preview-wrapper">' . $css . $html . '</div>';
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Surats\Schemas;
 
+use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use App\Models\Template;
 use App\Models\UnitKerja;
 use App\Services\PlaceholderService;
@@ -9,7 +10,6 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\TextInput;
@@ -23,6 +23,7 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 
 class SuratForm
 {
@@ -146,7 +147,7 @@ class SuratForm
                                             ->state('Template ini tidak memiliki formulir dinamis yang perlu diisi.')
                                     ];
                                 }
-
+                                // dd($template);
                                 $service = app(PlaceholderService::class);
                                 $schema = $service->generateFilamentSchema($template->field_variables);
                                 
@@ -154,7 +155,26 @@ class SuratForm
                                     ->label('Pratinjau Surat')
                                     ->state(function (Get $get) use ($template, $service) {
                                         $data = $get('content') ?? [];
-                                        return new \Illuminate\Support\HtmlString(
+                                        
+                                        // Force dependency tracking for all nested content keys
+                                        foreach ($template->field_variables ?? [] as $field) {
+                                            if (!empty($field['key'])) {
+                                                if ($field['type'] === 'repeater') {
+                                                    $get('content.' . $field['key']);
+                                                    foreach ($field['repeater_fields'] ?? [] as $sub) {
+                                                        $get('content.' . $field['key'] . '.*.' . $sub['key']);
+                                                    }
+                                                } elseif ($field['type'] === 'signature') {
+                                                    $get('content.' . $field['key'] . '_method');
+                                                    $get('content.' . $field['key'] . '_draw');
+                                                    $get('content.' . $field['key'] . '_upload');
+                                                } else {
+                                                    $get('content.' . $field['key']);
+                                                }
+                                            }
+                                        }
+
+                                        return new HtmlString(
                                             view('filament.forms.components.template-preview', [
                                                 'html' => $service->renderHtml($template, $data)
                                             ])->render()
