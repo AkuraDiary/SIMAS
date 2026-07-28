@@ -170,13 +170,14 @@ class ManageOrganisasi extends Page implements HasActions
                 Section::make('Informasi Unit')->schema($this->unitInfoFields())->columns(2),
                 Section::make('Jabatan')->schema([$this->jabatanRepeater()])->columns(1),
             ])
-            ->action(function (array $data): void {
+            ->action(function (array $data, Action $action): void {
                 try {
                     app(UnitKerjaService::class)->createUnit($data);
                     Notification::make()->title('Unit berhasil ditambahkan')->success()->send();
                     $this->refreshTree();
                 } catch (\Throwable $e) {
                     Notification::make()->title('Gagal menyimpan unit')->body($e->getMessage())->danger()->send();
+                    $action->halt();
                 }
             });
     }
@@ -213,13 +214,14 @@ class ManageOrganisasi extends Page implements HasActions
                     ->columns(2),
                 Section::make('Jabatan')->schema([$this->jabatanRepeater()])->columns(1),
             ])
-            ->action(function (array $data): void {
+            ->action(function (array $data, Action $action): void {
                 try {
                     app(UnitKerjaService::class)->createUnit($data);
                     Notification::make()->title('Tingkatan baru berhasil ditambahkan')->success()->send();
                     $this->refreshTree();
                 } catch (\Throwable $e) {
                     Notification::make()->title('Gagal menyimpan unit')->body($e->getMessage())->danger()->send();
+                    $action->halt();
                 }
             });
     }
@@ -258,7 +260,7 @@ class ManageOrganisasi extends Page implements HasActions
                 Section::make('Informasi Unit')->schema($this->unitInfoFields())->columns(2),
                 Section::make('Jabatan')->schema([$this->jabatanRepeater()])->columns(1),
             ])
-            ->action(function (array $data, array $arguments): void {
+            ->action(function (array $data, array $arguments, Action $action): void {
                 try {
                     $unit = UnitKerja::findOrFail($arguments['unitId']);
                     app(UnitKerjaService::class)->updateUnit($unit, $data);
@@ -266,6 +268,7 @@ class ManageOrganisasi extends Page implements HasActions
                     $this->refreshTree();
                 } catch (\Throwable $e) {
                     Notification::make()->title('Gagal memperbarui unit')->body($e->getMessage())->danger()->send();
+                    $action->halt();
                 }
             });
     }
@@ -282,7 +285,7 @@ class ManageOrganisasi extends Page implements HasActions
             ->modalDescription('Unit yang dihapus tidak akan muncul di diagram. Unit yang masih memiliki sub-unit tidak dapat dihapus.')
             ->modalSubmitActionLabel('Ya, Hapus')
             ->color('danger')
-            ->action(function (array $arguments): void {
+            ->action(function (array $arguments, Action $action): void {
                 try {
                     $unit = UnitKerja::findOrFail($arguments['unitId']);
                     app(UnitKerjaService::class)->deleteUnit($unit);
@@ -290,6 +293,7 @@ class ManageOrganisasi extends Page implements HasActions
                     $this->refreshTree();
                 } catch (\Throwable $e) {
                     Notification::make()->title('Gagal menghapus unit')->body($e->getMessage())->danger()->send();
+                    $action->halt();
                 }
             });
     }
@@ -348,7 +352,7 @@ class ManageOrganisasi extends Page implements HasActions
                     ->default('AKTIF')
                     ->required(),
             ])
-            ->action(function (array $data, array $arguments): void {
+            ->action(function (array $data, array $arguments, Action $action): void {
                 try {
                     $data['unit_kerja_id'] = $arguments['unitId'];
                     \App\Models\UserPegawaiJabatan::create($data);
@@ -359,6 +363,7 @@ class ManageOrganisasi extends Page implements HasActions
                     $this->replaceMountedAction('viewStaff', ['unitId' => $arguments['unitId']]);
                 } catch (\Throwable $e) {
                     Notification::make()->title('Gagal menugaskan pegawai')->body($e->getMessage())->danger()->send();
+                    $action->halt();
                 }
             });
     }

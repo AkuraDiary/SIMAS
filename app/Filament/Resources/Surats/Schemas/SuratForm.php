@@ -44,6 +44,12 @@ class SuratForm
                                 ->default('template')
                                 ->inline()
                                 ->live()
+                                ->dehydrated(false)
+                                ->afterStateHydrated(function (Radio $component, ?\Illuminate\Database\Eloquent\Model $record) {
+                                    if ($record && !$record->template_id && $record->isi_surat) {
+                                        $component->state('scratch');
+                                    }
+                                })
                                 ->afterStateUpdated(function (Set $set) {
                                     $set('template_id', null);
                                     $set('content', []);

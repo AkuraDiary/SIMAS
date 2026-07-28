@@ -49,9 +49,9 @@
             x-ref="canvas"
             wire:ignore
             @if ($isDisabled)
-                style="width: 100%; height: 150px; border-radius: 8px; border: 1px solid #ccc; background-color: #f9fafb; opacity: 0.75;"
+                class="w-full h-[150px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-gray-50 opacity-75 dark:bg-transparent dark:ring-white/20"
             @else
-                style="width: 100%; height: 150px; border-radius: 8px; border: 1px solid #ccc; background-color: #fff;"
+                class="w-full h-[150px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-white dark:bg-white/5 dark:ring-white/20 transition duration-75"
             @endif
         ></canvas>
 

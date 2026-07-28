@@ -364,6 +364,8 @@ class PlaceholderService
 
         if (empty($html)) return '';
 
+        $html = $this->normalizeTableLoops($html);
+
         // Handle Repeaters / loops
         if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\](.*?)\[\/loop:\1\]/is', $html, $loopMatches, PREG_SET_ORDER)) {
             foreach ($loopMatches as $match) {
@@ -408,12 +410,12 @@ class PlaceholderService
             if ($method === 'draw') {
                 $val = $data[$key . '_draw'] ?? '';
                 if ($val) {
-                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 100px; max-width: 200px;" />';
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 300px;" />';
                 }
             } elseif ($method === 'upload') {
                 $val = $data[$key . '_upload'] ?? '';
                 if ($val) {
-                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 100px; max-width: 200px;" />';
+                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 300px;" />';
                 }
             }
 
@@ -428,11 +430,56 @@ class PlaceholderService
         // Inject basic CSS to ensure tables and lists render properly within Tailwind's reset environment
         $css = '<style>
             .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-            .docx-preview-wrapper th, .docx-preview-wrapper td { border: 1px solid #d1d5db; padding: 0.5rem; text-align: left; }
+            .docx-preview-wrapper th, .docx-preview-wrapper td { border: 1px solid #d1d5db; text-align: left; padding: 0.25rem; }
             .docx-preview-wrapper th { background-color: #f3f4f6; font-weight: bold; }
-            .docx-preview-wrapper p { margin-bottom: 0.5rem; }
         </style>';
 
         return '<div class="docx-preview-wrapper">' . $css . $html . '</div>';
+    }
+
+    /**
+     * Fixes table row loops in Rich Text Editors by moving [loop] tags outside the <tr>
+     * if they were placed inside table cells.
+     */
+    private function normalizeTableLoops(string $html): string
+    {
+        if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\].*?\[\/loop:\1\]/is', $html, $matches, PREG_OFFSET_CAPTURE)) {
+            // Process from end to start to avoid offset shifting issues
+            for ($i = count($matches[0]) - 1; $i >= 0; $i--) {
+                $fullMatch = $matches[0][$i][0];
+                $startPos = $matches[0][$i][1];
+                $loopName = $matches[1][$i][0];
+                
+                // Check if it crosses cell boundaries
+                if (stripos($fullMatch, '</td>') !== false) {
+                    // Find TR start before the loop
+                    $trStart = strrpos(substr($html, 0, $startPos), '<tr');
+                    
+                    // Find TR end after the loop
+                    $endPos = $startPos + strlen($fullMatch);
+                    $trEndPos = stripos($html, '</tr>', $endPos);
+                    
+                    if ($trStart !== false && $trEndPos !== false) {
+                        $trEnd = $trEndPos + 5; // include </tr>
+                        
+                        // Extract the whole TR block
+                        $trBlock = substr($html, $trStart, $trEnd - $trStart);
+                        
+                        // Remove paragraph wrappers that ONLY contain the loop tag
+                        $trBlockClean = preg_replace('/<p>(?:\s|&nbsp;|<br>)*\[\/?loop:' . $loopName . '\](?:\s|&nbsp;|<br>)*<\/p>/is', '', $trBlock);
+                        
+                        // Remove the loop tags from INSIDE the TR block and swallow surrounding spaces
+                        $trBlockClean = preg_replace('/(?:\s|&nbsp;)*\[\/?loop:' . $loopName . '\](?:\s|&nbsp;)*/is', '', $trBlockClean);
+                        
+                        // Wrap the clean TR block with the loop tags
+                        $newBlock = "[loop:$loopName]\n$trBlockClean\n[/loop:$loopName]";
+                        
+                        // Replace in original HTML
+                        $html = substr_replace($html, $newBlock, $trStart, $trEnd - $trStart);
+                    }
+                }
+            }
+        }
+        return $html;
     }
 }

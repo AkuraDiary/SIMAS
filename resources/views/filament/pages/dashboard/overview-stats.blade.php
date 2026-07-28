@@ -1,52 +1,50 @@
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
     <!-- Total Pengguna Card -->
-    <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);">
+    <div class="flex items-center justify-between rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
         <div>
-            <span style="font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+            <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Total Pengguna
             </span>
-            <span style="font-size: 2.25rem; font-weight: 800; color: #111827; line-height: 1;">
+            <span class="text-4xl font-extrabold leading-none text-gray-900 dark:text-white">
                 {{ $totalPengguna }}
             </span>
         </div>
-        <div style="width: 3rem; height: 3rem; background-color: #eef2ff; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center;">
-            <x-heroicon-o-users style="width: 1.5rem; height: 1.5rem; color: #4f46e5;" />
+        <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+            <x-heroicon-o-users class="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
         </div>
     </div>
 
     <!-- Template Aktif Card -->
-    <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);">
-        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+    <div class="flex items-center justify-between rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="flex h-full flex-col justify-between">
             <div>
-                <span style="font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Template Aktif
                 </span>
-                <span style="font-size: 2.25rem; font-weight: 800; color: #111827; line-height: 1;">
+                <span class="text-4xl font-extrabold leading-none text-gray-900 dark:text-white">
                     {{ $templateAktif }}
                 </span>
             </div>
-
         </div>
-        <div style="width: 3rem; height: 3rem; background-color: #f3e8ff; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; align-self: flex-start;">
-            <x-heroicon-o-document-text style="width: 1.5rem; height: 1.5rem; color: #a855f7;" />
+        <div class="flex h-12 w-12 items-center justify-center self-start rounded-lg bg-purple-50 dark:bg-purple-500/10">
+            <x-heroicon-o-document-text class="h-6 w-6 text-purple-600 dark:text-purple-400" />
         </div>
     </div>
 
     <!-- Unit Organisasi Card -->
-    <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);">
-        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+    <div class="flex items-center justify-between rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+        <div class="flex h-full flex-col justify-between">
             <div>
-                <span style="font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Unit Organisasi
                 </span>
-                <span style="font-size: 2.25rem; font-weight: 800; color: #111827; line-height: 1;">
+                <span class="text-4xl font-extrabold leading-none text-gray-900 dark:text-white">
                     {{ $unitOrganisasi }}
                 </span>
             </div>
-            
         </div>
-        <div style="width: 3rem; height: 3rem; background-color: #f0fdf4; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; align-self: flex-start;">
-            <x-heroicon-o-squares-2x2 style="width: 1.5rem; height: 1.5rem; color: #22c55e;" />
+        <div class="flex h-12 w-12 items-center justify-center self-start rounded-lg bg-green-50 dark:bg-green-500/10">
+            <x-heroicon-o-squares-2x2 class="h-6 w-6 text-green-600 dark:text-green-400" />
         </div>
     </div>
 </div>
