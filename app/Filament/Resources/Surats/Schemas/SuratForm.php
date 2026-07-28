@@ -24,6 +24,8 @@ use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
+use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
+use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 
 class SuratForm
 {
@@ -32,6 +34,20 @@ class SuratForm
         return $schema
             ->components([
                 Grid::make(4)->schema([
+
+                    // SignaturePad::make('draw')
+                    // ->label('Gambar Tanda Tangan')
+                    // ->downloadable()                    // Allow download of the signature (defaults to false)
+                    // ->downloadableFormats([             // Available formats for download (defaults to all)
+                    //     DownloadableFormat::PNG,
+                    //     DownloadableFormat::JPG,
+                    //     DownloadableFormat::SVG,
+                    // ])
+                    // ->backgroundColor('#ffffff')       // White background on light mode
+                    // ->backgroundColorOnDark('#111111') // Dark gray background on dark mode
+                    // ->penColor('#000000')              // Black pen on light mode
+                    // ->penColorOnDark('#ffffff'),
+
                     // LEFT COLUMN
                     Group::make()->schema([
                         Section::make('Detail Surat')->schema([
@@ -65,7 +81,7 @@ class SuratForm
                                 ->afterStateUpdated(function (Set $set) {
                                     $set('content', []);
                                 }),
-                                
+
                             Select::make('user_pegawai_jabatan_id')
                                 ->label('Kirim Sebagai (Peran / Jabatan)')
                                 ->options(function () {
@@ -109,7 +125,7 @@ class SuratForm
                                     ->required(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL')
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL'),
                             ]),
-                            
+
                             Select::make('unitTujuan')
                                 ->helperText('Unit pertama dianggap sebagai tujuan utama, sisanya sebagai tembusan')
                                 ->label('Penerima (Recipient)')
@@ -156,12 +172,12 @@ class SuratForm
                                 // dd($template);
                                 $service = app(PlaceholderService::class);
                                 $schema = $service->generateFilamentSchema($template->field_variables);
-                                
+
                                 $schema[] = TextEntry::make('preview')
                                     ->label('Pratinjau Surat')
                                     ->state(function (Get $get) use ($template, $service) {
                                         $data = $get('content') ?? [];
-                                        
+
                                         // Force dependency tracking for all nested content keys
                                         foreach ($template->field_variables ?? [] as $field) {
                                             if (!empty($field['key'])) {

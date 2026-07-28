@@ -1,26 +1,25 @@
 @php
-    use Filament\Support\Facades\FilamentView;
-    use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
+use Filament\Support\Facades\FilamentView;
+use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
 @endphp
 
 <x-dynamic-component
     :component="$getFieldWrapperView()"
-    :field="$field"
->
+    :field="$field">
     @php
-        $isDisabled = $isDisabled();
-        $isClearable = $isClearable();
-        $isDownloadable = $isDownloadable();
-        $downloadableFormats = $getDownloadableFormats();
-        $downloadActionDropdownPlacement = $getDownloadActionDropdownPlacement() ?? 'bottom-start';
-        $isUndoable = $isUndoable();
-        $isConfirmable = $isConfirmable();
-        $loadStrategy = $getLoadStrategy();
+    $isDisabled = $isDisabled();
+    $isClearable = $isClearable();
+    $isDownloadable = $isDownloadable();
+    $downloadableFormats = $getDownloadableFormats();
+    $downloadActionDropdownPlacement = $getDownloadActionDropdownPlacement() ?? 'bottom-start';
+    $isUndoable = $isUndoable();
+    $isConfirmable = $isConfirmable();
+    $loadStrategy = $getLoadStrategy();
 
-        $clearAction = $getAction('clear');
-        $downloadAction = $getAction('download');
-        $undoAction = $getAction('undo');
-        $doneAction = $getAction('done');
+    $clearAction = $getAction('clear');
+    $downloadAction = $getAction('download');
+    $undoAction = $getAction('undo');
+    $doneAction = $getAction('done');
     @endphp
 
     <div
@@ -44,62 +43,59 @@
             throttle: {{ $getThrottle() }},
             velocityFilterWeight: {{ $getVelocityFilterWeight() }},
         })"
-    >
+        @theme-changed.window="window.dispatchEvent(new Event('resize'))"
+        >
         <canvas
             x-ref="canvas"
             wire:ignore
             @if ($isDisabled)
-                class="w-full h-[150px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-gray-50 opacity-75 dark:bg-transparent dark:ring-white/20"
+            class="w-full min-h-[250px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-gray-50 opacity-75 dark:bg-transparent dark:ring-white/20"
             @else
-                class="w-full h-[150px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-white dark:bg-white/5 dark:ring-white/20 transition duration-75"
-            @endif
-        ></canvas>
+            class="w-full min-h-[250px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-white dark:bg-white/5 dark:ring-white/20 transition duration-75"
+            @endif></canvas>
 
-        <div class="flex items-center justify-end mt-3 space-x-2">
+        <div class="flex gap-3 items-center justify-end mt-4">
             @if ($isClearable)
-                {{ $clearAction }}
+            {{ $clearAction }}
             @endif
 
             @if ($isUndoable)
-                {{ $undoAction }}
+            {{ $undoAction }}
             @endif
 
             @if ($isDownloadable)
-                <x-filament::dropdown placement="{{ $downloadActionDropdownPlacement }}">
-                    <x-slot name="trigger">
-                        {{ $downloadAction }}
-                    </x-slot>
+            <x-filament::dropdown placement="{{ $downloadActionDropdownPlacement }}">
+                <x-slot name="trigger">
+                    {{ $downloadAction }}
+                </x-slot>
 
-                    <x-filament::dropdown.list>
-                        @if (in_array(DownloadableFormat::PNG, $downloadableFormats))
-                            <x-filament::dropdown.list.item
-                                x-on:click="downloadAs('{{ DownloadableFormat::PNG->getMime() }}', '{{ DownloadableFormat::PNG->getExtension() }}')"
-                            >
-                                {{ DownloadableFormat::PNG->getLabel() }}
-                            </x-filament::dropdown.list.item>
-                        @endif
+                <x-filament::dropdown.list>
+                    @if (in_array(DownloadableFormat::PNG, $downloadableFormats))
+                    <x-filament::dropdown.list.item
+                        x-on:click="downloadAs('{{ DownloadableFormat::PNG->getMime() }}', '{{ DownloadableFormat::PNG->getExtension() }}')">
+                        {{ DownloadableFormat::PNG->getLabel() }}
+                    </x-filament::dropdown.list.item>
+                    @endif
 
-                        @if (in_array(DownloadableFormat::JPG, $downloadableFormats))
-                            <x-filament::dropdown.list.item
-                                x-on:click="downloadAs('{{ DownloadableFormat::JPG->getMime() }}', '{{ DownloadableFormat::JPG->getExtension() }}')"
-                            >
-                                {{ DownloadableFormat::JPG->getLabel() }}
-                            </x-filament::dropdown.list.item>
-                        @endif
+                    @if (in_array(DownloadableFormat::JPG, $downloadableFormats))
+                    <x-filament::dropdown.list.item
+                        x-on:click="downloadAs('{{ DownloadableFormat::JPG->getMime() }}', '{{ DownloadableFormat::JPG->getExtension() }}')">
+                        {{ DownloadableFormat::JPG->getLabel() }}
+                    </x-filament::dropdown.list.item>
+                    @endif
 
-                        @if (in_array(DownloadableFormat::SVG, $downloadableFormats))
-                            <x-filament::dropdown.list.item
-                                x-on:click="downloadAs('{{ DownloadableFormat::SVG->getMime() }}', '{{ DownloadableFormat::SVG->getExtension() }}')"
-                            >
-                                {{ DownloadableFormat::SVG->getLabel() }}
-                            </x-filament::dropdown.list.item>
-                        @endif
-                    </x-filament::dropdown.list>
-                </x-filament::dropdown>
+                    @if (in_array(DownloadableFormat::SVG, $downloadableFormats))
+                    <x-filament::dropdown.list.item
+                        x-on:click="downloadAs('{{ DownloadableFormat::SVG->getMime() }}', '{{ DownloadableFormat::SVG->getExtension() }}')">
+                        {{ DownloadableFormat::SVG->getLabel() }}
+                    </x-filament::dropdown.list.item>
+                    @endif
+                </x-filament::dropdown.list>
+            </x-filament::dropdown>
             @endif
 
             @if ($isConfirmable)
-                {{ $doneAction }}
+            {{ $doneAction }}
             @endif
         </div>
     </div>

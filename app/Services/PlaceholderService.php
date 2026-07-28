@@ -7,8 +7,10 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
 use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 
 class PlaceholderService
@@ -147,7 +149,7 @@ class PlaceholderService
     public function syncExtractedToVariables(array $extractedFields, array $currentVars): array
     {
         $existingKeys = array_column($currentVars, 'key');
-        
+
         // Add new fields
         foreach ($extractedFields as $field) {
             if (!in_array($field['key'], $existingKeys)) {
@@ -163,7 +165,7 @@ class PlaceholderService
                 unset($currentVars[$index]);
             }
         }
-        
+
         return array_values($currentVars);
     }
 
@@ -178,7 +180,7 @@ class PlaceholderService
         foreach ($currentVars as $var) {
             $key = $var['key'] ?? null;
             if (!$key) continue;
-            
+
             $type = $var['type'] ?? 'text';
 
             if ($type === 'repeater') {
@@ -251,7 +253,7 @@ class PlaceholderService
             $key = $field['key'] ?? null;
             $label = $field['label'] ?? 'Unknown';
             $type = $field['type'] ?? 'text';
-            
+
             if (!$key) continue;
 
             $contentKey = "content.{$key}";
@@ -300,20 +302,35 @@ class PlaceholderService
                     $isOptional = $field['is_optional_signature'] ?? false;
                     $schema[] = Fieldset::make($label)
                         ->schema([
+
                             Radio::make($contentKey . '_method')
                                 ->label('Metode Input')
                                 ->options([
                                     'draw' => 'Gambar Langsung',
                                     'upload' => 'Upload File Image',
                                 ])
+                                ->columns(2)
                                 ->default('draw')
                                 ->reactive()
-                                ->afterStateUpdated(function($state, Set $set) use ($contentKey) {
+                                ->afterStateUpdated(function ($state, Set $set) use ($contentKey) {
                                     $set($contentKey . '_draw', null);
                                     $set($contentKey . '_upload', null);
-                                }),
+                                })->columnSpanFull(),
+
                             SignaturePad::make($contentKey . '_draw')
                                 ->label('Gambar Tanda Tangan')
+                                ->downloadable()                    // Allow download of the signature (defaults to false)
+                                ->downloadableFormats([             // Available formats for download (defaults to all)
+                                    DownloadableFormat::PNG,
+                                    DownloadableFormat::JPG,
+                                    DownloadableFormat::SVG,
+                                ])
+                                ->exportBackgroundColor('#0')
+                                ->exportPenColor('#000000') 
+                                ->backgroundColor('#ffffff')       // White background on light mode
+                                ->backgroundColorOnDark('#111111') // Dark gray background on dark mode
+                                ->penColor('#000000')              // Black pen on light mode
+                                ->penColorOnDark('#ffffff')        // White pen on dark mode
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
                                 ->required(!$isOptional)
                                 ->columnSpanFull()
@@ -410,12 +427,12 @@ class PlaceholderService
             if ($method === 'draw') {
                 $val = $data[$key . '_draw'] ?? '';
                 if ($val) {
-                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 300px;" />';
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
                 }
             } elseif ($method === 'upload') {
                 $val = $data[$key . '_upload'] ?? '';
                 if ($val) {
-                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 300px;" />';
+                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
                 }
             }
 
@@ -449,31 +466,31 @@ class PlaceholderService
                 $fullMatch = $matches[0][$i][0];
                 $startPos = $matches[0][$i][1];
                 $loopName = $matches[1][$i][0];
-                
+
                 // Check if it crosses cell boundaries
                 if (stripos($fullMatch, '</td>') !== false) {
                     // Find TR start before the loop
                     $trStart = strrpos(substr($html, 0, $startPos), '<tr');
-                    
+
                     // Find TR end after the loop
                     $endPos = $startPos + strlen($fullMatch);
                     $trEndPos = stripos($html, '</tr>', $endPos);
-                    
+
                     if ($trStart !== false && $trEndPos !== false) {
                         $trEnd = $trEndPos + 5; // include </tr>
-                        
+
                         // Extract the whole TR block
                         $trBlock = substr($html, $trStart, $trEnd - $trStart);
-                        
+
                         // Remove paragraph wrappers that ONLY contain the loop tag
                         $trBlockClean = preg_replace('/<p>(?:\s|&nbsp;|<br>)*\[\/?loop:' . $loopName . '\](?:\s|&nbsp;|<br>)*<\/p>/is', '', $trBlock);
-                        
+
                         // Remove the loop tags from INSIDE the TR block and swallow surrounding spaces
                         $trBlockClean = preg_replace('/(?:\s|&nbsp;)*\[\/?loop:' . $loopName . '\](?:\s|&nbsp;)*/is', '', $trBlockClean);
-                        
+
                         // Wrap the clean TR block with the loop tags
                         $newBlock = "[loop:$loopName]\n$trBlockClean\n[/loop:$loopName]";
-                        
+
                         // Replace in original HTML
                         $html = substr_replace($html, $newBlock, $trStart, $trEnd - $trStart);
                     }
