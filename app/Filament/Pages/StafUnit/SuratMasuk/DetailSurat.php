@@ -47,6 +47,11 @@ class DetailSurat extends Page implements HasForms
                 '#' => $this->surat->perihal,
                 'Detail',
             ],
+            'persetujuan' => [
+                SuratResource::getUrl('index', ['scope' => 'persetujuan']) => 'Persetujuan Surat',
+                '#' => $this->surat->perihal,
+                'Detail',
+            ],
             default => [
                 SuratMasuk::getUrl() => 'Surat Masuk',
                 '#' => $this->surat->perihal,
@@ -109,6 +114,72 @@ class DetailSurat extends Page implements HasForms
                 'arsip' => [],
                 'keluar' => [
                     $this->getActionArsipkan()
+                ],
+                'persetujuan' => [
+                    Action::make('approve')
+                        ->label('Setujui / TTD')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
+                        ->form([
+                            Textarea::make('catatan')
+                                ->label('Catatan Persetujuan (Opsional)')
+                                ->placeholder('Catatan atau catatan persetujuan...'),
+                        ])
+                        ->action(function (array $data): void {
+                            $activeRiwayat = $this->surat->riwayats()
+                                ->where('status', 'MENUNGGU')
+                                ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                                ->latest()
+                                ->first();
+
+                            if (!$activeRiwayat) {
+                                Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                                return;
+                            }
+
+                            app(\App\Services\SuratRoutingService::class)->approveStep(
+                                currentRiwayat: $activeRiwayat,
+                                actor: Auth::user(),
+                                isFinalStep: true,
+                                isSignatureRequired: true,
+                                catatan: $data['catatan'] ?? null
+                            );
+
+                            $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
+                        }),
+                    Action::make('reject')
+                        ->label('Minta Revisi')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
+                        ->form([
+                            Textarea::make('catatan')
+                                ->label('Alasan Revisi')
+                                ->required()
+                                ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
+                        ])
+                        ->action(function (array $data): void {
+                            $activeRiwayat = $this->surat->riwayats()
+                                ->where('status', 'MENUNGGU')
+                                ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                                ->latest()
+                                ->first();
+
+                            if (!$activeRiwayat) {
+                                Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                                return;
+                            }
+
+                            app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+                                currentRiwayat: $activeRiwayat,
+                                actor: Auth::user(),
+                                newStatus: 'REVISI',
+                                catatan: $data['catatan']
+                            );
+
+                            $this->refreshPage('Berhasil', 'Surat dikembalikan untuk revisi.');
+                        }),
                 ],
                 default =>
                 [

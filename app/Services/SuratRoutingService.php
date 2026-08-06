@@ -22,6 +22,13 @@ class SuratRoutingService
                 'status_surat' => 'DIPROSES',
             ]);
 
+            $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
+            if ($formatGlobal && empty($surat->nomor_surat)) {
+                $surat->update([
+                    'nomor_surat' => $formatGlobal->generateNomorSurat($surat)
+                ]);
+            }
+
             return SuratRiwayat::create([
                 'surat_id'       => $surat->id,
                 'parent_id'      => null,
@@ -91,9 +98,14 @@ class SuratRoutingService
             // 3. Advance to next step or mark as final
             if ($isFinalStep || !$nextUnitTujuanId) {
                 $newStatus = ($surat->tipe_surat === 'PENGAJUAN') ? 'TERBIT' : 'SELESAI';
-                $surat->update([
-                    'status_surat' => $newStatus,
-                ]);
+                
+                $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
+                if ($formatGlobal && empty($surat->nomor_surat)) {
+                    $surat->nomor_surat = $formatGlobal->generateNomorSurat($surat);
+                }
+                
+                $surat->status_surat = $newStatus;
+                $surat->save();
             } else {
                 // Create next step in approval chain
                 SuratRiwayat::create([

@@ -110,6 +110,30 @@ class SuratsTable
                 EditAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
                 DeleteAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
 
+                \Filament\Actions\Action::make('ajukan')
+                    ->label('Ajukan Surat')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('primary')
+                    ->visible(fn(Surat $record) => $record->status_surat === 'DRAFT')
+                    ->requiresConfirmation()
+                    ->modalHeading('Ajukan Surat untuk Persetujuan')
+                    ->modalDescription('Apakah Anda yakin ingin mengajukan surat ini? Surat tidak dapat diedit lagi setelah diajukan.')
+                    ->action(function (Surat $record): void {
+                        $unitTujuan = $record->unitTujuan()->first();
+                        if (!$unitTujuan) {
+                            \Filament\Notifications\Notification::make()->title('Gagal: Surat belum memiliki unit tujuan. Edit surat terlebih dahulu.')->danger()->send();
+                            return;
+                        }
+                        
+                        app(\App\Services\SuratRoutingService::class)->submitForApproval(
+                            surat: $record,
+                            unitTujuanId: $unitTujuan->id,
+                            catatan: 'Pengajuan surat'
+                        );
+                        
+                        \Filament\Notifications\Notification::make()->title('Surat berhasil diajukan')->success()->send();
+                    }),
+
                 \Filament\Actions\Action::make('approve')
                     ->label('Setujui / TTD')
                     ->icon('heroicon-o-check-circle')
