@@ -2,21 +2,16 @@
 
 namespace App\Filament\Resources\Surats\Pages;
 
+use App\Filament\Resources\Surats\Pages\Concerns\HasSuratFormActions;
 use App\Filament\Resources\Surats\SuratResource;
-use App\Models\Surat;
 use Filament\Resources\Pages\CreateRecord;
-use Filament\Resources\Pages\EditRecord;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
 use Filament\Support\Enums\Width;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Request;
-use Illuminate\Support\Facades\Storage;
-
-use function PHPUnit\Framework\isEmpty;
 
 class CreateSurat extends CreateRecord
 {
+    use HasSuratFormActions;
+
     protected static string $resource = SuratResource::class;
     
     protected static ?string $title = 'Buat Surat';
@@ -29,19 +24,10 @@ class CreateSurat extends CreateRecord
             '#' => 'Buat Surat Baru',
         ];
     }
-    protected function getFormActions(): array
-    {
-        return [
-            $this->getSaveDraftAction(),
-            $this->getSendNowAction(),
-            $this->getCancelAction(),
-        ];
-    }
 
     protected function afterCreate(): void
     {
         $surat = $this->record;
-
         $unitIds = $this->data['unitTujuan'] ?? [];
 
         foreach ($unitIds as $index => $unitId) {
@@ -50,77 +36,5 @@ class CreateSurat extends CreateRecord
                 'status_baca' => 'BELUM',
             ]);
         }
-    
-    }
-
-    protected function getSaveDraftAction(): Action
-    {
-        return Action::make('saveDraft')
-            ->label('Simpan Draft')
-            ->color('primary')
-            ->action(function () {
-
-                $data = $this->form->getState();
-
-                $data['status_surat'] = 'DRAFT';
-
-                $this->create();
-                Notification::make()
-                    ->title('Draft berhasil disimpan')
-                    ->success()
-                    ->send();
-
-                $this->redirect(SuratResource::getUrl('index', ['scope' => 'draft']));
-            });
-    }
-
-
-    // Belum Dites
-    protected function getSendNowAction(): Action
-    {
-        return Action::make('sendNow')
-            ->label('Kirim Langsung')
-            ->color('primary')
-            ->outlined()
-            ->requiresConfirmation()
-            ->before(function (Action $action) {
-                $unitIds = $this->data['unitTujuan'] ?? [];
-                
-                if (empty($unitIds)) {
-                    Notification::make()
-                        ->title('Tujuan Tidak Boleh Kosong')
-                        ->danger()
-                        ->send();
-                    $action->halt();
-                }
-               
-            })
-            ->action(function () {
-                
-                $data = $this->data;
-            
-                $data['status_surat']   = 'TERKIRIM';
-                $data['tanggal_kirim']  = now();
-
-                $this->form->fill($data);
-
-                $this->create();
-                
-                Notification::make()
-                    ->title('Surat berhasil dikirim')
-                    ->success()
-                    ->send();
-
-                $this->redirect(SuratResource::getUrl('index', ['scope' => 'keluar']));
-            });
-    }
-
-    protected function getCancelAction(): Action
-    {
-        return Action::make('cancel')
-            ->label('Batal')
-            ->color('danger')
-            ->url(SuratResource::getUrl())
-            ->outlined();
     }
 }

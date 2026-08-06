@@ -29,7 +29,20 @@ class SuratResource extends Resource
     }
     public static function getNavigationItems(): array
     {
+        $unitId = Auth::user()?->unit_kerja_id;
+        $pendingCount = $unitId ? Surat::query()
+            ->where('status_surat', 'DIPROSES')
+            ->whereHas('riwayats', fn($q) => $q->where('status', 'MENUNGGU')->where('unit_tujuan_id', $unitId))
+            ->count() : 0;
+
         return [
+            NavigationItem::make('Persetujuan Surat')
+                ->icon('heroicon-o-check-badge')
+                ->url(static::getUrl('index', ['scope' => 'persetujuan']))
+                ->badge($pendingCount > 0 ? (string) $pendingCount : null)
+                
+                ->isActiveWhen(fn() => Request::query('scope') === 'persetujuan'),
+
             NavigationItem::make('Surat Keluar')
                 ->icon('heroicon-o-paper-airplane')
                 ->url(static::getUrl('index', ['scope' => 'keluar']))
@@ -40,12 +53,10 @@ class SuratResource extends Resource
                 ->url(static::getUrl('index', ['scope' => 'draft']))
                 ->isActiveWhen(fn() => Request::query('scope') === 'draft'),
 
-
             NavigationItem::make('Arsip Surat')
                 ->icon('heroicon-o-archive-box')
                 ->url(static::getUrl('index', ['scope' => 'arsip']))
                 ->isActiveWhen(fn() => Request::query('scope') === 'arsip'),
-
         ];
     }
 
@@ -53,9 +64,16 @@ class SuratResource extends Resource
     {
         $query = parent::getEloquentQuery();
 
-        $unitId = Auth::user()->unit_kerja_id;
+        $unitId = Auth::user()?->unit_kerja_id;
 
         return match (request('scope')) {
+            'persetujuan' => $query
+                ->where('status_surat', 'DIPROSES')
+                ->whereHas('riwayats', function ($q) use ($unitId) {
+                    $q->where('status', 'MENUNGGU')
+                      ->where('unit_tujuan_id', $unitId);
+                }),
+
             'draft' => $query
                 ->where('unit_pengirim_id', $unitId)
                 ->where('status_surat', 'DRAFT'),
@@ -66,7 +84,6 @@ class SuratResource extends Resource
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                     $q->where('unit_kerja_id', $unitId);
                 }),
-
 
             'arsip' => $query
                 ->whereHas(

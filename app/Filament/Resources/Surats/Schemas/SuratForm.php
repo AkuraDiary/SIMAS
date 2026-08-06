@@ -35,18 +35,6 @@ class SuratForm
             ->components([
                 Grid::make(4)->schema([
 
-                    // SignaturePad::make('draw')
-                    // ->label('Gambar Tanda Tangan')
-                    // ->downloadable()                    // Allow download of the signature (defaults to false)
-                    // ->downloadableFormats([             // Available formats for download (defaults to all)
-                    //     DownloadableFormat::PNG,
-                    //     DownloadableFormat::JPG,
-                    //     DownloadableFormat::SVG,
-                    // ])
-                    // ->backgroundColor('#ffffff')       // White background on light mode
-                    // ->backgroundColorOnDark('#111111') // Dark gray background on dark mode
-                    // ->penColor('#000000')              // Black pen on light mode
-                    // ->penColorOnDark('#ffffff'),
 
                     // LEFT COLUMN
                     Group::make()->schema([
@@ -113,14 +101,29 @@ class SuratForm
                                     }
                                 }),
 
-                            Grid::make()->schema([
+                            Grid::make(2)->schema([
                                 Select::make('tipe_surat')
-                                    ->options(['INTERNAL' => 'Internal', 'EKSTERNAL' => 'Eksternal'])
+                                    ->label('Jenis Surat')
+                                    ->options([
+                                        'INTERNAL' => 'Internal',
+                                        'PENGAJUAN' => 'Pengajuan (Permohonan)',
+                                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                                        'EKSTERNAL' => 'Eksternal',
+                                    ])
                                     ->default('INTERNAL')
                                     ->dehydrated()
-                                    ->reactive(),
+                                    ->live(),
+
+                                Select::make('terbitan_for_surat_id')
+                                    ->label('Merujuk ke Pengajuan')
+                                    ->options(fn() => \App\Models\Surat::query()->where('tipe_surat', 'PENGAJUAN')->pluck('perihal', 'id'))
+                                    ->searchable()
+                                    ->nullable()
+                                    ->helperText('Kosongkan jika Surat Terbitan Independen.')
+                                    ->visible(fn(Get $get) => $get('tipe_surat') === 'TERBITAN'),
+
                                 TextInput::make('pengirim_eksternal')
-                                    ->label('Asal Pengirim')
+                                    ->label('Asal Pengirim Eksternal')
                                     ->dehydrated()
                                     ->required(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL')
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL'),
@@ -246,7 +249,7 @@ class SuratForm
 
                             TextEntry::make('tipe_label')
                                 ->label('Tipe')
-                                ->state('TERBITAN'),
+                                ->state(fn(Get $get) => $get('tipe_surat') ?? 'INTERNAL'),
                         ])->columnSpan(['lg' => 1]),
 
                 ])->columns(4)->columnSpan(4),

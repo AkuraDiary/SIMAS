@@ -110,6 +110,71 @@ class SuratsTable
                 EditAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
                 DeleteAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
 
+                \Filament\Actions\Action::make('approve')
+                    ->label('Setujui / TTD')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn($livewire, Surat $record) => ($livewire->scope ?? request('scope')) === 'persetujuan' && $record->status_surat === 'DIPROSES')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('catatan')
+                            ->label('Catatan Persetujuan (Opsional)')
+                            ->placeholder('Catatan atau catatan persetujuan...'),
+                    ])
+                    ->action(function (Surat $record, array $data): void {
+                        $activeRiwayat = $record->riwayats()
+                            ->where('status', 'MENUNGGU')
+                            ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                            ->latest()
+                            ->first();
+
+                        if (!$activeRiwayat) {
+                            \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                            return;
+                        }
+
+                        app(\App\Services\SuratRoutingService::class)->approveStep(
+                            currentRiwayat: $activeRiwayat,
+                            actor: Auth::user(),
+                            isFinalStep: true,
+                            isSignatureRequired: true,
+                            catatan: $data['catatan'] ?? null
+                        );
+
+                        \Filament\Notifications\Notification::make()->title('Surat berhasil disetujui & ditandatangani')->success()->send();
+                    }),
+
+                \Filament\Actions\Action::make('reject')
+                    ->label('Minta Revisi')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn($livewire, Surat $record) => ($livewire->scope ?? request('scope')) === 'persetujuan' && $record->status_surat === 'DIPROSES')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('catatan')
+                            ->label('Alasan Revisi')
+                            ->required()
+                            ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
+                    ])
+                    ->action(function (Surat $record, array $data): void {
+                        $activeRiwayat = $record->riwayats()
+                            ->where('status', 'MENUNGGU')
+                            ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                            ->latest()
+                            ->first();
+
+                        if (!$activeRiwayat) {
+                            \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                            return;
+                        }
+
+                        app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+                            currentRiwayat: $activeRiwayat,
+                            actor: Auth::user(),
+                            newStatus: 'REVISI',
+                            catatan: $data['catatan']
+                        );
+
+                        \Filament\Notifications\Notification::make()->title('Surat dikembalikan untuk revisi')->warning()->send();
+                    }),
             ])
             ->recordUrl(
                 fn(Surat $record) => $record->status_surat === 'DRAFT'
