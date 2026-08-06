@@ -43,15 +43,14 @@ use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
             throttle: {{ $getThrottle() }},
             velocityFilterWeight: {{ $getVelocityFilterWeight() }},
         })"
-        @theme-changed.window="window.dispatchEvent(new Event('resize'))"
         >
         <canvas
             x-ref="canvas"
             wire:ignore
             @if ($isDisabled)
-            class="w-full min-h-[250px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-gray-50 opacity-75 dark:bg-transparent dark:ring-white/20"
+            class="w-full min-h-[450px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-gray-50 opacity-75 dark:bg-transparent dark:ring-white/20"
             @else
-            class="w-full min-h-[250px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-white dark:bg-white/5 dark:ring-white/20 transition duration-75"
+            class="w-full min-h-[450px] rounded-lg shadow-sm ring-1 ring-gray-950/10 bg-white dark:bg-black dark:ring-white/20 transition duration-75"
             @endif></canvas>
 
         <div class="flex gap-3 items-center justify-end mt-4">

@@ -325,10 +325,10 @@ class PlaceholderService
                                     DownloadableFormat::JPG,
                                     DownloadableFormat::SVG,
                                 ])
-                                ->exportBackgroundColor('#0')
-                                ->exportPenColor('#000000') 
+                                ->exportBackgroundColor('rgba(0,0,0,0)')
+                                ->exportPenColor('#000000')
                                 ->backgroundColor('#ffffff')       // White background on light mode
-                                ->backgroundColorOnDark('#111111') // Dark gray background on dark mode
+                                ->backgroundColorOnDark('#111111') // Transparent background to let Tailwind classes show
                                 ->penColor('#000000')              // Black pen on light mode
                                 ->penColorOnDark('#ffffff')        // White pen on dark mode
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
