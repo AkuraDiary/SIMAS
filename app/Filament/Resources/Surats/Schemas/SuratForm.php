@@ -165,24 +165,47 @@ class SuratForm
                                 }
 
                                 $template = Template::find($templateId);
-                                if (!$template || empty($template->field_variables)) {
+                                $fieldVariables = $template ? ($template->field_variables ?? []) : [];
+
+                                // Intercept FormatNomorSurat for custom tags
+                                $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
+                                $customFormatVars = [];
+                                if ($formatGlobal && $formatGlobal->format_penomoran) {
+                                    preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $formatGlobal->format_penomoran, $matches);
+                                    if (!empty($matches[1])) {
+                                        $standardTags = ['NOMOR', 'KODE_UNIT', 'BULAN_ROMAWI', 'TAHUN'];
+                                        foreach ($matches[1] as $tag) {
+                                            if (!in_array($tag, $standardTags)) {
+                                                $customFormatVars[] = [
+                                                    'key' => $tag,
+                                                    'label' => 'Atribut Penomoran: ' . str_replace('_', ' ', $tag),
+                                                    'type' => 'text',
+                                                ];
+                                            }
+                                        }
+                                    }
+                                }
+
+                                $allVariables = array_merge($customFormatVars, $fieldVariables);
+
+                                if (empty($allVariables)) {
                                     return [
                                         TextEntry::make('info')
                                             ->label('')
                                             ->state('Template ini tidak memiliki formulir dinamis yang perlu diisi.')
                                     ];
                                 }
-                                // dd($template);
+
                                 $service = app(PlaceholderService::class);
-                                $schema = $service->generateFilamentSchema($template->field_variables);
+                                $schema = $service->generateFilamentSchema($allVariables);
 
                                 $schema[] = TextEntry::make('preview')
                                     ->label('Pratinjau Surat')
-                                    ->state(function (Get $get) use ($template, $service) {
+                                    ->state(function (Get $get) use ($template, $service, $allVariables) {
                                         $data = $get('content') ?? [];
 
                                         // Force dependency tracking for all nested content keys
-                                        foreach ($template->field_variables ?? [] as $field) {
+                                        foreach ($allVariables as $field) {
                                             if (!empty($field['key'])) {
                                                 if ($field['type'] === 'repeater') {
                                                     $get('content.' . $field['key']);

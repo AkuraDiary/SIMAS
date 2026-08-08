@@ -48,9 +48,10 @@ class FormatNomorSuratForm
                         }),
                 ])->columnSpanFull(),
 
-                TextInput::make('format_penomoran')
+                \Filament\Forms\Components\TextInput::make('format_penomoran')
                     ->label('')
                     ->placeholder('Contoh: ND/{KODE_UNIT}/{TAHUN}/{NOMOR}')
+                    ->helperText('Anda juga bisa mengetik variabel kustom seperti {KODE_KLASIFIKASI}. Pengguna akan diminta mengisi nilainya saat membuat surat.')
                     ->required()
                     ->live()
                     ->columnSpanFull()

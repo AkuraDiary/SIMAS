@@ -59,6 +59,17 @@ class FormatNomorSurat extends Model
         $format = str_replace('{BULAN_ROMAWI}', $bulan, $format);
         $format = str_replace('{TAHUN}', $tahun, $format);
 
+        // Parse remaining custom {TAG}s and try to replace them from $surat->content
+        preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $format, $matches);
+        if (!empty($matches[1])) {
+            $suratContent = $surat->content ?? [];
+            foreach ($matches[1] as $customTag) {
+                if (array_key_exists($customTag, $suratContent)) {
+                    $format = str_replace('{' . $customTag . '}', $suratContent[$customTag], $format);
+                }
+            }
+        }
+
         $nomorLengkap = $format;
 
         NomorSuratLog::create([
