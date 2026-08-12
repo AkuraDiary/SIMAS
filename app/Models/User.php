@@ -40,13 +40,12 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Rule 1: Must be active
-        // Rule 2: Must be either SuperAdmin or StafUnit
-        // Rule 3: Unit Kerja must be active if unit kerja not null
-        // return true;
-
         if (!$this->is_active) {
             return $this->is_active;
+        }
+
+        if ($panel->getId() === 'mahasiswa') {
+            return $this->tipe_entitas === 'MAHASISWA';
         }
 
         if (!in_array($this->tipe_entitas, ['ADMIN', 'STAF'])) {
