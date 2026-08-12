@@ -22,9 +22,9 @@ jobs:
           php-version: '8.4'
           tools: composer:v2
 
-      # 3. Install the PHP backend packages (excluding local dev tools)
+      # 3. Install the PHP backend packages (to exclude local dev tools add --no-dev)
       - name: Install Composer Dependencies
-        run: composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
+        run: composer install --optimize-autoloader --no-interaction --prefer-dist
 
       # 4. Set up Node.js so we can build your Filament and Tailwind CSS
       - name: Setup Node.js
@@ -40,7 +40,7 @@ jobs:
           npm install
           npm run build
 
-      # 6. Deploy Via SCP 
+      # 6. Deploy Via SCP
       - name: Deploy via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
