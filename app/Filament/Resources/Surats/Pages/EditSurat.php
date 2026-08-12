@@ -31,7 +31,7 @@ class EditSurat extends EditRecord
 
         foreach ($unitIds as $index => $unitId) {
             $surat->unitTujuan()->updateExistingPivot($unitId, [
-                'jenis_tujuan' => $index === 0 ? 'utama' : 'tembusan',
+                'jenis_tujuan' => $index === 0 ? 'UTAMA' : 'TEMBUSAN',
                 'status_baca' => 'BELUM',
             ]);
         }

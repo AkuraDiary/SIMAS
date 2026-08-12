@@ -107,31 +107,59 @@ class SuratsTable
 
             ])
             ->recordActions([
-                EditAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
-                DeleteAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
+                EditAction::make()->visible(fn($record) => in_array($record->status_surat, ['DRAFT', 'REVISI'])),
+                DeleteAction::make()->visible(fn($record) => in_array($record->status_surat, ['DRAFT', 'REVISI'])),
 
                 \Filament\Actions\Action::make('ajukan')
-                    ->label('Ajukan Surat')
+                    ->label('Ajukan/Kirim Surat')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('primary')
-                    ->visible(fn(Surat $record) => $record->status_surat === 'DRAFT')
-                    ->requiresConfirmation()
-                    ->modalHeading('Ajukan Surat untuk Persetujuan')
-                    ->modalDescription('Apakah Anda yakin ingin mengajukan surat ini? Surat tidak dapat diedit lagi setelah diajukan.')
-                    ->action(function (Surat $record): void {
+                    ->visible(fn(Surat $record) => in_array($record->status_surat, ['DRAFT', 'REVISI']))
+                    ->form([
+                        \Filament\Forms\Components\Select::make('unit_persetujuan_id')
+                            ->label('Tujuan Persetujuan / Atasan')
+                            ->options(function () {
+                                return \App\Models\UnitKerja::query()
+                                    ->where('id', '<>', Auth::user()->unit_kerja_id)
+                                    ->pluck('nama_unit', 'id');
+                            })
+                            ->searchable()
+                            ->helperText('Pilih unit atasan untuk persetujuan. Kosongkan jika ingin langsung mengirim surat ke penerima.')
+                            ->nullable(),
+                        \Filament\Forms\Components\Textarea::make('catatan')
+                            ->label('Catatan (Opsional)')
+                            ->placeholder('Tambahkan catatan...')
+                            ->nullable(),
+                    ])
+                    ->modalHeading('Ajukan atau Kirim Surat')
+                    ->modalDescription('Apakah Anda yakin? Surat tidak dapat diedit lagi setelah dikirim atau diajukan.')
+                    ->action(function (Surat $record, array $data): void {
                         $unitTujuan = $record->unitTujuan()->first();
                         if (!$unitTujuan) {
                             \Filament\Notifications\Notification::make()->title('Gagal: Surat belum memiliki unit tujuan. Edit surat terlebih dahulu.')->danger()->send();
                             return;
                         }
                         
-                        app(\App\Services\SuratRoutingService::class)->submitForApproval(
-                            surat: $record,
-                            unitTujuanId: $unitTujuan->id,
-                            catatan: 'Pengajuan surat'
-                        );
-                        
-                        \Filament\Notifications\Notification::make()->title('Surat berhasil diajukan')->success()->send();
+                        if (!empty($data['unit_persetujuan_id'])) {
+                            app(\App\Services\SuratRoutingService::class)->submitForApproval(
+                                surat: $record,
+                                unitTujuanId: $data['unit_persetujuan_id'],
+                                catatan: $data['catatan'] ?? 'Pengajuan surat'
+                            );
+                            \Filament\Notifications\Notification::make()->title('Surat berhasil diajukan untuk persetujuan')->success()->send();
+                        } else {
+                            $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
+                            if ($formatGlobal && empty($record->nomor_surat)) {
+                                $record->nomor_surat = $formatGlobal->generateNomorSurat($record);
+                            }
+                            
+                            $newStatus = ($record->tipe_surat === 'PENGAJUAN') ? 'TERBIT' : 'SELESAI';
+                            $record->status_surat = $newStatus;
+                            $record->tanggal_kirim = now();
+                            $record->save();
+                            
+                            \Filament\Notifications\Notification::make()->title('Surat berhasil dikirim langsung ke tujuan')->success()->send();
+                        }
                     }),
 
                 \Filament\Actions\Action::make('approve')
@@ -201,7 +229,7 @@ class SuratsTable
                     }),
             ])
             ->recordUrl(
-                fn(Surat $record) => $record->status_surat === 'DRAFT'
+                fn(Surat $record) => in_array($record->status_surat, ['DRAFT', 'REVISI'])
                     ? EditSurat::getUrl(['record' => $record->id])
                     : DetailSurat::getUrl(
                         parameters: [
