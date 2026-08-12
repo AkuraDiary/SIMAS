@@ -1,5 +1,6 @@
-name: Deploy Dev to cPanel
+name: Deploy Dev via SSH
 
+# This tells GitHub to only run this script when you push code to the "dev" branch
 on:
   push:
     branches:
@@ -10,44 +11,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Download your repository's code to the GitHub server
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 2. Set up PHP so we can install Composer packages
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4' # Change if you use a different PHP version
-          extensions: dom, curl, libxml, mbstring, zip, pdo, mysql, bcmath, intl, gd
+          php-version: '8.4'
           tools: composer:v2
 
+      # 3. Install the PHP backend packages (excluding local dev tools)
       - name: Install Composer Dependencies
         run: composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
 
+      # 4. Set up Node.js so we can build your Filament and Tailwind CSS
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Change based on your Node version
+          node-version: '22'
 
+      # 5. Install NPM packages and build the frontend assets
       - name: Install NPM Dependencies & Build Assets
         run: |
           npm ci
           npm run build
 
-      - name: Prepare environment file
-        # Optional: You can store your production .env in GitHub secrets
-        # and create it here. Otherwise, manually create .env in cPanel later.
-        run: cp .env.example .env
-
-      - name: Sync files via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      # 6. Load your SSH Private Key so GitHub can connect to ArentHost
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            tests/**
-            phpunit.xml
-            README.md
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: 'just-a-placeholder-so-we-dont-get-errors'
+
+      # 7. Add your server's IP to known_hosts to prevent security warnings
+      - name: Adding Known Hosts
+        run: ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      # 8. Sync the prepared files to your cPanel folder securely using Rsync
+      - name: Deploy via Rsync
+        run: |
+          rsync -avz --delete \
+          --exclude='.git/' \
+          --exclude='tests/' \
+          --exclude='node_modules/' \
+          ./ ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_IP }}:/home/${{ secrets.SERVER_USERNAME }}/elsimas.my.id/github_actions/
