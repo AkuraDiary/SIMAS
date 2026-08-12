@@ -92,7 +92,8 @@ class SuratsTable
                             return $query->where('unit_pengirim_id', Auth::user()->unit_kerja_id);
                         } elseif ($value === 'disposisi') {
                             return $query->whereHas('disposisis', function ($q) {
-                                $userIds = \App\Models\User::where('unit_kerja_id', Auth::user()->unit_kerja_id)->pluck('id');
+                                $unitId = Auth::user()->unit_kerja_id;
+                                $userIds = \App\Models\User::ofUnitKerja($unitId)->pluck('id');
                                 $q->whereIn('user_pembuat_id', $userIds);
                             });
                         }

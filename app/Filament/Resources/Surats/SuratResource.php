@@ -82,7 +82,7 @@ class SuratResource extends Resource
                 ->where(function ($q) use ($unitId) {
                     $q->where('unit_pengirim_id', $unitId)
                       ->orWhereHas('disposisis', function ($dq) use ($unitId) {
-                          $userIds = \App\Models\User::where('unit_kerja_id', $unitId)->pluck('id');
+                          $userIds = \App\Models\User::ofUnitKerja($unitId)->pluck('id');
                           $dq->whereIn('user_pembuat_id', $userIds);
                       });
                 })

@@ -183,4 +183,14 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         return 'username';
     }
+
+    /**
+     * Scope to find all users that have an active jabatan in a specific unit.
+     */
+    public function scopeOfUnitKerja($query, $unitId)
+    {
+        return $query->whereHas('pegawai.jabatans', function ($q) use ($unitId) {
+            $q->where('unit_kerja_id', $unitId)->where('status_jabatan', 'AKTIF');
+        });
+    }
 }
