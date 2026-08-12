@@ -34,7 +34,29 @@ class UserFactory extends Factory
             'username' => 'admin',
             'email' => 'admin@internal.test',
             'tipe_entitas' => 'ADMIN',
-            'password' => Hash::make('admin'),
+            'password' => Hash::make('password'),
+        ]);
+    }
+
+
+    public function createMahasiswa(): static
+    {
+        return $this->state(fn () => [
+            'username' => 'mahasiswa',
+            'email' => 'mahasiswa@internal.test',
+            'tipe_entitas' => 'MAHASISWA',
+            'password' => Hash::make('password'),
+        ]);
+    }
+
+
+    public function createPegawai(): static
+    {
+        return $this->state(fn () => [
+            'username' => 'pegawai',
+            'email' => 'pegawai@internal.test',
+            'tipe_entitas' => 'STAF',
+            'password' => Hash::make('password'),
         ]);
     }
 

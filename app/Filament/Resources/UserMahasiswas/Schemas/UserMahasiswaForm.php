@@ -20,6 +20,11 @@ class UserMahasiswaForm
                     ->schema([
                         TextInput::make('nim')
                             ->required()
+                            ->unique(
+                                table: 'users',
+                                column: 'username',
+                                modifyRuleUsing: fn ($rule, $record) => $record ? $rule->ignore($record->user_id) : $rule
+                            )
                             ->disabled(fn(string $context): bool => $context === 'edit')
                             ->dehydrated(),
                         TextInput::make('nama_lengkap')

@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
 
        // SuperAdmin
        User::factory()->superAdmin()->create();
+       User::factory()->createMahasiswa()->create();
+       User::factory()->createPegawai()->create();
 
     //    // Staf Unit
     //    User::factory()
