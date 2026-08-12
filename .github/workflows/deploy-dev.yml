@@ -35,7 +35,9 @@ jobs:
       # 5. Install NPM packages and build the frontend assets
       - name: Install NPM Dependencies & Build Assets
         run: |
-          npm ci
+          npm cache clean --force
+          rm -rf node_modules package-lock.json
+          npm install
           npm run build
 
       # 6. Load your SSH Private Key so GitHub can connect to ArentHost
