@@ -6,9 +6,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\SuratExportController;
 
-// Route::get('/', function () {
-//     return view('welcome');
-// });
+
+
+Route::get('/pengajuan', \App\Livewire\GuestPengajuan::class)->name('pengajuan');
+Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
 Route::middleware('auth')->group(function () {
     Route::get('/media/{media}/file', [MediaController::class, 'file'])
         ->name('media.file');

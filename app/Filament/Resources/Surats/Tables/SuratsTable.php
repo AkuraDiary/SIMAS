@@ -248,6 +248,75 @@ class SuratsTable
 
                         \Filament\Notifications\Notification::make()->title('Surat dikembalikan untuk revisi')->warning()->send();
                     }),
+
+                \Filament\Actions\Action::make('tolak_persetujuan')
+                    ->label('Tolak Persetujuan')
+                    ->icon('heroicon-o-archive-box-x-mark')
+                    ->color('danger')
+                    ->visible(fn($livewire, Surat $record) => ($livewire->scope ?? request('scope')) === 'persetujuan' && $record->status_surat === 'DIPROSES')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('catatan')
+                            ->label('Alasan Penolakan')
+                            ->required()
+                            ->placeholder('Jelaskan alasan penolakan...'),
+                    ])
+                    ->action(function (Surat $record, array $data): void {
+                        $activeRiwayat = $record->riwayats()
+                            ->where('status', 'MENUNGGU')
+                            ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                            ->latest()
+                            ->first();
+
+                        if (!$activeRiwayat) {
+                            \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                            return;
+                        }
+
+                        app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+                            currentRiwayat: $activeRiwayat,
+                            actor: Auth::user(),
+                            newStatus: 'DITOLAK',
+                            catatan: $data['catatan']
+                        );
+
+                        \Filament\Notifications\Notification::make()->title('Surat ditolak sepenuhnya')->danger()->send();
+                    }),
+
+                \Filament\Actions\Action::make('terima_pengajuan')
+                    ->label('Terima Pengajuan')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn($livewire, Surat $record) => ($livewire->scope ?? request('scope')) === 'pengajuan' && $record->status_surat === 'DIPROSES')
+                    ->action(function (Surat $record): void {
+                        $record->status_surat = 'SELESAI'; // Or some other accepted status
+                        $record->save();
+                        \Filament\Notifications\Notification::make()->title('Pengajuan Diterima')->success()->send();
+                    }),
+
+                \Filament\Actions\Action::make('tolak_pengajuan')
+                    ->label('Tolak Pengajuan')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn($livewire, Surat $record) => ($livewire->scope ?? request('scope')) === 'pengajuan' && in_array($record->status_surat, ['DIPROSES', 'SELESAI']))
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('alasan')
+                            ->label('Alasan Penolakan')
+                            ->required(),
+                    ])
+                    ->action(function (Surat $record, array $data): void {
+                        $record->status_surat = 'DITOLAK';
+                        // Save reason? Maybe in a note or just change status for now
+                        $record->save();
+                        \Filament\Notifications\Notification::make()->title('Pengajuan Ditolak')->danger()->send();
+                    }),
+
+                \Filament\Actions\Action::make('buat_terbitan')
+                    ->label('Terbitkan Surat Balasan')
+                    ->icon('heroicon-o-document-plus')
+                    ->color('primary')
+                    ->visible(fn($livewire, Surat $record) => ($livewire->scope ?? request('scope')) === 'pengajuan' && in_array($record->status_surat, ['DIPROSES', 'SELESAI', 'TERBIT']))
+                    ->url(fn(Surat $record) => CreateSurat::getUrl(['terbitan_for_surat_id' => $record->id, 'tipe_surat' => 'TERBITAN']))
+                    ->openUrlInNewTab(),
             ])
             ->recordUrl(
                 fn(Surat $record) => in_array($record->status_surat, ['DRAFT', 'REVISI'])

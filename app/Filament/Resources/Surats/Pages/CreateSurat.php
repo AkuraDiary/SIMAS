@@ -25,6 +25,19 @@ class CreateSurat extends CreateRecord
         ];
     }
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
+            $this->form->fill([
+                'tipe_surat' => Request::query('tipe_surat', 'INTERNAL'),
+                'terbitan_for_surat_id' => Request::query('terbitan_for_surat_id'),
+                'status_surat' => 'DRAFT',
+            ]);
+        }
+    }
+
     protected function afterCreate(): void
     {
         $surat = $this->record;

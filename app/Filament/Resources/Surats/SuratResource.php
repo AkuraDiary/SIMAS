@@ -57,6 +57,11 @@ class SuratResource extends Resource
                 ->icon('heroicon-o-archive-box')
                 ->url(static::getUrl('index', ['scope' => 'arsip']))
                 ->isActiveWhen(fn() => Request::query('scope') === 'arsip'),
+
+            NavigationItem::make('Pengajuan (Dari Luar)')
+                ->icon('heroicon-o-inbox-arrow-down')
+                ->url(static::getUrl('index', ['scope' => 'pengajuan']))
+                ->isActiveWhen(fn() => Request::query('scope') === 'pengajuan'),
         ];
     }
 
@@ -100,6 +105,11 @@ class SuratResource extends Resource
                 ->with([
                     'arsipSurats.kategoriArsip'
                 ]),
+
+            'pengajuan' => $query
+                ->where('tipe_surat', 'PENGAJUAN')
+                ->where('status_surat', '!=', 'DRAFT')
+                ->whereNull('terbitan_for_surat_id'),
 
             // all surat sent by this user
             default => $query

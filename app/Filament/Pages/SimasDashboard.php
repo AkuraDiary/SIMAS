@@ -16,6 +16,9 @@ class SimasDashboard extends BaseDashboard
 
     public static string|BackedEnum|null $navigationIcon = 'dashboard-r';
 
+    protected static ?string $slug = 'simas-dashboard';
+    protected static string $routePath = '/';
+
     protected string $view = 'filament.pages.dashboard-simas-dashboard';
 
     public function getViewData(): array
