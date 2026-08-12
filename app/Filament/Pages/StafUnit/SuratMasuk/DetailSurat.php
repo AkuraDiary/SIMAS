@@ -66,35 +66,30 @@ class DetailSurat extends Page implements HasForms
     public ?SuratUnit $suratUnit = null;
     public ?string $jenisTujuanLabel = null;
     public $userUnitId = null;
+    public ?string $renderedHtml = null;
 
     public string $scope = 'masuk';
 
-
     public function mount(Surat $surat): void
     {
-
         $this->userUnitId = Auth::user()->unit_kerja_id;
         $this->scope = request('scope', 'masuk');
 
-        // dd(! $this->isViewKirim);
         $this->surat = $surat->load([
+            'template',
             'unitPengirim',
             'suratUnits' => function ($q) {
                 if ($this->scope === 'masuk') {
                     $q->where('unit_kerja_id', $this->userUnitId);
                 }
-                // else: ambil semua unit, tidak perlu filter
             },
             'disposisis',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
         ]);
 
-        // Ambil SuratUnit jika ada (langsung)
-
         $this->suratUnit = $this->surat->suratUnits->first();
 
-        // Mark read ONLY if lewat surat_unit
         if ($this->scope === 'masuk' && $this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
             $this->suratUnit->update([
                 'status_baca' => 'SUDAH',
@@ -103,6 +98,13 @@ class DetailSurat extends Page implements HasForms
         }
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
+
+        if ($this->surat->template_id && $this->surat->template) {
+            $service = app(\App\Services\PlaceholderService::class);
+            $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? []);
+        } else {
+            $this->renderedHtml = $this->surat->isi_surat;
+        }
     }
 
     protected function getHeaderActions(): array

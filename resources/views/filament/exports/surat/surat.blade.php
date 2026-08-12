@@ -51,7 +51,7 @@
 </table>
 
 <div class="isi">
-    {!! nl2br(e($surat->isi_surat)) !!}
+    {!! $renderedHtml !!}
 </div>
 
 <div class="footer">

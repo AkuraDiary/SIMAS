@@ -49,11 +49,20 @@ class SuratExportService
 
     protected function generateSuratPdf(Surat $surat, string $dir): void
     {
+        $renderedHtml = null;
+        if ($surat->template_id && $surat->template) {
+            $service = app(\App\Services\PlaceholderService::class);
+            $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? []);
+        } else {
+            $renderedHtml = $surat->isi_surat;
+        }
+
         $pdf = Pdf::loadView(
             'filament.exports.surat.surat',
             [
-                'surat'     => $surat,
-                'isArsip'   => $surat->status_surat === 'ARSIP',
+                'surat'        => $surat,
+                'isArsip'      => $surat->status_surat === 'ARSIP',
+                'renderedHtml' => $renderedHtml,
             ]
         );
 

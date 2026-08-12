@@ -229,6 +229,33 @@ class SuratMasuk extends Page implements HasTable
 
             ])
             ->filters([
+                \Filament\Tables\Filters\Filter::make('tanggal')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('dari_tanggal')
+                            ->label('Dari Tanggal'),
+                        \Filament\Forms\Components\DatePicker::make('sampai_tanggal')
+                            ->label('Sampai Tanggal'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['dari_tanggal'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['sampai_tanggal'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    }),
+                    
+                \Filament\Tables\Filters\SelectFilter::make('tipe_surat')
+                    ->label('Tipe Surat')
+                    ->options([
+                        'INTERNAL' => 'Internal',
+                        'PENGAJUAN' => 'Pengajuan (Permohonan)',
+                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                        'EKSTERNAL' => 'Eksternal',
+                    ]),
 
                 SelectFilter::make('jenis_masuk')
                     ->options([

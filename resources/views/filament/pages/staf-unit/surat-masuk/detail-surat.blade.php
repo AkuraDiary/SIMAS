@@ -173,7 +173,7 @@
         <br>
 
         <div class="prose max-w-none">
-            {!! nl2br(e($surat->isi_surat)) !!}
+            {!! $this->renderedHtml !!}
         </div>
 
         <br>
