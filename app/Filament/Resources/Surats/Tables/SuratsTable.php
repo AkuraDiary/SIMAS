@@ -80,6 +80,26 @@ class SuratsTable
             ])
             ->filters([
 
+                SelectFilter::make('jenis_surat_keluar')
+                    ->label('Jenis Keluar')
+                    ->options([
+                        'surat' => 'Surat Keluar Utama',
+                        'disposisi' => 'Disposisi Keluar',
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value === 'surat') {
+                            return $query->where('unit_pengirim_id', Auth::user()->unit_kerja_id);
+                        } elseif ($value === 'disposisi') {
+                            return $query->whereHas('disposisis', function ($q) {
+                                $userIds = \App\Models\User::where('unit_kerja_id', Auth::user()->unit_kerja_id)->pluck('id');
+                                $q->whereIn('user_pembuat_id', $userIds);
+                            });
+                        }
+                        return $query;
+                    })
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'keluar'),
+
                 SelectFilter::make('kategori_arsip_id')
                     ->label('Kategori Arsip')
                     ->options(function () {

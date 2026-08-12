@@ -79,7 +79,13 @@ class SuratResource extends Resource
                 ->where('status_surat', 'DRAFT'),
 
             'keluar' => $query
-                ->where('unit_pengirim_id', $unitId)
+                ->where(function ($q) use ($unitId) {
+                    $q->where('unit_pengirim_id', $unitId)
+                      ->orWhereHas('disposisis', function ($dq) use ($unitId) {
+                          $userIds = \App\Models\User::where('unit_kerja_id', $unitId)->pluck('id');
+                          $dq->whereIn('user_pembuat_id', $userIds);
+                      });
+                })
                 ->where('status_surat', '!=', 'DRAFT')
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                     $q->where('unit_kerja_id', $unitId);

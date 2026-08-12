@@ -366,6 +366,17 @@ class DetailSurat extends Page implements HasForms
             ),
         ]);
 
+        if ($data['status_disposisi'] === 'SELESAI') {
+            $pembuat = $disposisi->pembuat;
+            if ($pembuat) {
+                Notification::make()
+                    ->title('Disposisi Selesai')
+                    ->body("Unit " . Auth::user()->pegawai?->jabatanAktif()?->first()?->unitKerja?->nama_unit . " telah menyelesaikan disposisi pada surat: " . $this->surat->perihal)
+                    ->success()
+                    ->sendToDatabase($pembuat);
+            }
+        }
+
         $this->updateStatusSurat();
 
         $this->refreshPage('Disposisi diperbarui', null);
@@ -387,6 +398,8 @@ class DetailSurat extends Page implements HasForms
             ? $data['instruksi_custom']
             : $data['jenis_instruksi'];
 
+        $skipped = [];
+        $successCount = 0;
 
         foreach ($data['unit_tujuan_ids'] as $unitTujuanId) {
 
@@ -395,13 +408,9 @@ class DetailSurat extends Page implements HasForms
                 ->exists();
 
             if ($alreadyExists) {
-                Notification::make()
-                    ->title('Disposisi ditolak')
-                    ->body('Unit tujuan sudah pernah menerima disposisi untuk surat ini.')
-                    ->danger()
-                    ->send();
-
-                return;
+                $unitName = \App\Models\UnitKerja::find($unitTujuanId)?->nama_unit ?? 'Unit';
+                $skipped[] = $unitName;
+                continue;
             }
 
 
@@ -421,16 +430,22 @@ class DetailSurat extends Page implements HasForms
                     ->addMedia($data['bukti'])
                     ->toMediaCollection('bukti-disposisi');
             }
-            // $action->model($disposisi)->save;
-
+            $successCount++;
         }
 
+        if ($successCount > 0) {
+            $this->surat->update([
+                'status_surat' => 'DIPROSES',
+            ]);
+        }
 
-        $this->surat->update([
-            'status_surat' => 'DIPROSES',
-        ]);
-
-        $this->refreshPage('Disposisi berhasil', 'Surat telah berhasil didisposisikan.');
+        if (count($skipped) > 0 && $successCount > 0) {
+            $this->refreshPage('Disposisi berhasil sebagian', 'Berhasil didisposisikan, namun unit berikut dilewati karena sudah menerima: ' . implode(', ', $skipped));
+        } elseif (count($skipped) > 0 && $successCount === 0) {
+            Notification::make()->title('Disposisi ditolak')->body('Semua unit tujuan sudah pernah menerima disposisi untuk surat ini.')->danger()->send();
+        } else {
+            $this->refreshPage('Disposisi berhasil', 'Surat telah berhasil didisposisikan.');
+        }
     }
     protected function handleArsipkanSurat(array $data): void
     {
