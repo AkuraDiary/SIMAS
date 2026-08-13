@@ -41,7 +41,7 @@ class SuratsTable
                     ->searchable(),
                 TextColumn::make('perihal')
                     ->searchable(),
-                TextColumn::make('tanggal_buat')
+                TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
                 TextColumn::make('tanggal_kirim')
@@ -160,7 +160,7 @@ class SuratsTable
                             \Filament\Notifications\Notification::make()->title('Gagal: Surat belum memiliki unit tujuan. Edit surat terlebih dahulu.')->danger()->send();
                             return;
                         }
-                        
+
                         if (!empty($data['unit_persetujuan_id'])) {
                             app(\App\Services\SuratRoutingService::class)->submitForApproval(
                                 surat: $record,
@@ -173,12 +173,12 @@ class SuratsTable
                             if ($formatGlobal && empty($record->nomor_surat)) {
                                 $record->nomor_surat = $formatGlobal->generateNomorSurat($record);
                             }
-                            
+
                             $newStatus = ($record->tipe_surat === 'PENGAJUAN') ? 'TERBIT' : 'SELESAI';
                             $record->status_surat = $newStatus;
                             $record->tanggal_kirim = now();
                             $record->save();
-                            
+
                             \Filament\Notifications\Notification::make()->title('Surat berhasil dikirim langsung ke tujuan')->success()->send();
                         }
                     }),

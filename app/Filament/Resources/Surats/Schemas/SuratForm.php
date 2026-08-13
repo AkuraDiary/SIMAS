@@ -27,6 +27,8 @@ use Illuminate\Support\HtmlString;
 use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
 use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 
+use function Illuminate\Support\now;
+
 class SuratForm
 {
     public static function configure(Schema $schema): Schema
@@ -298,9 +300,9 @@ class SuratForm
                     ->default(fn() => Auth::user()->id)
                     ->dehydrated(),
 
-                Hidden::make('tanggal_buat')
-                    ->default(now())
-                    ->dehydrated(),
+                // Hidden::make('tanggal_buat')
+                //     ->default(now())
+                //     ->dehydrated(),
 
                 Hidden::make('tanggal_kirim')
                     ->default(null)
