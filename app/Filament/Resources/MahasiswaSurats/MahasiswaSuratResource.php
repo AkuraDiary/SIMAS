@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Filament\Mahasiswa\Resources\Surats;
+namespace App\Filament\Resources\MahasiswaSurats;
 
-use App\Filament\Mahasiswa\Resources\Surats\Pages\CreateSurat;
-use App\Filament\Mahasiswa\Resources\Surats\Pages\EditSurat;
-use App\Filament\Mahasiswa\Resources\Surats\Pages\ListSurats;
-use App\Filament\Mahasiswa\Resources\Surats\Schemas\SuratForm;
-use App\Filament\Mahasiswa\Resources\Surats\Tables\SuratsTable;
+use App\Filament\Resources\MahasiswaSurats\Pages\CreateMahasiswaSurat;
+use App\Filament\Resources\MahasiswaSurats\Pages\EditMahasiswaSurat;
+use App\Filament\Resources\MahasiswaSurats\Pages\ListMahasiswaSurats;
+use App\Filament\Resources\MahasiswaSurats\Schemas\SuratForm;
+use App\Filament\Resources\MahasiswaSurats\Tables\SuratsTable;
 use App\Models\Surat;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -16,11 +16,18 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
-class SuratResource extends Resource
+class MahasiswaSuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
+    protected static ?string $slug = 'mahasiswa-surats';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()->tipe_entitas === 'MAHASISWA';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -42,8 +49,8 @@ class SuratResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListSurats::route('/'),
-            'create' => CreateSurat::route('/create'),
+            'index' => ListMahasiswaSurats::route('/'),
+            'create' => CreateMahasiswaSurat::route('/create'),
         ];
     }
 

@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Filament\Mahasiswa\Resources\Surats\Pages;
+namespace App\Filament\Resources\MahasiswaSurats\Pages;
 
-use App\Filament\Mahasiswa\Resources\Surats\SuratResource;
+use App\Filament\Resources\MahasiswaSurats\MahasiswaSuratResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
 
-class EditSurat extends EditRecord
+class EditMahasiswaSurat extends EditRecord
 {
-    protected static string $resource = SuratResource::class;
+    protected static string $resource = MahasiswaSuratResource::class;
 
     protected function getHeaderActions(): array
     {

@@ -20,6 +20,12 @@ class FormatNomorSuratResource extends Resource
 {
     protected static ?string $model = FormatNomorSurat::class;
 
+    public static function canViewAny(): bool
+    {
+        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHashtag;
 
     // protected static ?string $navigationGroup = 'Pengaturan';

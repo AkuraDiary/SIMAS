@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Mahasiswa\Resources\Surats\Tables;
+namespace App\Filament\Resources\MahasiswaSurats\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;

@@ -27,6 +27,12 @@ use Filament\Forms\Concerns\InteractsWithForms;
 
 class DetailSurat extends Page implements HasForms
 {
+
+    public static function canAccess(): bool
+    {
+        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
     use InteractsWithForms;
     protected string $view = 'filament.pages.staf-unit.surat-masuk.detail-surat';
     protected static ?string $slug = 'surat-masuk/{surat}';

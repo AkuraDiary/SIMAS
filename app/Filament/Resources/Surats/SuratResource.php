@@ -22,6 +22,12 @@ class SuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
+    public static function canViewAny(): bool
+    {
+        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
+
     
     public static function canAccess(): bool
     {

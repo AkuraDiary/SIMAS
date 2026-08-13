@@ -23,6 +23,11 @@ class SimasDashboard extends BaseDashboard
 
     public function getViewData(): array
     {
+        $user = Auth::user();
+        if ($user && $user->tipe_entitas === 'MAHASISWA') {
+            return [];
+        }
+
         return [
             'totalPengguna' => \App\Models\User::count(),
             'templateAktif' => \App\Models\Template::where('is_active', true)->count(),

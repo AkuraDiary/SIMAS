@@ -40,27 +40,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function canAccessPanel(Panel $panel): bool
     {
-        if (!$this->is_active) {
-            return $this->is_active;
-        }
-
-        if ($panel->getId() === 'mahasiswa') {
-            return $this->tipe_entitas === 'MAHASISWA';
-        }
-
-        if (!in_array($this->tipe_entitas, ['ADMIN', 'STAF'])) {
-            return false;
-        }
-
-        // if ($this->unitKerja && !$this->unitKerja->is_active) {
-        //     return false;
-        // }
-
-        // if ($this->tipe_entitas === 'STAF' && !$this->unitKerja) {
-        //     return false;
-        // }
-
-        return true;
+        return $this->is_active;
     }
 
     public function suratDibuat(): HasMany

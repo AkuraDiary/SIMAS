@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Mahasiswa\Resources\Surats\Schemas;
+namespace App\Filament\Resources\MahasiswaSurats\Schemas;
 
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;

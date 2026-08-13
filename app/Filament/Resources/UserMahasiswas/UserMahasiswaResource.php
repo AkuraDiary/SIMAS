@@ -22,6 +22,12 @@ class UserMahasiswaResource extends Resource
 {
     protected static ?string $model = UserMahasiswa::class;
 
+    public static function canViewAny(): bool
+    {
+        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
+
     protected static string|BackedEnum|null $navigationIcon = 'students';
     protected static ?int $navigationSort = 2;
 

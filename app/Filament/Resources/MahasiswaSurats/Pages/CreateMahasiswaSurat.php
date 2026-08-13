@@ -1,13 +1,14 @@
 <?php
 
-namespace App\Filament\Mahasiswa\Resources\Surats\Pages;
+namespace App\Filament\Resources\MahasiswaSurats\Pages;
 
-use App\Filament\Mahasiswa\Resources\Surats\SuratResource;
+use App\Filament\Resources\MahasiswaSurats\SuratResource;
+use App\Filament\Resources\MahasiswaSurats\MahasiswaSuratResource;
 use Filament\Resources\Pages\CreateRecord;
 
-class CreateSurat extends CreateRecord
+class CreateMahasiswaSurat extends CreateRecord
 {
-    protected static string $resource = SuratResource::class;
+    protected static string $resource = MahasiswaSuratResource::class;
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

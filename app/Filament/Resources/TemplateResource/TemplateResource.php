@@ -39,6 +39,12 @@ use Illuminate\Support\HtmlString;
 class TemplateResource extends Resource
 {
     protected static ?string $model = Template::class;
+
+    public static function canViewAny(): bool
+    {
+        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationLabel = 'Template Surat';
     protected static ?string $modelLabel = 'Template Surat';
