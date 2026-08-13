@@ -35,48 +35,55 @@ class SuratsTable
 
         return $table
             ->columns([
-                TextColumn::make('nomor_agenda')
-                    ->searchable(),
                 TextColumn::make('nomor_surat')
-                    ->searchable(),
-                TextColumn::make('perihal')
-                    ->searchable(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('tanggal_kirim')
-                    ->dateTime()
-                    ->sortable(),
+                    ->label('Ref Number')
+                    ->searchable()
+                    ->color('primary')
+                    ->weight('bold')
+                    ->visible(fn($livewire) => in_array($livewire->scope ?? request('scope'), ['arsip', 'keluar'])),
 
+                TextColumn::make('perihal')
+                    ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject / Number' : 'Subject')
+                    ->searchable()
+                    ->weight('bold')
+                    ->description(function (Surat $record, $livewire) {
+                        $scope = $livewire->scope ?? request('scope');
+                        if ($scope === 'draft') {
+                            return $record->nomor_surat ?? 'DRAFT-'.date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                        }
+                        return $record->unitPengirim?->nama_unit ?? '-';
+                    }),
+
+                TextColumn::make('pembuat.name')
+                    ->label('Created By')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft')
+                    ->getStateUsing(fn(Surat $record) => $record->pembuat?->name ?? '-'),
 
                 TextColumn::make('status_surat')
+                    ->label('Status')
                     ->badge()
-                    ->visible(fn($livewire) => $livewire->scope != 'arsip'),
+                    ->visible(fn($livewire) => !in_array($livewire->scope ?? request('scope'), ['arsip', 'draft'])),
 
                 TextColumn::make('arsip_kategori')
-                    ->label('Diarsipkan Di')
+                    ->label('Category')
                     ->badge()
-                    ->visible(fn($livewire) => $livewire->scope === 'arsip')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
                     ->getStateUsing(function (Surat $record) {
                         $unitId = Auth::user()->unit_kerja_id;
-
-                        $arsip = $record->arsipSurats
-                            ->firstWhere('unit_kerja_id', $unitId);
-
+                        $arsip = $record->arsipSurats->firstWhere('unit_kerja_id', $unitId);
                         return $arsip?->kategoriArsip?->nama ?? '-';
                     })
-                    ->color('success'),
-
+                    ->color('gray'),
 
                 TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label(fn($livewire) => match($livewire->scope ?? request('scope')) {
+                        'arsip' => 'Archived Date',
+                        'draft' => 'Last Modified',
+                        default => 'Requested Date'
+                    })
+                    ->dateTime('d M Y, H:i')
+                    ->sortable(),
 
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
 

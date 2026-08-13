@@ -42,12 +42,6 @@ class SuratResource extends Resource
             ->count() : 0;
 
         return [
-            NavigationItem::make('Persetujuan Surat')
-                ->icon('heroicon-o-check-badge')
-                ->url(static::getUrl('index', ['scope' => 'persetujuan']))
-                ->badge($pendingCount > 0 ? (string) $pendingCount : null)
-                
-                ->isActiveWhen(fn() => Request::query('scope') === 'persetujuan'),
 
             NavigationItem::make('Surat Keluar')
                 ->icon('heroicon-o-paper-airplane')
@@ -100,7 +94,8 @@ class SuratResource extends Resource
                 ->where('status_surat', '!=', 'DRAFT')
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                     $q->where('unit_kerja_id', $unitId);
-                }),
+                })
+                ->where('tipe_surat', '!=', 'PENGAJUAN'),
 
             'arsip' => $query
                 ->whereHas(
@@ -119,7 +114,8 @@ class SuratResource extends Resource
 
             // all surat sent by this user
             default => $query
-                ->where('unit_pengirim_id', $unitId),
+                ->where('unit_pengirim_id', $unitId)
+                ->where('tipe_surat', '!=', 'PENGAJUAN'),
         };
     }
 

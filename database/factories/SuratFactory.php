@@ -26,7 +26,7 @@ class SuratFactory extends Factory
             'nomor_surat' => fake()->unique()->numerify('SR-###/X/2026'),
             'perihal' => fake()->sentence(4),
             'isi_surat' => fake()->paragraph(),
-            // 'tanggal_buat' => now()->subDays(rand(1, 10)),
+            'tanggal_buat' => now()->subDays(rand(1, 10)),
             'tanggal_kirim' => now()->subDays(rand(0, 5)),
             'status_surat' => fake()->randomElement([
                 'TERKIRIM',
