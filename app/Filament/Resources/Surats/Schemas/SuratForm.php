@@ -300,9 +300,6 @@ class SuratForm
                     ->default(fn() => Auth::user()->id)
                     ->dehydrated(),
 
-                // Hidden::make('tanggal_buat')
-                //     ->default(now())
-                //     ->dehydrated(),
 
                 Hidden::make('tanggal_kirim')
                     ->default(null)
