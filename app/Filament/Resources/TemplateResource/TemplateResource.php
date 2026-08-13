@@ -99,6 +99,7 @@ class TemplateResource extends Resource
                             ->required()
                             ->reactive(),
                         Radio::make('visibility_type')
+                            ->dehydrated(false)
                             ->label('Visibilitas Penggunaan')
                             ->options([
                                 'GLOBAL' => 'Global (Tersedia untuk semua unit kerja)',
