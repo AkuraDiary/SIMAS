@@ -244,8 +244,10 @@ class SuratForm
                                     ->preserveFilenames()
                                     ->conversion('thumb')
                                     ->maxSize(10240)
-                                    ->panelLayout('integrated')
+                                    ->panelLayout('grid')
+                                    ->imagePreviewHeight('250') // Optional: limits preview size
                                     ->columnSpanFull(),
+
                             ]),
                     ])->columnSpan(['lg' => 3]),
 

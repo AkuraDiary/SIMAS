@@ -42,8 +42,7 @@ class Template extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('template_file')
-            ->useDisk('private')
-            ->singleFile();
+            ->useDisk('private');
     }
 
     public function kategori(): BelongsTo
