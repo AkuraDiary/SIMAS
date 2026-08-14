@@ -90,8 +90,7 @@ class SuratResource extends Resource
                 ->where('status_surat', '!=', 'DRAFT')
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                     $q->where('unit_kerja_id', $unitId);
-                })
-                ->where('tipe_surat', '!=', 'PENGAJUAN'),
+                }),
 
             'arsip' => $query
                 ->whereHas(
@@ -110,8 +109,7 @@ class SuratResource extends Resource
 
             // all surat sent by this user
             default => $query
-                ->where('unit_pengirim_id', $unitId)
-                ->where('tipe_surat', '!=', 'PENGAJUAN'),
+                ->where('unit_pengirim_id', $unitId),
         };
     }
 

@@ -172,14 +172,16 @@ class Surat extends Model implements HasMedia
             ->where(function ($q) use ($unitId) {
                 $q->whereHas(
                     'suratUnits',
-                    fn($sq) =>
-                    $sq->where('unit_kerja_id', $unitId)
+                    fn($sq) => $sq->where('unit_kerja_id', $unitId)
                 )
-                    ->orWhereHas(
-                        'disposisis',
-                        fn($dq) =>
-                        $dq->where('unit_tujuan_id', $unitId)
-                    );
+                ->orWhereHas(
+                    'disposisis',
+                    fn($dq) => $dq->where('unit_tujuan_id', $unitId)
+                )
+                ->orWhereHas(
+                    'riwayats',
+                    fn($rq) => $rq->where('unit_tujuan_id', $unitId)
+                );
             });
     }
 

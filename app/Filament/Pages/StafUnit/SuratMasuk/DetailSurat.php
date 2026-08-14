@@ -133,36 +133,47 @@ class DetailSurat extends Page implements HasForms
     {
         $primaryActions = [];
         $secondaryActions = [];
+        $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
 
-
-
-        if ($this->scope === 'keluar') {
-            $secondaryActions[] = $this->getActionArsipkan();
-        } elseif ($this->scope === 'persetujuan') {
-            $persetujuan = $this->getActionPersetujuan();
-            if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
-            if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
-
-            $disposisi = $this->getActionDisposisi();
-            if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0]; // Disposisikan
-            if (isset($disposisi[1])) $primaryActions[] = $disposisi[1]; // Tindaklanjuti
-
-            $secondaryActions[] = $this->getActionArsipkan();
-        } elseif ($this->scope !== 'arsip') {
-            $disposisi = $this->getActionDisposisi();
-            if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0];
-            if (isset($disposisi[1])) $primaryActions[] = $disposisi[1];
-
-            $secondaryActions[] = $this->getActionArsipkan();
-        }
-
-        $actions = $primaryActions;
-
-        // Always show export in secondary
+        // Export (Always visible in Lainnya)
         $secondaryActions[] = Action::make('export')
             ->label('Export Surat')
             ->icon('heroicon-o-arrow-down-tray')
             ->action(fn() => redirect()->route('surat.export', $this->surat));
+
+        // 1. Arsipkan (If not draft)
+        if ($this->surat->status_surat !== 'DRAFT') {
+            $secondaryActions[] = $this->getActionArsipkan();
+        }
+
+        // 2. Persetujuan & Terbitan (For PENGAJUAN)
+        if ($this->surat->tipe_surat === 'PENGAJUAN') {
+            $hasPendingPersetujuan = $this->surat->riwayats()
+                ->where('status', 'MENUNGGU')
+                ->where('unit_tujuan_id', $unitId)
+                ->exists();
+
+            $hasRiwayats = $this->surat->riwayats()
+
+                ->where('unit_tujuan_id', $unitId)
+                ->exists();
+            $persetujuan = $this->getActionPersetujuan();
+
+            if ($hasPendingPersetujuan || !$hasRiwayats) {
+                if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
+                if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
+                if (isset($persetujuan[2])) $secondaryActions[] = $persetujuan[2]; // Tolak
+            }
+
+            if (isset($persetujuan[3])) $primaryActions[] = $persetujuan[3]; // Buat Terbitan
+        }
+
+        // 3. Disposisi (Visibilities are handled inside the actions via canDisposisi / canRespondDisposisi)
+        $disposisi = $this->getActionDisposisi();
+        if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0]; // Disposisikan
+        if (isset($disposisi[1])) $primaryActions[] = $disposisi[1]; // Tindaklanjuti
+
+        $actions = $primaryActions;
 
         if (count($secondaryActions) > 0) {
             $actions[] = ActionGroup::make($secondaryActions)
@@ -350,7 +361,53 @@ class DetailSurat extends Page implements HasForms
 
                     $this->refreshPage('Berhasil', 'Surat dikembalikan untuk revisi.');
                 }),
+            Action::make('tolak_persetujuan')
+                ->label('Tolak Persetujuan')
+                ->icon('heroicon-o-no-symbol')
+                ->color('danger')
+                ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
+                ->schema([
+                    Textarea::make('catatan')
+                        ->label('Alasan Penolakan')
+                        ->required()
+                        ->placeholder('Jelaskan mengapa surat ini ditolak...'),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Tolak Surat Pengajuan')
+                ->modalDescription('Apakah Anda yakin ingin menolak surat pengajuan ini? Surat akan dibatalkan.')
+                ->action(function (array $data): void {
+                    $activeRiwayat = $this->surat->riwayats()
+                        ->where('status', 'MENUNGGU')
+                        ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                        ->latest()
+                        ->first();
 
+                    if (!$activeRiwayat) {
+                        Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                        return;
+                    }
+
+                    app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+                        currentRiwayat: $activeRiwayat,
+                        actor: Auth::user(),
+                        newStatus: 'DITOLAK',
+                        catatan: $data['catatan']
+                    );
+
+                    $this->refreshPage('Berhasil', 'Surat pengajuan berhasil ditolak dan dibatalkan.');
+                }),
+            Action::make('buat_terbitan')
+                ->label('Terbitkan Surat Balasan')
+                ->icon('heroicon-o-document-plus')
+                ->color('primary')
+                ->visible(
+                    fn() => $this->surat->tipe_surat === 'PENGAJUAN' &&
+                        in_array($this->surat->status_surat, ['DIPROSES', 'SELESAI']) &&
+
+                        Auth::user()->unit_kerja_id !== $this->surat->unit_pengirim_id // user BUKAN pengirim surat pengajuan itu sendiri
+                )
+                ->url(fn() => \App\Filament\Resources\Surats\Pages\CreateSurat::getUrl(['terbitan_for_surat_id' => $this->surat->id, 'tipe_surat' => 'TERBITAN']))
+                ->openUrlInNewTab(),
         ];
     }
     protected function getActionArsipkan()

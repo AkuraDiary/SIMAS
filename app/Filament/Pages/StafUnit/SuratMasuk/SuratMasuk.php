@@ -92,6 +92,7 @@ class SuratMasuk extends Page implements HasTable
         $unitId = Auth::user()->unit_kerja_id;
 
         return Surat::query()
+            ->untukUnit($unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                 $q->where('unit_kerja_id', $unitId);
             })
@@ -99,9 +100,8 @@ class SuratMasuk extends Page implements HasTable
                 'unitPengirim',
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
-                'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId)->where('status', 'MENUNGGU'),
+                'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
             ])
-
             ->orderByDesc('created_at');
     }
 
@@ -114,171 +114,180 @@ class SuratMasuk extends Page implements HasTable
             ->emptyStateDescription('')
             ->columns([
                 TextColumn::make('perihal')
-                    ->label('Subject')
-                    ->wrap()
-                    ->searchable()
+                    ->label('Perihal & Pengirim')
+                    ->searchable(['perihal', 'pengirim_nama'])
                     ->weight('bold')
+                    ->wrap()
                     ->description(function (Surat $record) {
-                        if ($record->tipe_surat === 'EKSTERNAL') {
-                            return ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-');
-                        }
-                        return $record->unitPengirim?->nama_unit ?? '-';
+                        $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
+                        $pengirim = $record->tipe_surat === 'EKSTERNAL'
+                            ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
+                            : ($record->unitPengirim?->nama_unit ?? '-');
+                        return $nomor . $pengirim;
                     }),
 
                 TextColumn::make('tipe_surat')
                     ->label('Tipe')
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
+                    ->color(fn(?string $state): string => match ($state) {
                         'INTERNAL' => 'gray',
                         'EKSTERNAL' => 'warning',
                         'PENGAJUAN' => 'info',
                         default => 'gray',
                     }),
 
+
+
                 TextColumn::make('status_surat')
-                    ->label('Status')
+                    ->label('Status Surat')
+                    ->searchable()
                     ->badge()
-                    ->visible(fn($livewire) => $livewire->activeTab === 'persetujuan')
-                    ->color(fn(?string $state) => match ($state) {
-                        'BARU' => 'primary',
-                        'DIPROSES' => 'warning',
-                        'SELESAI' => 'success',
-                        default => 'secondary',
+                    ->getStateUsing(function (Surat $record, $livewire) {
+                        // if ($record->tipe_surat ==='PENGAJUAN') {
+                        //     return 'PENGAJUAN: ' . $record->status_surat;
+                        // }
+
+                        $disposisi = $record->disposisis->firstWhere('unit_tujuan_id', Auth::user()->unit_kerja_id)?->status_disposisi;
+                        if ($disposisi) return 'DISPOSISI: ' . strtoupper($disposisi);
+
+                        else return $record->status_surat;
+                    })
+                    ->color(fn(?string $state) => match (true) {
+                        $state === 'SELESAI' => 'success',
+                        $state === 'DIPROSES' => 'warning',
+                        $state === 'REVISI' => 'danger',
+                        $state === 'DITOLAK' => 'danger',
+                        str_contains($state ?? '', 'DISPOSISI: MENUNGGU') => 'warning',
+                        str_contains($state ?? '', 'DISPOSISI: DIPROSES') => 'primary',
+                        str_contains($state ?? '', 'DISPOSISI: SELESAI') => 'success',
+                        str_contains($state ?? '', 'PENGAJUAN: DIPROSES') => 'warning',
+                        str_contains($state ?? '', 'PENGAJUAN: SELESAI') => 'success',
+                        default => 'gray',
                     }),
 
-                TextColumn::make('status_baca')
-                    ->label('Status Baca')
-                    ->badge()
-                    ->visible(fn($livewire) => $livewire->activeTab !== 'persetujuan')
-                    ->getStateUsing(fn(Surat $record) => $record->suratUnits->firstWhere('unit_kerja_id', Auth::user()->unit_kerja_id)?->status_baca)
-                    ->color(fn(?string $state) => match ($state) {
-                        'BELUM' => 'danger',
-                        'SUDAH' => 'success',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn(?string $state): string => strtoupper($state ?? '') === 'SUDAH' ? 'Sudah Dibaca' : 'Belum Dibaca'),
 
-                TextColumn::make('status_disposisi')
-                    ->label('Disposisi')
-                    ->badge()
-                    ->visible(fn($livewire) => $livewire->activeTab !== 'persetujuan')
-                    ->getStateUsing(fn(Surat $record) => $record->disposisis->firstWhere('unit_tujuan_id', Auth::user()->unit_kerja_id)?->status_disposisi)
-                    ->color(fn(?string $state) => match ($state) {
-                        'MENUNGGU' => 'warning',
-                        'DITERIMA' => 'success',
-                        'DITOLAK'  => 'danger',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn(?string $state): string => $state ?? '-'),
 
-                TextColumn::make('created_at')
+                TextColumn::make('tanggal_kirim')
                     ->label('Tanggal Masuk')
                     ->dateTime('d M Y, H:i')
                     ->sortable(),
 
+                TextColumn::make('status baca')
+                    ->label('Status Baca')
+                    ->badge()
+                    ->getStateUsing(function (Surat $record, $livewire) {
+                        $baca = $record->suratUnits->firstWhere('unit_kerja_id', Auth::user()->unit_kerja_id)?->status_baca;
+                        return $baca === 'SUDAH' ? 'DIBACA' : 'BARU';
+                    })
+                    ->color(fn(?string $state) => match (true) {
+                        $state === 'BARU' => 'danger',
+                        $state === 'DIBACA' => 'success',
+                        default => 'gray',
+                    }),
+
             ])
             ->recordActions([
-                Action::make('approve')
-                    ->label('Setujui / TTD')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn($livewire, Surat $record) => $livewire->activeTab === 'persetujuan' && $record->status_surat === 'DIPROSES')
-                    ->form([
-                        \Filament\Forms\Components\Textarea::make('catatan')
-                            ->label('Catatan Persetujuan (Opsional)')
-                            ->placeholder('Catatan atau catatan persetujuan...'),
-                    ])
-                    ->action(function (Surat $record, array $data): void {
-                        $activeRiwayat = $record->riwayats()
-                            ->where('status', 'MENUNGGU')
-                            ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                            ->latest()
-                            ->first();
+            //     Action::make('approve')
+            //         ->label('Setujui / TTD')
+            //         ->icon('heroicon-o-check-circle')
+            //         ->color('success')
+            //         ->visible(fn($livewire, Surat $record) => $livewire->activeTab === 'persetujuan' && $record->status_surat === 'DIPROSES')
+            //         ->schema([
+            //             \Filament\Forms\Components\Textarea::make('catatan')
+            //                 ->label('Catatan Persetujuan (Opsional)')
+            //                 ->placeholder('Catatan atau catatan persetujuan...'),
+            //         ])
+            //         ->action(function (Surat $record, array $data): void {
+            //             $activeRiwayat = $record->riwayats()
+            //                 ->where('status', 'MENUNGGU')
+            //                 ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+            //                 ->latest()
+            //                 ->first();
 
-                        if (!$activeRiwayat) {
-                            \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                            return;
-                        }
+            //             if (!$activeRiwayat) {
+            //                 \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+            //                 return;
+            //             }
 
-                        app(\App\Services\SuratRoutingService::class)->approveStep(
-                            currentRiwayat: $activeRiwayat,
-                            actor: Auth::user(),
-                            isFinalStep: true,
-                            isSignatureRequired: true,
-                            catatan: $data['catatan'] ?? null
-                        );
+            //             app(\App\Services\SuratRoutingService::class)->approveStep(
+            //                 currentRiwayat: $activeRiwayat,
+            //                 actor: Auth::user(),
+            //                 isFinalStep: true,
+            //                 isSignatureRequired: true,
+            //                 catatan: $data['catatan'] ?? null
+            //             );
 
-                        \Filament\Notifications\Notification::make()->title('Surat berhasil disetujui & ditandatangani')->success()->send();
-                    }),
+            //             \Filament\Notifications\Notification::make()->title('Surat berhasil disetujui & ditandatangani')->success()->send();
+            //         }),
 
-                Action::make('reject')
-                    ->label('Minta Revisi')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->visible(fn($livewire, Surat $record) => $livewire->activeTab === 'persetujuan' && $record->status_surat === 'DIPROSES')
-                    ->form([
-                        \Filament\Forms\Components\Textarea::make('catatan')
-                            ->label('Alasan Revisi')
-                            ->required()
-                            ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
-                    ])
-                    ->action(function (Surat $record, array $data): void {
-                        $activeRiwayat = $record->riwayats()
-                            ->where('status', 'MENUNGGU')
-                            ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                            ->latest()
-                            ->first();
+            //     Action::make('reject')
+            //         ->label('Minta Revisi')
+            //         ->icon('heroicon-o-x-circle')
+            //         ->color('danger')
+            //         ->visible(fn($livewire, Surat $record) => $livewire->activeTab === 'persetujuan' && $record->status_surat === 'DIPROSES')
+            //         ->form([
+            //             \Filament\Forms\Components\Textarea::make('catatan')
+            //                 ->label('Alasan Revisi')
+            //                 ->required()
+            //                 ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
+            //         ])
+            //         ->action(function (Surat $record, array $data): void {
+            //             $activeRiwayat = $record->riwayats()
+            //                 ->where('status', 'MENUNGGU')
+            //                 ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+            //                 ->latest()
+            //                 ->first();
 
-                        if (!$activeRiwayat) {
-                            \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                            return;
-                        }
+            //             if (!$activeRiwayat) {
+            //                 \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+            //                 return;
+            //             }
 
-                        app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
-                            currentRiwayat: $activeRiwayat,
-                            actor: Auth::user(),
-                            isRejection: false,
-                            catatan: $data['catatan']
-                        );
+            //             app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+            //                 currentRiwayat: $activeRiwayat,
+            //                 actor: Auth::user(),
+            //                 isRejection: false,
+            //                 catatan: $data['catatan']
+            //             );
 
-                        \Filament\Notifications\Notification::make()->title('Permintaan revisi berhasil dikirim ke pembuat surat')->success()->send();
-                    }),
+            //             \Filament\Notifications\Notification::make()->title('Permintaan revisi berhasil dikirim ke pembuat surat')->success()->send();
+            //         }),
 
-                Action::make('tolak_persetujuan')
-                    ->label('Tolak Persetujuan')
-                    ->icon('heroicon-o-no-symbol')
-                    ->color('danger')
-                    ->visible(fn($livewire, Surat $record) => $livewire->activeTab === 'persetujuan' && $record->status_surat === 'DIPROSES')
-                    ->form([
-                        \Filament\Forms\Components\Textarea::make('catatan')
-                            ->label('Alasan Penolakan')
-                            ->required()
-                            ->placeholder('Jelaskan mengapa surat ini ditolak...'),
-                    ])
-                    ->requiresConfirmation()
-                    ->modalHeading('Tolak Surat Pengajuan')
-                    ->modalDescription('Apakah Anda yakin ingin menolak surat pengajuan ini? Surat akan dibatalkan.')
-                    ->action(function (Surat $record, array $data): void {
-                        $activeRiwayat = $record->riwayats()
-                            ->where('status', 'MENUNGGU')
-                            ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                            ->latest()
-                            ->first();
+            //     Action::make('tolak_persetujuan')
+            //         ->label('Tolak Persetujuan')
+            //         ->icon('heroicon-o-no-symbol')
+            //         ->color('danger')
+            //         ->visible(fn($livewire, Surat $record) => $livewire->activeTab === 'persetujuan' && $record->status_surat === 'DIPROSES')
+            //         ->form([
+            //             \Filament\Forms\Components\Textarea::make('catatan')
+            //                 ->label('Alasan Penolakan')
+            //                 ->required()
+            //                 ->placeholder('Jelaskan mengapa surat ini ditolak...'),
+            //         ])
+            //         ->requiresConfirmation()
+            //         ->modalHeading('Tolak Surat Pengajuan')
+            //         ->modalDescription('Apakah Anda yakin ingin menolak surat pengajuan ini? Surat akan dibatalkan.')
+            //         ->action(function (Surat $record, array $data): void {
+            //             $activeRiwayat = $record->riwayats()
+            //                 ->where('status', 'MENUNGGU')
+            //                 ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+            //                 ->latest()
+            //                 ->first();
 
-                        if (!$activeRiwayat) {
-                            \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                            return;
-                        }
+            //             if (!$activeRiwayat) {
+            //                 \Filament\Notifications\Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+            //                 return;
+            //             }
 
-                        app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
-                            currentRiwayat: $activeRiwayat,
-                            actor: Auth::user(),
-                            isRejection: true,
-                            catatan: $data['catatan']
-                        );
+            //             app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+            //                 currentRiwayat: $activeRiwayat,
+            //                 actor: Auth::user(),
+            //                 isRejection: true,
+            //                 catatan: $data['catatan']
+            //             );
 
-                        \Filament\Notifications\Notification::make()->title('Surat pengajuan berhasil ditolak dan dibatalkan')->success()->send();
-                    }),
+            //             \Filament\Notifications\Notification::make()->title('Surat pengajuan berhasil ditolak dan dibatalkan')->success()->send();
+            //         }),
             ])
             ->filters([
                 \Filament\Tables\Filters\Filter::make('tanggal')
@@ -292,11 +301,11 @@ class SuratMasuk extends Page implements HasTable
                         return $query
                             ->when(
                                 $data['dari_tanggal'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
                             )
                             ->when(
                                 $data['sampai_tanggal'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
                             );
                     }),
 
@@ -333,8 +342,8 @@ class SuratMasuk extends Page implements HasTable
         return [
             'semua' => Tab::make('Semua')
                 ->modifyQueryUsing(function (Builder $query) {
-                    $unitId = Auth::user()->unit_kerja_id;
-                    return $query->untukUnit($unitId);
+                    // untukUnit is already applied in getTableQuery
+                    return $query;
                 }),
             'langsung' => Tab::make('Langsung')
                 ->modifyQueryUsing(function (Builder $query) {
@@ -349,11 +358,16 @@ class SuratMasuk extends Page implements HasTable
             'persetujuan' => Tab::make('Pengajuan')
                 ->modifyQueryUsing(function (Builder $query) {
                     $unitId = Auth::user()->unit_kerja_id;
-                    return $query->where('status_surat', 'DIPROSES')
-                                 ->whereHas('riwayats', function ($q) use ($unitId) {
-                                     $q->where('status', 'MENUNGGU')
-                                       ->where('unit_tujuan_id', $unitId);
-                                 });
+                    return $query->where('tipe_surat', 'PENGAJUAN');
+                        // ->whereHas('riwayats', function ($q) use ($unitId) {
+                        //     $q->where('status', 'MENUNGGU')
+                        //         ->where('unit_tujuan_id', $unitId);
+                        // });
+                    // return $query->where('status_surat', 'DIPROSES')
+                    //     ->whereHas('riwayats', function ($q) use ($unitId) {
+                    //         $q->where('status', 'MENUNGGU')
+                    //             ->where('unit_tujuan_id', $unitId);
+                    //     });
                 }),
         ];
     }

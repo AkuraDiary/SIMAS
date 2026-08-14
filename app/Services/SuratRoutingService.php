@@ -97,13 +97,13 @@ class SuratRoutingService
 
             // 3. Advance to next step or mark as final
             if ($isFinalStep || !$nextUnitTujuanId) {
-                $newStatus = ($surat->tipe_surat === 'PENGAJUAN') ? 'TERBIT' : 'SELESAI';
-                
+                $newStatus = 'SELESAI';//($surat->tipe_surat === 'PENGAJUAN') ? 'TERBIT' : 'SELESAI';
+
                 $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
                 if ($formatGlobal && empty($surat->nomor_surat)) {
                     $surat->nomor_surat = $formatGlobal->generateNomorSurat($surat);
                 }
-                
+
                 $surat->status_surat = $newStatus;
                 $surat->save();
             } else {
