@@ -47,22 +47,23 @@ class DetailSurat extends Page implements HasForms
     public function getBreadcrumbs(): array
     {
         return match ($this->scope) {
-            'arsip' => [
-                SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
-                '#' => $this->surat->perihal,
-                'Detail',
-            ],
+            // 'arsip' => [
+            //     SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
+            //     '#' => $this->surat->perihal,
+            //     'Detail',
+            // ],
             'keluar' => [
                 SuratResource::getUrl('index', ['scope' => 'keluar']) => 'Surat Keluar',
                 '#' => $this->surat->perihal,
                 'Detail',
             ],
-            'persetujuan' => [
-                SuratResource::getUrl('index', ['scope' => 'persetujuan']) => 'Persetujuan Surat',
-                '#' => $this->surat->perihal,
-                'Detail',
-            ],
+            // 'persetujuan' => [
+            //     SuratResource::getUrl('index', ['scope' => 'persetujuan']) => 'Persetujuan Surat',
+            //     '#' => $this->surat->perihal,
+            //     'Detail',
+            // // ],
             default => [
+
                 SuratMasuk::getUrl() => 'Surat Masuk',
                 '#' => $this->surat->perihal,
                 'Detail',
@@ -89,12 +90,13 @@ class DetailSurat extends Page implements HasForms
     public ?string $jenisTujuanLabel = null;
     public $userUnitId = null;
     public ?string $renderedHtml = null;
-
     public string $scope = 'masuk';
 
     public function mount(Surat $surat): void
     {
         $this->userUnitId = Auth::user()->unit_kerja_id;
+
+
         $this->scope = request('scope', 'masuk');
 
         $this->surat = $surat->load([
@@ -104,9 +106,7 @@ class DetailSurat extends Page implements HasForms
             'userPegawaiJabatan.jabatan',
             'userPegawaiJabatan.unitKerja',
             'suratUnits' => function ($q) {
-                if ($this->scope === 'masuk') {
-                    $q->where('unit_kerja_id', $this->userUnitId);
-                }
+                $q->where('unit_kerja_id', $this->userUnitId);
             },
             'disposisis',
             'disposisis.pembuat.jabatanAktif.unitKerja',
@@ -115,12 +115,13 @@ class DetailSurat extends Page implements HasForms
 
         $this->suratUnit = $this->surat->suratUnits->first();
 
-        if ($this->scope === 'masuk' && $this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
+        if ($this->suratUnit && $this->suratUnit->status_baca === 'BELUM') {
             $this->suratUnit->update([
                 'status_baca' => 'SUDAH',
                 'tanggal_terima' => now()
             ]);
         }
+
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
 
@@ -147,15 +148,15 @@ class DetailSurat extends Page implements HasForms
             'icon' => 'heroicon-m-document-plus',
         ];
 
-        // 2. Riwayat Persetujuan
+        // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN)
         foreach ($this->surat->riwayats as $riwayat) {
-            $bgColor = match($riwayat->status) {
+            $bgColor = match ($riwayat->status) {
                 'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
                 'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
                 'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
                 default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
             };
-            $icon = match($riwayat->status) {
+            $icon = match ($riwayat->status) {
                 'DISETUJUI' => 'heroicon-m-check-circle',
                 'DITOLAK' => 'heroicon-m-x-circle',
                 'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
@@ -163,8 +164,8 @@ class DetailSurat extends Page implements HasForms
             };
 
             $timeline[] = [
-                'title' => 'Persetujuan: ' . $riwayat->status,
-                'actor' => $riwayat->aktor?->name ?? 'Sistem',
+                'title' =>  $riwayat->status,
+                'actor' => $riwayat->aktor?->nama_lengkap ?? '',
                 'unit' => $riwayat->unitTujuan?->nama_unit,
                 'catatan' => $riwayat->catatan,
                 'date' => $riwayat->actioned_at ?? $riwayat->created_at,
@@ -177,7 +178,7 @@ class DetailSurat extends Page implements HasForms
         foreach ($this->surat->disposisis as $disposisi) {
             $timeline[] = [
                 'title' => 'Disposisi (' . $disposisi->tingkat_prioritas . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? 'Unknown'),
-                'actor' => $disposisi->pembuat?->name ?? 'Sistem',
+                'actor' => $disposisi->pembuat?->nama_lengkap ?? 'Sistem',
                 'unit' => $disposisi->unitPembuat?->nama_unit ?? 'Unknown',
                 'catatan' => $disposisi->catatan,
                 'date' => $disposisi->created_at,
@@ -186,7 +187,36 @@ class DetailSurat extends Page implements HasForms
             ];
         }
 
-        // Sort secara kronologis
+        // 4. Komentar (Diskusi)
+        foreach ($this->surat->komentars as $komentar) {
+            $timeline[] = [
+                'title' => 'Komentar',
+                'actor' => $komentar->user?->nama_lengkap ?? 'Sistem',
+                'unit' => $komentar->unitKerja?->nama_unit ?? 'Unknown',
+                'catatan' => $komentar->pesan,
+                'date' => $komentar->created_at,
+                'color' => 'bg-purple-500 ring-purple-100 dark:ring-purple-900',
+                'icon' => 'heroicon-m-chat-bubble-left-ellipsis',
+            ];
+        }
+
+        // 5. Arsip Surat (Hanya Tampil Jika Unit Kerja User = Unit Kerja Pengarsip)
+        $userUnitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
+        foreach ($this->surat->arsipSurats as $arsip) {
+            if ($arsip->unit_kerja_id === $userUnitId) {
+                $timeline[] = [
+                    'title' => 'Surat Diarsipkan (' . ($arsip->kategoriArsip?->nama ?? 'Tanpa Kategori') . ')',
+                    'actor' => 'Sistem',
+                    'unit' => $arsip->unitKerja?->nama_unit ?? 'Unknown',
+                    'catatan' => $arsip->catatan,
+                    'date' => $arsip->tanggal_arsip ?? $arsip->created_at,
+                    'color' => 'bg-indigo-500 ring-indigo-100 dark:ring-indigo-900',
+                    'icon' => 'heroicon-m-archive-box',
+                ];
+            }
+        }
+
+        // Sort secara kronologis (dari yang terlama sampai terbaru)
         usort($timeline, fn($a, $b) => $a['date'] <=> $b['date']);
 
         return $timeline;
@@ -714,70 +744,6 @@ class DetailSurat extends Page implements HasForms
             ->exists();
     }
 
-    protected static function infolist(Schema $schema){
-        Section::make('Riwayat & Perjalanan Surat')
-    ->schema([
-        ViewEntry::make('timeline')
-            ->view('filament.infolists.components.surat-timeline')
-            ->label('') // Hide the label because the section title is enough
-            ->columnSpanFull()
-            ->state(function ($record) {
-                $timeline = [];
-
-                // 1. Event: Surat Dibuat
-                $timeline[] = [
-                    'title' => 'Surat Dibuat',
-                    'actor' => $record->pembuat?->name ?? $record->pengirim_nama ?? 'Sistem',
-                    'unit' => $record->unitPengirim?->nama_unit ?? 'Eksternal',
-                    'catatan' => null,
-                    'date' => $record->created_at,
-                    'color' => 'bg-gray-500',
-                    'icon' => 'heroicon-m-document-plus',
-                ];
-                // 2. Event: Riwayat Persetujuan (Approval Routing)
-                foreach ($record->riwayats as $riwayat) {
-                    $bgColor = match($riwayat->status) {
-                        'DISETUJUI' => 'bg-green-500',
-                        'DITOLAK' => 'bg-red-500',
-                        'DIKEMBALIKAN' => 'bg-amber-500',
-                        default => 'bg-gray-400',
-                    };
-                    $icon = match($riwayat->status) {
-                        'DISETUJUI' => 'heroicon-m-check-circle',
-                        'DITOLAK' => 'heroicon-m-x-circle',
-                        'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
-                        default => 'heroicon-m-clock',
-                    };
-
-                    $timeline[] = [
-                        'title' => 'Persetujuan: ' . $riwayat->status,
-                        'actor' => $riwayat->aktor?->name ?? 'Sistem',
-                        'unit' => $riwayat->unitTujuan?->nama_unit,
-                        'catatan' => $riwayat->catatan,
-                        'date' => $riwayat->actioned_at ?? $riwayat->created_at,
-                        'color' => $bgColor,
-                        'icon' => $icon,
-                    ];
-                }
-                // 3. Event: Disposisi (Forwarding Routing)
-                foreach ($record->disposisis as $disposisi) {
-                    $timeline[] = [
-                        'title' => 'Disposisi (' . $disposisi->tingkat_prioritas . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? 'Unknown'),
-                        'actor' => $disposisi->pembuat?->name ?? 'Sistem',
-                        'unit' => $disposisi->pembuat?->pegawai?->jabatanAktif()->first()?->unitKerja?->nama_unit ?? 'Unknown',
-                        'catatan' => $disposisi->catatan,
-                        'date' => $disposisi->created_at,
-                        'color' => 'bg-blue-500',
-                        'icon' => 'heroicon-m-paper-airplane',
-                    ];
-                }
-                // Sort all events chronologically (oldest first)
-                usort($timeline, fn($a, $b) => $a['date'] <=> $b['date']);
-
-                return $timeline;
-            })
-    ]);
-    }
 
     protected function resolveJenisTujuanLabel(): string
     {

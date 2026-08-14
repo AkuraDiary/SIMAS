@@ -56,6 +56,18 @@ class SuratsTable
                 TextColumn::make('status_surat')
                     ->label('Status')
                     ->badge()
+                    ->color(fn(?string $state) => match (true) {
+                        $state === 'SELESAI' => 'success',
+                        $state === 'DIPROSES' => 'warning',
+                        $state === 'REVISI' => 'danger',
+                        $state === 'DITOLAK' => 'danger',
+                        str_contains($state ?? '', 'DISPOSISI: MENUNGGU') => 'warning',
+                        str_contains($state ?? '', 'DISPOSISI: DIPROSES') => 'primary',
+                        str_contains($state ?? '', 'DISPOSISI: SELESAI') => 'success',
+                        str_contains($state ?? '', 'PENGAJUAN: DIPROSES') => 'warning',
+                        str_contains($state ?? '', 'PENGAJUAN: SELESAI') => 'success',
+                        default => 'gray',
+                    })
                     ->visible(fn($livewire) => !in_array($livewire->scope ?? request('scope'), ['arsip', 'draft'])),
 
                 TextColumn::make('arsip_kategori')

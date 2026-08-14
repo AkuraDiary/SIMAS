@@ -113,14 +113,14 @@
                             {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Manual/Upload' : 'Sistem SIMAS' }}
                         </p>
                     </div>
-                    @if($scope === 'masuk' && $suratUnit)
+
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Terima</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $suratUnit->tanggal_terima ? \Carbon\Carbon::parse($suratUnit->tanggal_terima)->format('d M Y') : '-' }}
+                            {{ $suratUnit?->tanggal_terima ? \Carbon\Carbon::parse($suratUnit->tanggal_terima)->format('d M Y') : '-' }}
                         </p>
                     </div>
-                    @endif
+
                 </div>
             </x-filament::section>
 
