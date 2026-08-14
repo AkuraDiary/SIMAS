@@ -14,13 +14,12 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Repeater;
-
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
@@ -34,15 +33,16 @@ use Filament\Tables\Columns\Layout\View;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
 
 class TemplateResource extends Resource
 {
     protected static ?string $model = Template::class;
 
-    public static function canViewAny(): bool
+    public static function canAccess(): bool
     {
-        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+        return Auth::user()?->tipe_entitas === 'ADMIN';
     }
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
@@ -219,17 +219,17 @@ class TemplateResource extends Resource
                             ->collapsible()
                              ->itemLabel(function ($state) {
                                  if (!is_array($state)) return null;
-                                 
+
                                  $label = $state['label'] ?? null;
                                  if (!is_string($label) && !is_numeric($label)) {
                                      $label = null;
                                  }
-                                 
+
                                  $key = $state['key'] ?? null;
                                  if (!is_string($key) && !is_numeric($key)) {
                                      $key = null;
                                  }
-                                 
+
                                  return $label ? ($label . ' ({{ ' . $key . ' }})') : null;
                              })
                             ->afterStateHydrated(function ($component, $state) {
@@ -249,7 +249,7 @@ class TemplateResource extends Resource
                                         }
 
                                         $html = $get('content_html') ?? '';
-                                        
+
                                         $service = app(\App\Services\PlaceholderService::class);
                                         $result = $service->syncVariablesToHtml($html, $currentVars);
 
@@ -336,7 +336,7 @@ class TemplateResource extends Resource
                                         try {
                                             $docxService = app(\App\Services\DocxTemplateService::class);
                                             $placeholderService = app(\App\Services\PlaceholderService::class);
-                                            
+
                                             $html = $docxService->convertToHtml($path);
                                             $fields = $placeholderService->extractPlaceholders($html);
 
@@ -344,7 +344,7 @@ class TemplateResource extends Resource
 
                                             $currentFields = $get('field_variables') ?? [];
                                             $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
-                                            
+
                                             $set('field_variables', $currentFields);
 
                                             \Filament\Notifications\Notification::make()->title('Placeholders berhasil dipindai & preview dibuat!')->success()->send();
@@ -386,7 +386,7 @@ class TemplateResource extends Resource
                                         try {
                                             $docxService = app(\App\Services\DocxTemplateService::class);
                                             $placeholderService = app(\App\Services\PlaceholderService::class);
-                                            
+
                                             $html = $docxService->convertToHtml($path);
                                             $fields = $placeholderService->extractPlaceholders($html);
 

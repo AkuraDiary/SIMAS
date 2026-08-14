@@ -99,6 +99,7 @@ class SuratMasuk extends Page implements HasTable
                 'unitPengirim',
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
+                'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId)->where('status', 'MENUNGGU'),
             ])
 
             ->orderByDesc('created_at');
@@ -308,12 +309,17 @@ class SuratMasuk extends Page implements HasTable
                         'EKSTERNAL' => 'Eksternal',
                     ]),
             ])
-            ->recordUrl(
-                fn(Surat $record): string => DetailSurat::getUrl(
-                    parameters: ['surat' => $record->id],
+            ->recordUrl(function (Surat $record) {
+                $isPersetujuan = $record->riwayats->isNotEmpty();
+
+                return DetailSurat::getUrl(
+                    parameters: [
+                        'surat' => $record->id,
+                        'scope' => $isPersetujuan ? 'persetujuan' : 'masuk'
+                    ],
                     panel: 'simas'
-                )
-            )
+                );
+            })
             ->modifyQueryUsing($this->modifyQueryWithActiveTab(...));
     }
 

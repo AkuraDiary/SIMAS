@@ -28,7 +28,7 @@ class SuratResource extends Resource
     }
 
 
-    
+
     public static function canAccess(): bool
     {
         return Auth::user()?->tipe_entitas === 'STAF';
@@ -58,10 +58,6 @@ class SuratResource extends Resource
                 ->url(static::getUrl('index', ['scope' => 'arsip']))
                 ->isActiveWhen(fn() => Request::query('scope') === 'arsip'),
 
-            NavigationItem::make('Pengajuan (Dari Luar)')
-                ->icon('heroicon-o-inbox-arrow-down')
-                ->url(static::getUrl('index', ['scope' => 'pengajuan']))
-                ->isActiveWhen(fn() => Request::query('scope') === 'pengajuan'),
         ];
     }
 

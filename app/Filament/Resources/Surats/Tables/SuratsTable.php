@@ -10,6 +10,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use App\Models\Surat;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
+use App\Filament\Resources\Surats\Pages\CreateSurat;
 use App\Filament\Resources\Surats\Pages\EditSurat;
 use App\Models\KategoriArsip;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -325,17 +326,25 @@ class SuratsTable
                     ->url(fn(Surat $record) => CreateSurat::getUrl(['terbitan_for_surat_id' => $record->id, 'tipe_surat' => 'TERBITAN']))
                     ->openUrlInNewTab(),
             ])
-            ->recordUrl(
-                fn(Surat $record) => in_array($record->status_surat, ['DRAFT', 'REVISI'])
-                    ? EditSurat::getUrl(['record' => $record->id])
-                    : DetailSurat::getUrl(
-                        parameters: [
-                            'surat' => $record->id,
-                            'scope' => request('scope') ?? 'masuk',
-                        ],
-                        panel: 'simas'
-                    )
-            )
+            ->recordUrl(function (Surat $record) {
+                if (in_array($record->status_surat, ['DRAFT', 'REVISI'])) {
+                    return EditSurat::getUrl(['record' => $record->id]);
+                }
+
+                $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
+                $isPersetujuan = $record->riwayats()
+                    ->where('status', 'MENUNGGU')
+                    ->where('unit_tujuan_id', $unitId)
+                    ->exists();
+
+                return DetailSurat::getUrl(
+                    parameters: [
+                        'surat' => $record->id,
+                        'scope' => $isPersetujuan ? 'persetujuan' : (request('scope') ?? 'masuk'),
+                    ],
+                    panel: 'simas'
+                );
+            })
 
             ->toolbarActions([])
             ->emptyStateHeading('TIdak Ada Data Surat')

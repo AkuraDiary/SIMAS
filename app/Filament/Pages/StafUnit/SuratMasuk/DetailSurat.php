@@ -65,6 +65,18 @@ class DetailSurat extends Page implements HasForms
             ],
         };
     }
+    public function getHeading(): string | \Illuminate\Contracts\Support\Htmlable
+    {
+        return view('filament.pages.staf-unit.surat-masuk.heading-detail', [
+            'surat' => $this->surat
+        ]);
+    }
+
+    public function getSubheading(): string | \Illuminate\Contracts\Support\Htmlable | null
+    {
+        // Suppress native subheading since we built a combined title block
+        return null;
+    }
 
 
 
@@ -84,6 +96,9 @@ class DetailSurat extends Page implements HasForms
         $this->surat = $surat->load([
             'template',
             'unitPengirim',
+            'userPegawaiJabatan.pegawai',
+            'userPegawaiJabatan.jabatan',
+            'userPegawaiJabatan.unitKerja',
             'suratUnits' => function ($q) {
                 if ($this->scope === 'masuk') {
                     $q->where('unit_kerja_id', $this->userUnitId);
@@ -115,8 +130,6 @@ class DetailSurat extends Page implements HasForms
 
     protected function getHeaderActions(): array
     {
-
-
         $conditionalsactions =
             match ($this->scope) {
                 'arsip' => [],
@@ -124,104 +137,16 @@ class DetailSurat extends Page implements HasForms
                     $this->getActionArsipkan()
                 ],
                 'persetujuan' => [
-                    Action::make('approve')
-                        ->label('Setujui / TTD')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
-                        ->form([
-                            Textarea::make('catatan')
-                                ->label('Catatan Persetujuan (Opsional)')
-                                ->placeholder('Catatan atau catatan persetujuan...'),
-                        ])
-                        ->action(function (array $data): void {
-                            $activeRiwayat = $this->surat->riwayats()
-                                ->where('status', 'MENUNGGU')
-                                ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                                ->latest()
-                                ->first();
 
-                            if (!$activeRiwayat) {
-                                Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                                return;
-                            }
-
-                            app(\App\Services\SuratRoutingService::class)->approveStep(
-                                currentRiwayat: $activeRiwayat,
-                                actor: Auth::user(),
-                                isFinalStep: true,
-                                isSignatureRequired: true,
-                                catatan: $data['catatan'] ?? null
-                            );
-
-                            $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
-                        }),
-                    Action::make('reject')
-                        ->label('Minta Revisi')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
-                        ->form([
-                            Textarea::make('catatan')
-                                ->label('Alasan Revisi')
-                                ->required()
-                                ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
-                        ])
-                        ->action(function (array $data): void {
-                            $activeRiwayat = $this->surat->riwayats()
-                                ->where('status', 'MENUNGGU')
-                                ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                                ->latest()
-                                ->first();
-
-                            if (!$activeRiwayat) {
-                                Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                                return;
-                            }
-
-                            app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
-                                currentRiwayat: $activeRiwayat,
-                                actor: Auth::user(),
-                                newStatus: 'REVISI',
-                                catatan: $data['catatan']
-                            );
-
-                            $this->refreshPage('Berhasil', 'Surat dikembalikan untuk revisi.');
-                        }),
+                    ...$this->getActionPersetujuan(),
+                    ...$this->getActionDisposisi(),
+                    $this->getActionArsipkan(),
                 ],
                 default =>
                 [
-                    Action::make('disposisi')
-                        ->label('Disposisikan')
-                        ->icon('heroicon-o-arrow-right-circle')
-                        ->color('warning')
-                        ->visible(fn() => $this->canDisposisi())
-                        ->schema($this->getDisposisiForm())
-                        ->model(Disposisi::class)
-                        ->action(function (array $data, Action $action) {
-                            return $this->handleDisposisi($data, $action);
-                        }),
 
-                    Action::make('respon_disposisi')
-                        ->label('Tindaklanjuti Disposisi')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->visible(fn() => $this->canRespondDisposisi())
-                        ->schema([
-                            Select::make('status_disposisi')
-                                ->label('Status')
-                                ->options([
-                                    'DIPROSES' => 'Sedang Diproses',
-                                    'SELESAI' => 'Selesai',
-                                ])
-                                ->required(),
-
-                            Textarea::make('catatan_respon')
-                                ->label('Catatan Tindak Lanjut')
-                                ->rows(3),
-                        ])
-                        ->action(fn(array $data) => $this->handleRespondDisposisi($data)),
-                    $this->getACtionArsipkan(),
+                    ...$this->getActionDisposisi(),
+                    $this->getActionArsipkan(),
                 ],
             };
 
@@ -231,6 +156,44 @@ class DetailSurat extends Page implements HasForms
                 ->label('Export Surat')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->action(fn() => redirect()->route('surat.export', $this->surat)),
+        ];
+    }
+
+    protected function getActionDisposisi(): array
+    {
+        return [
+            Action::make('disposisi')
+                ->label('Disposisikan')
+                ->icon('heroicon-o-arrow-right-circle')
+                ->color('warning')
+                ->visible(fn() => $this->canDisposisi())
+                ->schema($this->getDisposisiForm())
+                ->model(Disposisi::class)
+                ->action(function (array $data, Action $action) {
+                    return $this->handleDisposisi($data, $action);
+                }),
+
+            Action::make('respon_disposisi')
+                ->label('Tindaklanjuti Disposisi')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn() => $this->canRespondDisposisi())
+                ->schema([
+                    Select::make('status_disposisi')
+                        ->label('Status')
+                        ->options([
+                            'DIPROSES' => 'Sedang Diproses',
+                            'SELESAI' => 'Selesai',
+                        ])
+                        ->required(),
+
+                    Textarea::make('catatan_respon')
+                        ->label('Catatan Tindak Lanjut')
+                        ->rows(3),
+                ])
+                ->action(fn(array $data) => $this->handleRespondDisposisi($data)),
+
+
         ];
     }
 
@@ -304,6 +267,76 @@ class DetailSurat extends Page implements HasForms
         ];
     }
 
+    protected function getActionPersetujuan(): array
+    {
+        return [
+            Action::make('approve')
+                ->label('Setujui / TTD')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
+                ->schema([
+                    Textarea::make('catatan')
+                        ->label('Catatan Persetujuan (Opsional)')
+                        ->placeholder('Catatan atau catatan persetujuan...'),
+                ])
+                ->action(function (array $data): void {
+                    $activeRiwayat = $this->surat->riwayats()
+                        ->where('status', 'MENUNGGU')
+                        ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                        ->latest()
+                        ->first();
+
+                    if (!$activeRiwayat) {
+                        Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                        return;
+                    }
+
+                    app(\App\Services\SuratRoutingService::class)->approveStep(
+                        currentRiwayat: $activeRiwayat,
+                        actor: Auth::user(),
+                        isFinalStep: true,
+                        isSignatureRequired: true,
+                        catatan: $data['catatan'] ?? null
+                    );
+
+                    $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
+                }),
+            Action::make('reject')
+                ->label('Minta Revisi')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
+                ->schema([
+                    Textarea::make('catatan')
+                        ->label('Alasan Revisi')
+                        ->required()
+                        ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
+                ])
+                ->action(function (array $data): void {
+                    $activeRiwayat = $this->surat->riwayats()
+                        ->where('status', 'MENUNGGU')
+                        ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
+                        ->latest()
+                        ->first();
+
+                    if (!$activeRiwayat) {
+                        Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
+                        return;
+                    }
+
+                    app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
+                        currentRiwayat: $activeRiwayat,
+                        actor: Auth::user(),
+                        newStatus: 'REVISI',
+                        catatan: $data['catatan']
+                    );
+
+                    $this->refreshPage('Berhasil', 'Surat dikembalikan untuk revisi.');
+                }),
+
+        ];
+    }
     protected function getActionArsipkan()
     {
         return Action::make('arsipkan')
