@@ -13,6 +13,7 @@ use App\Models\KategoriArsip;
 use App\Models\Surat;
 use App\Models\UnitKerja;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -130,33 +131,48 @@ class DetailSurat extends Page implements HasForms
 
     protected function getHeaderActions(): array
     {
-        $conditionalsactions =
-            match ($this->scope) {
-                'arsip' => [],
-                'keluar' => [
-                    $this->getActionArsipkan()
-                ],
-                'persetujuan' => [
+        $primaryActions = [];
+        $secondaryActions = [];
 
-                    ...$this->getActionPersetujuan(),
-                    ...$this->getActionDisposisi(),
-                    $this->getActionArsipkan(),
-                ],
-                default =>
-                [
 
-                    ...$this->getActionDisposisi(),
-                    $this->getActionArsipkan(),
-                ],
-            };
 
-        return [
-            ...$conditionalsactions,
-            Action::make('export')
-                ->label('Export Surat')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->action(fn() => redirect()->route('surat.export', $this->surat)),
-        ];
+        if ($this->scope === 'keluar') {
+            $secondaryActions[] = $this->getActionArsipkan();
+        } elseif ($this->scope === 'persetujuan') {
+            $persetujuan = $this->getActionPersetujuan();
+            if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
+            if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
+
+            $disposisi = $this->getActionDisposisi();
+            if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0]; // Disposisikan
+            if (isset($disposisi[1])) $primaryActions[] = $disposisi[1]; // Tindaklanjuti
+
+            $secondaryActions[] = $this->getActionArsipkan();
+        } elseif ($this->scope !== 'arsip') {
+            $disposisi = $this->getActionDisposisi();
+            if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0];
+            if (isset($disposisi[1])) $primaryActions[] = $disposisi[1];
+
+            $secondaryActions[] = $this->getActionArsipkan();
+        }
+
+        $actions = $primaryActions;
+
+        // Always show export in secondary
+        $secondaryActions[] = Action::make('export')
+            ->label('Export Surat')
+            ->icon('heroicon-o-arrow-down-tray')
+            ->action(fn() => redirect()->route('surat.export', $this->surat));
+
+        if (count($secondaryActions) > 0) {
+            $actions[] = ActionGroup::make($secondaryActions)
+                ->label('Lainnya')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->button()
+                ->color('gray');
+        }
+
+        return $actions;
     }
 
     protected function getActionDisposisi(): array
