@@ -125,7 +125,7 @@ class DetailSurat extends Page implements HasForms
             $service = app(\App\Services\PlaceholderService::class);
             $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? []);
         } else {
-            $this->renderedHtml = $this->surat->isi_surat;
+            $this->renderedHtml = $this->surat->content.isi_surat;
         }
     }
 

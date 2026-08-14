@@ -24,6 +24,16 @@ class EditSurat extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Jika form menyembunyikan template_id (karena mode 'scratch'),
+        // pastikan nilainya di-set ke null agar menimpa ID lama di database.
+        if (!array_key_exists('template_id', $data)) {
+            $data['template_id'] = null;
+        }
+        return $data;
+    }
+
     protected function afterSave(): void
     {
         $surat = $this->record;

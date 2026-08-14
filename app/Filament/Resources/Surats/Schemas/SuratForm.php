@@ -51,15 +51,29 @@ class SuratForm
                                 ->inline()
                                 ->live()
                                 ->dehydrated(false)
-                                ->afterStateHydrated(function (Radio $component, ?\Illuminate\Database\Eloquent\Model $record) {
-                                    if ($record && !$record->template_id && $record->isi_surat) {
-                                        $component->state('scratch');
+                                ->afterStateHydrated(function (\Filament\Forms\Components\Radio $component, ?\Illuminate\Database\Eloquent\Model $record) {
+                                    if ($record) {
+                                        if ($record->template_id) {
+                                            $component->state('template');
+                                        } elseif (isset($record->content['isi_surat'])) {
+                                            $component->state('scratch');
+                                        }
                                     }
                                 })
-                                ->afterStateUpdated(function (Set $set) {
-                                    $set('template_id', null);
-                                    $set('content', []);
-                                    $set('isi_surat', null);
+                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                    // Simpan isi_surat jika ada, dan hapus sisa variabel template
+                                    $currentContent = $get('content') ?? [];
+                                    $isiSurat = $currentContent['isi_surat'] ?? null;
+
+                                    if ($isiSurat) {
+                                        $set('content', ['isi_surat' => $isiSurat]);
+                                    } else {
+                                        $set('content', []);
+                                    }
+                                    // $set('template_id', null);
+                                    // if ($get('metode_pembuatan') === 'scratch') {
+                                    //     $set('content', []);
+                                    // }
                                 }),
 
                             Select::make('template_id')
@@ -69,7 +83,8 @@ class SuratForm
                                 ->visible(fn(Get $get) => $get('metode_pembuatan') === 'template')
                                 ->live()
                                 ->afterStateUpdated(function (Set $set) {
-                                    $set('content', []);
+
+                                    // $set('content', []);
                                 }),
 
                             Select::make('user_pegawai_jabatan_id')
@@ -152,9 +167,9 @@ class SuratForm
                             Group::make()->schema(function (Get $get) {
                                 if ($get('metode_pembuatan') === 'scratch') {
                                     return [
-                                        TinyEditor::make('isi_surat')
+                                        TinyEditor::make('content.isi_surat')
                                             ->profile('full')
-                                            ->label('Isi Surat (Content)')
+                                            ->label('Isi Surat')
                                             ->placeholder('Tuliskan isi surat secara formal di sini...')
                                             ->required()
                                             ->columnSpanFull()
@@ -301,9 +316,9 @@ class SuratForm
                     ->dehydrated(),
 
 
-                Hidden::make('tanggal_kirim')
-                    ->default(null)
-                    ->dehydrated(),
+                // Hidden::make('tanggal_kirim')
+                //     ->default(null)
+                //     ->dehydrated(),
             ]);
     }
 }

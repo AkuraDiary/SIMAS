@@ -122,7 +122,7 @@ class SuratMasuk extends Page implements HasTable
                         $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
                         $pengirim = $record->tipe_surat === 'EKSTERNAL'
                             ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
-                            : ($record->unitPengirim?->nama_unit ?? '-');
+                            : ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '-') . ' - ' . ($record->unitPengirim?->nama_unit ?? '-');
                         return $nomor . $pengirim;
                     }),
 
@@ -135,7 +135,6 @@ class SuratMasuk extends Page implements HasTable
                         'PENGAJUAN' => 'info',
                         default => 'gray',
                     }),
-
 
 
                 TextColumn::make('status_surat')

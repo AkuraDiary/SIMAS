@@ -8,6 +8,8 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
+use function Illuminate\Support\now;
+
 trait HasSuratFormActions
 {
     protected function getFormActions(): array
@@ -66,6 +68,7 @@ trait HasSuratFormActions
                 }
 
                 $surat = $this->record;
+                $surat->tanggal_kirim = now();
                 $unitTujuan = $this->data['unitTujuan'][0] ?? $surat->unit_pengirim_id;
 
                 app(SuratRoutingService::class)->submitForApproval(

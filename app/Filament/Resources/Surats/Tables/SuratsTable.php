@@ -36,29 +36,22 @@ class SuratsTable
 
         return $table
             ->columns([
-                TextColumn::make('nomor_surat')
-                    ->label('Ref Number')
-                    ->searchable()
-                    ->color('primary')
-                    ->weight('bold')
-                    ->visible(fn($livewire) => in_array($livewire->scope ?? request('scope'), ['arsip', 'keluar'])),
-
                 TextColumn::make('perihal')
-                    ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject / Number' : 'Subject')
+                    ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject' : 'Subject')
                     ->searchable()
                     ->weight('bold')
                     ->description(function (Surat $record, $livewire) {
                         $scope = $livewire->scope ?? request('scope');
                         if ($scope === 'draft') {
-                            return $record->nomor_surat ?? 'DRAFT-'.date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                            return $record->nomor_surat ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
                         }
-                        return $record->unitPengirim?->nama_unit ?? '-';
+                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
                     }),
 
                 TextColumn::make('pembuat.name')
-                    ->label('Created By')
+                    ->label('Dibuat Oleh')
                     ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft')
-                    ->getStateUsing(fn(Surat $record) => $record->pembuat?->name ?? '-'),
+                    ->getStateUsing(fn(Surat $record) => $record->userPegawaiJabatan->pegawai->nama_lengkap  ?? '-'),
 
                 TextColumn::make('status_surat')
                     ->label('Status')
@@ -77,13 +70,18 @@ class SuratsTable
                     ->color('gray'),
 
                 TextColumn::make('created_at')
-                    ->label(fn($livewire) => match($livewire->scope ?? request('scope')) {
-                        'arsip' => 'Archived Date',
-                        'draft' => 'Last Modified',
-                        default => 'Requested Date'
+                    ->label('Dibuat')
+                    ->dateTime('d M Y, H:i')
+                    ->sortable(),
+
+                TextColumn::make('updated_at')
+                    ->label(fn($livewire) => match ($livewire->scope ?? request('scope')) {
+                        'arsip' => 'Diarsipkan',
+                        default => 'Terakhir Update'
                     })
                     ->dateTime('d M Y, H:i')
                     ->sortable(),
+
 
             ])
             ->filters([
