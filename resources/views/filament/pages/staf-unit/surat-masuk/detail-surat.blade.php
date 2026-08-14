@@ -125,6 +125,17 @@
             </x-filament::section>
 
 
+
+            {{-- Riwayat & Perjalanan Surat --}}
+            <x-filament::section>
+                <x-slot name="heading">
+                    <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Perjalanan Surat</span>
+                </x-slot>
+
+                <div class="mt-4">
+                    @include('filament.pages.components.surat-timeline')
+                </div>
+            </x-filament::section>
             {{-- Lembar Disposisi --}}
             <x-filament::section>
                 <x-slot name="heading">

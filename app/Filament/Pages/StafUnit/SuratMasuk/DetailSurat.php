@@ -2,29 +2,32 @@
 
 namespace App\Filament\Pages\StafUnit\SuratMasuk;
 
-use App\Models\SuratUnit;
-use Filament\Pages\Page;
-use Illuminate\Support\Facades\Auth;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Filament\Resources\Surats\SuratResource;
 use App\Models\ArsipSurat;
 use App\Models\Disposisi;
 use App\Models\KategoriArsip;
 use App\Models\Surat;
+use App\Models\SuratUnit;
 use App\Models\UnitKerja;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
-use Filament\Notifications\Notification;
-use PhpOffice\PhpWord\IOFactory;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use PhpOffice\PhpWord\Settings;
-use Illuminate\Validation\Rule;
-use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Infolists\Components\ViewEntry;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\Settings;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DetailSurat extends Page implements HasForms
 {
@@ -125,8 +128,68 @@ class DetailSurat extends Page implements HasForms
             $service = app(\App\Services\PlaceholderService::class);
             $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? []);
         } else {
-            $this->renderedHtml = $this->surat->content.isi_surat;
+            $this->renderedHtml = $this->surat->content['isi_surat'];
         }
+    }
+
+    public function getTimelineDataProperty(): array
+    {
+        $timeline = [];
+
+        // 1. Surat Dibuat
+        $timeline[] = [
+            'title' => 'Surat Dibuat',
+            'actor' => $this->surat->userPegawaiJabatan?->pegawai->nama_lengkap ?? $this->surat->pengirim_nama ?? 'Sistem',
+            'unit' => $this->surat->unitPengirim?->nama_unit ?? 'Eksternal',
+            'catatan' => null,
+            'date' => $this->surat->created_at,
+            'color' => 'bg-gray-500 ring-gray-100 dark:ring-gray-900',
+            'icon' => 'heroicon-m-document-plus',
+        ];
+
+        // 2. Riwayat Persetujuan
+        foreach ($this->surat->riwayats as $riwayat) {
+            $bgColor = match($riwayat->status) {
+                'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
+                'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
+                'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
+                default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
+            };
+            $icon = match($riwayat->status) {
+                'DISETUJUI' => 'heroicon-m-check-circle',
+                'DITOLAK' => 'heroicon-m-x-circle',
+                'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
+                default => 'heroicon-m-clock',
+            };
+
+            $timeline[] = [
+                'title' => 'Persetujuan: ' . $riwayat->status,
+                'actor' => $riwayat->aktor?->name ?? 'Sistem',
+                'unit' => $riwayat->unitTujuan?->nama_unit,
+                'catatan' => $riwayat->catatan,
+                'date' => $riwayat->actioned_at ?? $riwayat->created_at,
+                'color' => $bgColor,
+                'icon' => $icon,
+            ];
+        }
+
+        // 3. Disposisi
+        foreach ($this->surat->disposisis as $disposisi) {
+            $timeline[] = [
+                'title' => 'Disposisi (' . $disposisi->tingkat_prioritas . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? 'Unknown'),
+                'actor' => $disposisi->pembuat?->name ?? 'Sistem',
+                'unit' => $disposisi->unitPembuat?->nama_unit ?? 'Unknown',
+                'catatan' => $disposisi->catatan,
+                'date' => $disposisi->created_at,
+                'color' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
+                'icon' => 'heroicon-m-paper-airplane',
+            ];
+        }
+
+        // Sort secara kronologis
+        usort($timeline, fn($a, $b) => $a['date'] <=> $b['date']);
+
+        return $timeline;
     }
 
     protected function getHeaderActions(): array
@@ -651,6 +714,70 @@ class DetailSurat extends Page implements HasForms
             ->exists();
     }
 
+    protected static function infolist(Schema $schema){
+        Section::make('Riwayat & Perjalanan Surat')
+    ->schema([
+        ViewEntry::make('timeline')
+            ->view('filament.infolists.components.surat-timeline')
+            ->label('') // Hide the label because the section title is enough
+            ->columnSpanFull()
+            ->state(function ($record) {
+                $timeline = [];
+
+                // 1. Event: Surat Dibuat
+                $timeline[] = [
+                    'title' => 'Surat Dibuat',
+                    'actor' => $record->pembuat?->name ?? $record->pengirim_nama ?? 'Sistem',
+                    'unit' => $record->unitPengirim?->nama_unit ?? 'Eksternal',
+                    'catatan' => null,
+                    'date' => $record->created_at,
+                    'color' => 'bg-gray-500',
+                    'icon' => 'heroicon-m-document-plus',
+                ];
+                // 2. Event: Riwayat Persetujuan (Approval Routing)
+                foreach ($record->riwayats as $riwayat) {
+                    $bgColor = match($riwayat->status) {
+                        'DISETUJUI' => 'bg-green-500',
+                        'DITOLAK' => 'bg-red-500',
+                        'DIKEMBALIKAN' => 'bg-amber-500',
+                        default => 'bg-gray-400',
+                    };
+                    $icon = match($riwayat->status) {
+                        'DISETUJUI' => 'heroicon-m-check-circle',
+                        'DITOLAK' => 'heroicon-m-x-circle',
+                        'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
+                        default => 'heroicon-m-clock',
+                    };
+
+                    $timeline[] = [
+                        'title' => 'Persetujuan: ' . $riwayat->status,
+                        'actor' => $riwayat->aktor?->name ?? 'Sistem',
+                        'unit' => $riwayat->unitTujuan?->nama_unit,
+                        'catatan' => $riwayat->catatan,
+                        'date' => $riwayat->actioned_at ?? $riwayat->created_at,
+                        'color' => $bgColor,
+                        'icon' => $icon,
+                    ];
+                }
+                // 3. Event: Disposisi (Forwarding Routing)
+                foreach ($record->disposisis as $disposisi) {
+                    $timeline[] = [
+                        'title' => 'Disposisi (' . $disposisi->tingkat_prioritas . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? 'Unknown'),
+                        'actor' => $disposisi->pembuat?->name ?? 'Sistem',
+                        'unit' => $disposisi->pembuat?->pegawai?->jabatanAktif()->first()?->unitKerja?->nama_unit ?? 'Unknown',
+                        'catatan' => $disposisi->catatan,
+                        'date' => $disposisi->created_at,
+                        'color' => 'bg-blue-500',
+                        'icon' => 'heroicon-m-paper-airplane',
+                    ];
+                }
+                // Sort all events chronologically (oldest first)
+                usort($timeline, fn($a, $b) => $a['date'] <=> $b['date']);
+
+                return $timeline;
+            })
+    ]);
+    }
 
     protected function resolveJenisTujuanLabel(): string
     {
