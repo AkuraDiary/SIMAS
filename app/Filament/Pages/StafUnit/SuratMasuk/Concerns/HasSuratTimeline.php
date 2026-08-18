@@ -50,9 +50,9 @@ trait HasSuratTimeline
         // 3. Disposisi
         foreach ($this->surat->disposisis as $disposisi) {
             $timeline[] = [
-                'title' => 'Disposisi (' . $disposisi->tingkat_prioritas . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? 'Unknown'),
+                'title' => 'Disposisi (' . $disposisi->jenis_instruksi . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? ''),
                 'actor' => $disposisi->pembuat?->nama_lengkap ?? 'Sistem',
-                'unit' => $disposisi->unitPembuat?->nama_unit ?? 'Unknown',
+                'unit' => $disposisi->unitPembuat?->nama_unit ?? '',
                 'catatan' => $disposisi->catatan,
                 'date' => $disposisi->created_at,
                 'color' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
@@ -64,8 +64,8 @@ trait HasSuratTimeline
         foreach ($this->surat->komentars as $komentar) {
             $timeline[] = [
                 'title' => 'Komentar',
-                'actor' => $komentar->user?->nama_lengkap ?? 'Sistem',
-                'unit' => $komentar->unitKerja?->nama_unit ?? 'Unknown',
+                'actor' => $komentar->user?->nama_lengkap ?? '',
+                'unit' => $komentar->unitKerja?->nama_unit ?? '',
                 'catatan' => $komentar->pesan,
                 'date' => $komentar->created_at,
                 'color' => 'bg-purple-500 ring-purple-100 dark:ring-purple-900',
@@ -80,7 +80,7 @@ trait HasSuratTimeline
                 $timeline[] = [
                     'title' => 'Surat Diarsipkan (' . ($arsip->kategoriArsip?->nama ?? 'Tanpa Kategori') . ')',
                     'actor' => 'Sistem',
-                    'unit' => $arsip->unitKerja?->nama_unit ?? 'Unknown',
+                    'unit' => $arsip->unitKerja?->nama_unit ?? '',
                     'catatan' => $arsip->catatan,
                     'date' => $arsip->tanggal_arsip ?? $arsip->created_at,
                     'color' => 'bg-indigo-500 ring-indigo-100 dark:ring-indigo-900',

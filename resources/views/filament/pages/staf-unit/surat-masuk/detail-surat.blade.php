@@ -172,7 +172,7 @@
 
                             {{-- Date & Sender --}}
                             <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d->unitPembuat->nama_unit }}
+                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->unitPembuat?->nama_unit ?? ''}}
                             </time>
 
                             {{-- Content Card --}}
@@ -190,7 +190,7 @@
                             <div class="mt-3 flex gap-2">
                                 @foreach ($d->getMedia('bukti-disposisi') as $media)
                                 <a href="{{ route('media.preview', $media->id) }}" target="_blank" class="block w-12 h-12 rounded border border-gray-200 overflow-hidden hover:opacity-75 transition-opacity">
-                                    <img src="{{ route('media.thumb', $media->id) }}" class="object-cover w-full h-full" alt="Bukti" />
+                                    <img src="{{ route('media.preview', $media->id) }}" class="object-cover w-full h-full" alt="Bukti" />
                                 </a>
                                 @endforeach
                             </div>

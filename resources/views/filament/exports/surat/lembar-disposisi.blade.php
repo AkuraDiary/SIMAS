@@ -39,7 +39,7 @@
         @foreach ($disposisis as $index => $disposisi)
             <tr>
                 <td>{{ $index + 1 }}</td>
-                <td>{{ $disposisi->unitPembuat->nama_unit }}</td>
+                <td>{{ $disposisi?->unitPembuat?->nama_unit ?? ''}}</td>
                 <td>{{ $disposisi->unitTujuan->nama_unit }}</td>
                 <td>{{ $disposisi->jenis_instruksi }}</td>
                 <td>{{ $disposisi->sifat }}</td>

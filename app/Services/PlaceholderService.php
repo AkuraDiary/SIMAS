@@ -158,15 +158,20 @@ class PlaceholderService
         }
 
         // Clean up deleted fields
-        $extractedKeys = array_column($extractedFields, 'key');
+        $uuidVars = [];
         foreach ($currentVars as $index => $var) {
             $key = $var['key'] ?? '';
             if (!in_array($key, $extractedKeys)) {
-                unset($currentVars[$index]);
+                continue;
+            }
+            if (is_numeric($index)) {
+                $uuidVars[(string) \Illuminate\Support\Str::uuid()] = $var;
+            } else {
+                $uuidVars[$index] = $var;
             }
         }
 
-        return array_values($currentVars);
+        return $uuidVars;
     }
 
     /**
@@ -230,7 +235,7 @@ class PlaceholderService
         if ($isOldFormat) {
             $newFormat = [];
             foreach ($state as $key => $value) {
-                $newFormat[] = [
+                $newFormat[(string) \Illuminate\Support\Str::uuid()] = [
                     'key' => $key,
                     'label' => is_string($value) ? $value : 'Unknown',
                     'type' => 'text',
@@ -239,7 +244,17 @@ class PlaceholderService
             return $newFormat;
         }
 
-        return $state;
+        // Ensure state has UUID keys
+        $uuidState = [];
+        foreach ($state as $index => $item) {
+            if (is_numeric($index)) {
+                $uuidState[(string) \Illuminate\Support\Str::uuid()] = $item;
+            } else {
+                $uuidState[$index] = $item;
+            }
+        }
+
+        return $uuidState;
     }
 
     /**
@@ -333,6 +348,7 @@ class PlaceholderService
                                 ->penColorOnDark('#ffffff')        // White pen on dark mode
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
                                 ->required(!$isOptional)
+                                ->default(null)
                                 ->columnSpanFull()
                                 ->live(debounce: 500),
                             FileUpload::make($contentKey . '_upload')
@@ -342,6 +358,7 @@ class PlaceholderService
                                 ->directory('signatures')
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
                                 ->required(!$isOptional)
+                                ->default(null)
                                 ->columnSpanFull()
                                 ->live(debounce: 500),
                         ]);
