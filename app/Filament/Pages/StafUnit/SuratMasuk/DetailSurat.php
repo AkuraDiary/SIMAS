@@ -127,7 +127,7 @@ class DetailSurat extends Page implements HasForms
                 ->color('primary')
                 ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat->id]));
         }
-        
+
         $secondaryActions[] = Action::make('export')
             ->label('Export Surat')
             ->icon('heroicon-o-arrow-down-tray')
@@ -149,7 +149,7 @@ class DetailSurat extends Page implements HasForms
 
             $persetujuan = $this->getActionPersetujuan();
 
-            if ($hasPendingPersetujuan || !$hasRiwayats) {
+            if ($hasPendingPersetujuan ){//|| !$hasRiwayats) {
                 if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
                 if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
                 if (isset($persetujuan[2])) $secondaryActions[] = $persetujuan[2]; // Tolak
