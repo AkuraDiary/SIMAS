@@ -158,6 +158,7 @@ class PlaceholderService
         }
 
         // Clean up deleted fields
+        $extractedKeys = array_column($extractedFields, 'key');
         $uuidVars = [];
         foreach ($currentVars as $index => $var) {
             $key = $var['key'] ?? '';

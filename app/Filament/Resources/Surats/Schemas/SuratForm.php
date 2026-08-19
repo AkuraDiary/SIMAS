@@ -82,9 +82,26 @@ class SuratForm
                                 ->required(fn(Get $get) => $get('metode_pembuatan') === 'template')
                                 ->visible(fn(Get $get) => $get('metode_pembuatan') === 'template')
                                 ->live()
-                                ->afterStateUpdated(function (Set $set) {
-
-                                    // $set('content', []);
+                                ->afterStateUpdated(function (Set $set, $state) {
+                                    if ($state) {
+                                        $template = Template::find($state);
+                                        $content = [];
+                                        foreach ($template->field_variables ?? [] as $field) {
+                                            $key = $field['key'] ?? null;
+                                            if ($key) {
+                                                if (($field['type'] ?? '') === 'signature') {
+                                                    $content[$key . '_method'] = 'draw';
+                                                    $content[$key . '_draw'] = null;
+                                                    $content[$key . '_upload'] = null;
+                                                } else {
+                                                    $content[$key] = null;
+                                                }
+                                            }
+                                        }
+                                        $set('content', $content);
+                                    } else {
+                                        $set('content', []);
+                                    }
                                 }),
 
                             Select::make('user_pegawai_jabatan_id')
