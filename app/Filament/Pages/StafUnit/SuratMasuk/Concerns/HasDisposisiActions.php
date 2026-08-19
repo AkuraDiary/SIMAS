@@ -107,8 +107,7 @@ trait HasDisposisiActions
                 ->image()
                 ->collection('bukti-disposisi')
                 ->preserveFilenames()
-                ->maxSize(5048)
-                ->required(),
+                ->maxSize(5048),
 
             Textarea::make('catatan')
                 ->label('Catatan')
@@ -160,7 +159,7 @@ trait HasDisposisiActions
                 'tanggal_disposisi' => now(),
                 'parent_disposisi_id' => $parentDisposisi?->id,
             ]);
-            
+
             if (!empty($data['bukti'])) {
                 $disposisi
                     ->addMedia($data['bukti'])

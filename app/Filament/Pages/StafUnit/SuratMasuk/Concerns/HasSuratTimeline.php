@@ -50,7 +50,8 @@ trait HasSuratTimeline
         // 3. Disposisi
         foreach ($this->surat->disposisis as $disposisi) {
             $timeline[] = [
-                'title' => 'Disposisi (' . $disposisi->jenis_instruksi . ') ke: ' . ($disposisi->unitTujuan?->nama_unit ?? ''),
+                'title' => 'Disposisi ke: ' . ($disposisi->unitTujuan?->nama_unit ?? ''),
+                'instruksi' => $disposisi->jenis_instruksi,
                 'actor' => $disposisi->pembuat?->nama_lengkap ?? 'Sistem',
                 'unit' => $disposisi->unitPembuat?->nama_unit ?? '',
                 'catatan' => $disposisi->catatan,
