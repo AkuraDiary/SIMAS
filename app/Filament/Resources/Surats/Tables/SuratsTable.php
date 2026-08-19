@@ -35,6 +35,7 @@ class SuratsTable
     {
 
         return $table
+        ->poll('7s')
             ->columns([
                 TextColumn::make('perihal')
                     ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject' : 'Subject')
@@ -146,7 +147,7 @@ class SuratsTable
 
             ])
             ->recordUrl(function (Surat $record) {
-                if (in_array($record->status_surat, ['DRAFT', 'REVISI'])) {
+                if (in_array($record->status_surat, ['DRAFT'])) {
                     return EditSurat::getUrl(['record' => $record->id]);
                 }
 

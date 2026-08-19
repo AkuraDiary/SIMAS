@@ -10,6 +10,7 @@ trait HasSuratTimeline
     {
         $timeline = [];
 
+
         // 1. Surat Dibuat
         $timeline[] = [
             'title' => 'Surat Dibuat',
@@ -23,18 +24,22 @@ trait HasSuratTimeline
 
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN)
         foreach ($this->surat->riwayats as $riwayat) {
-            $bgColor = match ($riwayat->status) {
-                'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
-                'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
-                'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
-                default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
-            };
             $icon = match ($riwayat->status) {
                 'DISETUJUI' => 'heroicon-m-check-circle',
                 'DITOLAK' => 'heroicon-m-x-circle',
+                'REVISI' => 'heroicon-m-pencil-square',
                 'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
                 default => 'heroicon-m-clock',
             };
+
+            $bgColor = match ($riwayat->status) {
+                'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
+                'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
+                'REVISI' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
+                'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
+                default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
+            };
+
 
             $timeline[] = [
                 'title' =>  $riwayat->status,

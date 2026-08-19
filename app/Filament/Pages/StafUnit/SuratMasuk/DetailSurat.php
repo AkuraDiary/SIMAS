@@ -120,6 +120,14 @@ class DetailSurat extends Page implements HasForms
         $secondaryActions = [];
         $unitId = Auth::user()->unit_kerja_id;
 
+        if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id === $unitId) {
+            $primaryActions[] = Action::make('edit')
+                ->label('Perbaiki Surat')
+                ->icon('heroicon-o-pencil')
+                ->color('primary')
+                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat->id]));
+        }
+        
         $secondaryActions[] = Action::make('export')
             ->label('Export Surat')
             ->icon('heroicon-o-arrow-down-tray')

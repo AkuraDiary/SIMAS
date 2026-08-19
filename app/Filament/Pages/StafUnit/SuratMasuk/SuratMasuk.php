@@ -176,7 +176,7 @@ class SuratMasuk extends Page implements HasTable
                     ->badge()
                     ->getStateUsing(function (Surat $record, $livewire) {
                         $baca = $record->suratUnits->firstWhere('unit_kerja_id', Auth::user()->unit_kerja_id)?->status_baca;
-                        
+
                         // If there is no SuratUnit record, it means it's pure disposisi
                         if (!$baca) return null;
 
@@ -215,7 +215,7 @@ class SuratMasuk extends Page implements HasTable
                     ->label('Tipe Surat')
                     ->options([
                         'INTERNAL' => 'Internal',
-                        'PENGAJUAN' => 'Pengajuan (Permohonan)',
+                        'PENGAJUAN' => 'Pengajuan',
                         'TERBITAN' => 'Terbitan (Surat Resmi)',
                         'EKSTERNAL' => 'Eksternal',
                     ]),
