@@ -31,6 +31,7 @@ class Disposisi extends Model implements HasMedia
         'surat_id',
         'unit_tujuan_id',
         'user_pembuat_id',
+        'user_pegawai_jabatan_id',
         'parent_disposisi_id',
     ];
 
@@ -48,6 +49,11 @@ class Disposisi extends Model implements HasMedia
     public function pembuat(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_pembuat_id');
+    }
+
+    public function userPegawaiJabatan(): BelongsTo
+    {
+        return $this->belongsTo(UserPegawaiJabatan::class, 'user_pegawai_jabatan_id');
     }
 
     public function children(): HasMany

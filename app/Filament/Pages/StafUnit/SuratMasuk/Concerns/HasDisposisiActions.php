@@ -146,10 +146,13 @@ trait HasDisposisiActions
                 continue;
             }
 
+            $activeJabatan = Auth::user()->pegawai?->jabatanAktif()?->first();
+
             $disposisi = Disposisi::create([
                 'surat_id' => $this->surat->id,
                 'unit_tujuan_id' => $unitTujuanId,
                 'user_pembuat_id' => Auth::id(),
+                'user_pegawai_jabatan_id' => $activeJabatan?->id,
                 'jenis_instruksi' => $jenisInstruksi,
                 'sifat' => $data['sifat'],
                 'catatan' => $data['catatan'],
