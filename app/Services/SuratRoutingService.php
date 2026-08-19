@@ -36,7 +36,7 @@ class SuratRoutingService
                 'unit_tujuan_id' => $unitTujuanId,
                 'user_aktor_id'  => $targetUserAktorId,
                 'status'         => 'MENUNGGU',
-                'catatan'        => $catatan ?? 'Pengajuan surat baru.',
+                'catatan'        => $catatan ?? '',
                 'actioned_at'    => null,
             ]);
         });

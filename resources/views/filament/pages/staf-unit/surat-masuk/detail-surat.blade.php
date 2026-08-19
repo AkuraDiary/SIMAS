@@ -161,7 +161,7 @@
                             {{-- Target Unit & Status Badge --}}
                             <div class="flex flex-wrap gap-2 items-center mb-1">
                                 <h3 class="text-sm font-bold text-gray-900 dark:text-white">
-                                    {{ $d->unitTujuan->nama_unit }}
+                                    Ke {{ $d->unitTujuan->nama_unit }}
                                 </h3>
                                 @if($d->status_disposisi === 'selesai')
                                 <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Selesai</span>
@@ -174,14 +174,14 @@
                             <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
                                 {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->name ?? ''}}
                                 @if ($d?->userPegawaiJabatan)
-                                    ({{ $d->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $d->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})
+                                ({{ $d->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $d->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})
                                 @endif
                             </time>
 
                             {{-- Content Card --}}
                             <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                                <p class="text-xs text-gray-600 dark:text-gray-300 italic mb-2">
-                                    "{{ $d->catatan ?? 'Tidak ada catatan.' }}"
+                                <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                                    {!! nl2br($d->catatan ?? 'Tidak ada catatan.') !!}
                                 </p>
                                 <div class="text-xs font-medium text-gray-700 dark:text-gray-300">
                                     <span class="text-gray-400">Instruksi:</span> {{ $d->jenis_instruksi }}

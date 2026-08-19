@@ -45,10 +45,10 @@
                         <span style="font-size: 0.85em; color: #555;">{{ $disposisi->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $disposisi->userPegawaiJabatan->unitKerja->nama_unit ?? '' }}</span>
                     @endif
                 </td>
-                <td>{{ $disposisi->unitTujuan->nama_unit }}</td>
+                <td>Ke {{ $disposisi->unitTujuan->nama_unit }}</td>
                 <td>{{ $disposisi->jenis_instruksi }}</td>
                 <td>{{ $disposisi->sifat }}</td>
-                <td>{{ $disposisi->catatan }}</td>
+                <td>{!! $d->catatan ?? 'Tidak ada catatan.' !!}</td>
                 <td>{{ \Carbon\Carbon::parse($disposisi->tanggal_disposisi)->format('d M Y') }}</td>
             </tr>
         @endforeach

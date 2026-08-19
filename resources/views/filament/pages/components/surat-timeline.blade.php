@@ -21,7 +21,7 @@
         <!-- Optional Catatan/Notes Box -->
         @if(!empty($event['catatan']))
         <div class="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <p class="text-sm font-normal text-gray-600 dark:text-gray-400">"{!! nl2br(e($event['catatan'])) !!}"</p>
+            <p class="text-xs text-gray-600 dark:text-gray-400">{!! nl2br(e($event['catatan'])) !!}</p>
         </div>
         @endif
     </div>
