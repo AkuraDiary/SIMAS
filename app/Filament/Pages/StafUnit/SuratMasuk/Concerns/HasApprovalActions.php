@@ -42,6 +42,14 @@ trait HasApprovalActions
                         catatan: $data['catatan'] ?? null
                     );
 
+                    if ($this->surat->pembuat) {
+                        Notification::make()
+                            ->title('Surat Disetujui')
+                            ->body("Surat pengajuan Anda '{$this->surat->perihal}' telah disetujui.")
+                            ->success()
+                            ->sendToDatabase($this->surat->pembuat);
+                    }
+
                     $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
                 }),
             Action::make('reject')
@@ -73,6 +81,14 @@ trait HasApprovalActions
                         newStatus: 'REVISI',
                         catatan: $data['catatan']
                     );
+
+                    if ($this->surat->pembuat) {
+                        Notification::make()
+                            ->title('Surat Perlu Direvisi')
+                            ->body("Surat pengajuan Anda '{$this->surat->perihal}' dikembalikan untuk revisi. Catatan: {$data['catatan']}")
+                            ->warning()
+                            ->sendToDatabase($this->surat->pembuat);
+                    }
 
                     $this->refreshPage('Berhasil', 'Surat dikembalikan untuk revisi.');
                 }),
@@ -108,6 +124,14 @@ trait HasApprovalActions
                         newStatus: 'DITOLAK',
                         catatan: $data['catatan']
                     );
+
+                    if ($this->surat->pembuat) {
+                        Notification::make()
+                            ->title('Surat Ditolak')
+                            ->body("Surat pengajuan Anda '{$this->surat->perihal}' telah ditolak. Alasan: {$data['catatan']}")
+                            ->danger()
+                            ->sendToDatabase($this->surat->pembuat);
+                    }
 
                     $this->refreshPage('Berhasil', 'Surat pengajuan berhasil ditolak dan dibatalkan.');
                 }),

@@ -160,6 +160,15 @@ trait HasDisposisiActions
                 'parent_disposisi_id' => $parentDisposisi?->id,
             ]);
 
+            $targetUsers = \App\Models\User::ofUnitKerja($unitTujuanId)->get();
+            if ($targetUsers->isNotEmpty()) {
+                Notification::make()
+                    ->title('Disposisi Baru')
+                    ->body("Unit " . ($activeJabatan?->unitKerja?->nama_unit ?? 'Anda') . " mengirimkan disposisi surat: " . $this->surat->perihal)
+                    ->info()
+                    ->sendToDatabase($targetUsers);
+            }
+
             if (!empty($data['bukti'])) {
                 $disposisi
                     ->addMedia($data['bukti'])

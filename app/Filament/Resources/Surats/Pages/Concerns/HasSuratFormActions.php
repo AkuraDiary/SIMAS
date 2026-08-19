@@ -77,6 +77,18 @@ trait HasSuratFormActions
                     catatan: ''
                 );
 
+                $unitIds = $this->data['unitTujuan'] ?? [];
+                foreach ($unitIds as $uId) {
+                    $targetUsers = \App\Models\User::ofUnitKerja($uId)->get();
+                    if ($targetUsers->isNotEmpty()) {
+                        Notification::make()
+                            ->title('Surat Masuk Baru')
+                            ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal)
+                            ->info()
+                            ->sendToDatabase($targetUsers);
+                    }
+                }
+
                 Notification::make()
                     ->title('Surat berhasil dikirim untuk diproses')
                     ->success()
