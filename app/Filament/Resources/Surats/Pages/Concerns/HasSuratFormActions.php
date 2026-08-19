@@ -74,7 +74,7 @@ trait HasSuratFormActions
                 app(SuratRoutingService::class)->submitForApproval(
                     surat: $surat,
                     unitTujuanId: (int) $unitTujuan,
-                    catatan: 'Pengajuan surat'
+                    catatan: ''
                 );
 
                 Notification::make()
