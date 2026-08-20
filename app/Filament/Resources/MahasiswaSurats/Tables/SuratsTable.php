@@ -16,6 +16,7 @@ class SuratsTable
     public static function configure(Table $table): Table
     {
         return $table
+        ->poll('7s')
             ->columns([
                 TextColumn::make('perihal')
                     ->label('Perihal')

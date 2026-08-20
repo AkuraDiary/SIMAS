@@ -107,8 +107,7 @@ trait HasDisposisiActions
                 ->image()
                 ->collection('bukti-disposisi')
                 ->preserveFilenames()
-                ->maxSize(5048)
-                ->required(),
+                ->maxSize(5048),
 
             Textarea::make('catatan')
                 ->label('Catatan')
@@ -160,7 +159,16 @@ trait HasDisposisiActions
                 'tanggal_disposisi' => now(),
                 'parent_disposisi_id' => $parentDisposisi?->id,
             ]);
-            
+
+            $targetUsers = \App\Models\User::ofUnitKerja($unitTujuanId)->get();
+            if ($targetUsers->isNotEmpty()) {
+                Notification::make()
+                    ->title('Disposisi Baru')
+                    ->body("Unit " . ($activeJabatan?->unitKerja?->nama_unit ?? 'Anda') . " mengirimkan disposisi surat: " . $this->surat->perihal)
+                    ->info()
+                    ->sendToDatabase($targetUsers);
+            }
+
             if (!empty($data['bukti'])) {
                 $disposisi
                     ->addMedia($data['bukti'])

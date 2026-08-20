@@ -192,9 +192,12 @@
                             @if ($d->getMedia('bukti-disposisi')->isNotEmpty())
                             <div class="mt-3 flex gap-2">
                                 @foreach ($d->getMedia('bukti-disposisi') as $media)
-                                <a href="{{ route('media.preview', $media->id) }}" target="_blank" class="block w-12 h-12 rounded border border-gray-200 overflow-hidden hover:opacity-75 transition-opacity">
+                                <button
+                                    type="button"
+                                    @click="$dispatch('open-image-modal', { url: '{{ route('media.preview', $media->id) }}' })"
+                                    class="block w-12 h-12 rounded border border-gray-200 overflow-hidden hover:opacity-75 transition-opacity cursor-pointer focus:outline-none">
                                     <img src="{{ route('media.preview', $media->id) }}" class="object-cover w-full h-full" alt="Bukti" />
-                                </a>
+                                </button>
                                 @endforeach
                             </div>
                             @endif
@@ -208,4 +211,7 @@
         </div>
 
     </div>
+
+    @include('filament.pages.components.image-modal')
+
 </x-filament-panels::page>

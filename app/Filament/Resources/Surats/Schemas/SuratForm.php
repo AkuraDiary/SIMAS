@@ -140,7 +140,7 @@ class SuratForm
                                     ->label('Jenis Surat')
                                     ->options([
                                         'INTERNAL' => 'Internal',
-                                        'PENGAJUAN' => 'Pengajuan (Permohonan)',
+                                        'PENGAJUAN' => 'Pengajuan',
                                         'TERBITAN' => 'Terbitan (Surat Resmi)',
                                         'EKSTERNAL' => 'Eksternal',
                                     ])

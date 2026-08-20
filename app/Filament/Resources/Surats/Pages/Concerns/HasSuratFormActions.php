@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Surats\Pages\Concerns;
 use App\Filament\Resources\Surats\SuratResource;
 use App\Services\SuratRoutingService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -50,6 +51,11 @@ trait HasSuratFormActions
         return Action::make('submitSurat')
             ->label('Kirim / Pengajuan')
             ->color('success')
+            ->schema([
+                Textarea::make('catatan')
+                    ->label('Catatan Pengiriman (Opsional)')
+                    ->placeholder('Tambahkan instruksi, pengantar, atau penjelasan revisi untuk penerima...'),
+            ])
             ->before(function (Action $action) {
                 $unitIds = $this->data['unitTujuan'] ?? [];
                 if (empty($unitIds)) {
@@ -60,14 +66,35 @@ trait HasSuratFormActions
                     $action->halt();
                 }
             })
-            ->action(function () {
+            ->action(function (array $data) {
+                // 1. Cek apakah ini surat REVISI sebelum di-save
+                $wasRevisi = false;
+                if (!($this instanceof CreateRecord)) {
+                    $wasRevisi = $this->record->status_surat === 'REVISI';
+                }
+
+
                 if ($this instanceof CreateRecord) {
                     $this->create();
                 } else {
                     $this->save();
                 }
 
+
                 $surat = $this->record;
+                // 3. Jika surat ini hasil Revisi, tambahkan ke riwayat/timeline!
+                if ($wasRevisi) {
+                    \App\Models\SuratRiwayat::create([
+                        'surat_id'       => $surat->id,
+                        'unit_asal_id'   => $surat->unit_pengirim_id,
+                        'unit_tujuan_id' => $surat->unit_pengirim_id,
+                        'user_aktor_id'  => \Illuminate\Support\Facades\Auth::id(),
+                        'status'         => 'DIPERBARUI',
+                        'catatan'        => $data['catatan'] ?? 'Pengirim telah memperbarui dokumen surat sesuai revisi.',
+                        'actioned_at'    => now(),
+                    ]);
+                }
+
                 $surat->tanggal_kirim = now();
                 $unitTujuan = $this->data['unitTujuan'][0] ?? $surat->unit_pengirim_id;
 
@@ -76,6 +103,18 @@ trait HasSuratFormActions
                     unitTujuanId: (int) $unitTujuan,
                     catatan: ''
                 );
+
+                $unitIds = $this->data['unitTujuan'] ?? [];
+                foreach ($unitIds as $uId) {
+                    $targetUsers = \App\Models\User::ofUnitKerja($uId)->get();
+                    if ($targetUsers->isNotEmpty()) {
+                        Notification::make()
+                            ->title('Surat Masuk Baru')
+                            ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal)
+                            ->info()
+                            ->sendToDatabase($targetUsers);
+                    }
+                }
 
                 Notification::make()
                     ->title('Surat berhasil dikirim untuk diproses')
