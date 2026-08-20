@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Surats\Pages\Concerns;
 use App\Filament\Resources\Surats\SuratResource;
 use App\Services\SuratRoutingService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -50,6 +51,11 @@ trait HasSuratFormActions
         return Action::make('submitSurat')
             ->label('Kirim / Pengajuan')
             ->color('success')
+            ->schema([
+                Textarea::make('catatan')
+                    ->label('Catatan Pengiriman (Opsional)')
+                    ->placeholder('Tambahkan instruksi, pengantar, atau penjelasan revisi untuk penerima...'),
+            ])
             ->before(function (Action $action) {
                 $unitIds = $this->data['unitTujuan'] ?? [];
                 if (empty($unitIds)) {
@@ -60,7 +66,7 @@ trait HasSuratFormActions
                     $action->halt();
                 }
             })
-            ->action(function () {
+            ->action(function (array $data) {
                 // 1. Cek apakah ini surat REVISI sebelum di-save
                 $wasRevisi = false;
                 if (!($this instanceof CreateRecord)) {
@@ -84,7 +90,7 @@ trait HasSuratFormActions
                         'unit_tujuan_id' => $surat->unit_pengirim_id,
                         'user_aktor_id'  => \Illuminate\Support\Facades\Auth::id(),
                         'status'         => 'DIPERBARUI',
-                        'catatan'        => 'Pengirim telah memperbarui dokumen surat sesuai revisi.',
+                        'catatan'        => $data['catatan'] ?? 'Pengirim telah memperbarui dokumen surat sesuai revisi.',
                         'actioned_at'    => now(),
                     ]);
                 }

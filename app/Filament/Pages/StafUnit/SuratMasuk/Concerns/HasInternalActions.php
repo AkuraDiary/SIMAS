@@ -15,8 +15,8 @@ trait HasInternalActions
         return [
             Action::make('selesai_internal')
                 ->label('Tandai Selesai & Balas')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
+                ->icon('heroicon-o-chat-bubble-bottom-center-text')
+                ->color('gray')
                 ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
                 ->schema([
                     Textarea::make('catatan')
