@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Surats\Schemas;
 
 use AmidEsfahani\FilamentTinyEditor\TinyEditor;
+use App\Models\Surat;
 use App\Models\Template;
 use App\Models\UnitKerja;
 use App\Services\PlaceholderService;
@@ -40,6 +41,21 @@ class SuratForm
 
                     // LEFT COLUMN
                     Group::make()->schema([
+                        // TAMBAHKAN SECTION INI: Warning Box Revisi
+                        Section::make('Catatan Revisi dari Pemeriksa')
+                            ->schema([
+                                TextEntry::make('revisi_note')
+                                    ->hiddenLabel()
+                                    ->state(
+                                        fn(?Surat $record) =>
+
+                                        nl2br(e($record?->riwayats()->where('status', 'REVISI')->latest()->first()?->catatan ?? 'Silakan perbaiki dokumen ini.'))
+                                    ),
+                            ])
+                            ->icon('heroicon-o-exclamation-triangle')
+                            ->extraAttributes(['class' => 'bg-red-50 dark:bg-red-900/30 dark:border-red-800 shadow-sm'])
+                            ->visible(fn(?\App\Models\Surat $record) => $record && $record->status_surat === 'REVISI'),
+
                         Section::make('Detail Surat')->schema([
                             Radio::make('metode_pembuatan')
                                 ->label('Metode Pembuatan')
@@ -290,7 +306,7 @@ class SuratForm
                         ->schema([
                             TextEntry::make('pengirim_label')
                                 ->label('Pengirim')
-                                ->state(fn() => Auth::user()->name . (Auth::user()->tipe_entitas === 'ADMIN' ? ' (Admin User)' : '')),
+                                ->state(fn() => Auth::user()->nama_lengkap . (Auth::user()->tipe_entitas === 'ADMIN' ? ' (Admin User)' : '')),
 
                             TextEntry::make('peran_label')
                                 ->label('Peran')

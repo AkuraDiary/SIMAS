@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Surats\Pages;
 
+use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Resources\Surats\Pages\Concerns\HasSuratFormActions;
 use App\Filament\Resources\Surats\SuratResource;
 use Filament\Actions\DeleteAction;
@@ -17,11 +18,27 @@ class EditSurat extends EditRecord
 
     public function getBreadcrumbs(): array
     {
+        // Jika sedang Revisi
+        if ($this->record->status_surat === 'REVISI') {
+            return [
+                SuratResource::getUrl('index', ['scope' => 'keluar']) => 'Surat Keluar',
+                DetailSurat::getUrl(['surat' => $this->record, 'record' => $this->record, 'scope' => 'keluar']) => $this->record->nomor_surat ?? 'Revisi',
+                'Perbaiki Surat',
+            ];
+        }
+        // Default: Jika sedang Draft
         return [
             SuratResource::getUrl('index', ['scope' => 'draft']) => 'Draft Surat',
             '#' => $this->record->nomor_surat ?? 'Draft',
             'Edit Surat',
         ];
+    }
+
+    public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
+    {
+        return $this->record->status_surat === 'REVISI'
+            ? 'Perbaiki Surat (Revisi)'
+            : 'Edit Draft Surat';
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
