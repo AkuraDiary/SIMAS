@@ -64,15 +64,18 @@ class SuratResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
+        $user = Auth::user();
+        $activeJabatan = $user?->pegawai?->jabatanAktif()->first();
+        $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : $user?->unit_kerja_id;
 
-        $unitId = Auth::user()?->unit_kerja_id;
+        // $unitId = Auth::user()?->unit_kerja_id;
 
         return match (request('scope')) {
             'persetujuan' => $query
                 ->where('status_surat', 'DIPROSES')
                 ->whereHas('riwayats', function ($q) use ($unitId) {
                     $q->where('status', 'MENUNGGU')
-                      ->where('unit_tujuan_id', $unitId);
+                        ->where('unit_tujuan_id', $unitId);
                 }),
 
             'draft' => $query
@@ -82,10 +85,10 @@ class SuratResource extends Resource
             'keluar' => $query
                 ->where(function ($q) use ($unitId) {
                     $q->where('unit_pengirim_id', $unitId)
-                      ->orWhereHas('disposisis', function ($dq) use ($unitId) {
-                          $userIds = \App\Models\User::ofUnitKerja($unitId)->pluck('id');
-                          $dq->whereIn('user_pembuat_id', $userIds);
-                      });
+                        ->orWhereHas('disposisis', function ($dq) use ($unitId) {
+                            $userIds = \App\Models\User::ofUnitKerja($unitId)->pluck('id');
+                            $dq->whereIn('user_pembuat_id', $userIds);
+                        });
                 })
                 ->where('status_surat', '!=', 'DRAFT')
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {

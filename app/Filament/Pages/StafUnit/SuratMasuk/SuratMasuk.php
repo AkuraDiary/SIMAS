@@ -225,7 +225,7 @@ class SuratMasuk extends Page implements HasTable
 
                 return DetailSurat::getUrl(
                     parameters: [
-                        'surat' => $record->id,
+                        'surat' => $record,
                         'scope' => $isPersetujuan ? 'persetujuan' : 'masuk'
                     ],
                     panel: 'simas'

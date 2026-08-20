@@ -130,7 +130,7 @@ class DetailSurat extends Page implements HasForms
                 ->label('Perbaiki Surat')
                 ->icon('heroicon-o-pencil')
                 ->color('primary')
-                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat->id]));
+                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
         }
 
         $secondaryActions[] = Action::make('export')
