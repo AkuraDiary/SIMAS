@@ -61,13 +61,34 @@ trait HasSuratFormActions
                 }
             })
             ->action(function () {
+                // 1. Cek apakah ini surat REVISI sebelum di-save
+                $wasRevisi = false;
+                if (!($this instanceof CreateRecord)) {
+                    $wasRevisi = $this->record->status_surat === 'REVISI';
+                }
+
+
                 if ($this instanceof CreateRecord) {
                     $this->create();
                 } else {
                     $this->save();
                 }
 
+
                 $surat = $this->record;
+                // 3. Jika surat ini hasil Revisi, tambahkan ke riwayat/timeline!
+                if ($wasRevisi) {
+                    \App\Models\SuratRiwayat::create([
+                        'surat_id'       => $surat->id,
+                        'unit_asal_id'   => $surat->unit_pengirim_id,
+                        'unit_tujuan_id' => $surat->unit_pengirim_id,
+                        'user_aktor_id'  => \Illuminate\Support\Facades\Auth::id(),
+                        'status'         => 'DIPERBARUI',
+                        'catatan'        => 'Pengirim telah memperbarui dokumen surat sesuai revisi.',
+                        'actioned_at'    => now(),
+                    ]);
+                }
+
                 $surat->tanggal_kirim = now();
                 $unitTujuan = $this->data['unitTujuan'][0] ?? $surat->unit_pengirim_id;
 

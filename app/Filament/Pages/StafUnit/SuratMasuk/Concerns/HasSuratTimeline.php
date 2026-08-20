@@ -28,6 +28,7 @@ trait HasSuratTimeline
                 'DISETUJUI' => 'heroicon-m-check-circle',
                 'DITOLAK' => 'heroicon-m-x-circle',
                 'REVISI' => 'heroicon-m-pencil-square',
+                'DIPERBARUI' => 'heroicon-m-arrow-up-tray',
                 'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
                 default => 'heroicon-m-clock',
             };
@@ -37,6 +38,7 @@ trait HasSuratTimeline
                 'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
                 'REVISI' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
                 'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
+                'DIPERBARUI' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
                 default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
             };
 

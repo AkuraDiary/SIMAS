@@ -5,6 +5,7 @@ namespace App\Filament\Pages\StafUnit\SuratMasuk;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasApprovalActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasArsipActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasDisposisiActions;
+use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasInternalActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasSuratTimeline;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Filament\Resources\Surats\SuratResource;
@@ -26,6 +27,7 @@ class DetailSurat extends Page implements HasForms
     use HasDisposisiActions;
     use HasApprovalActions;
     use HasArsipActions;
+    use HasInternalActions;
 
     public static function canAccess(): bool
     {
@@ -118,7 +120,10 @@ class DetailSurat extends Page implements HasForms
     {
         $primaryActions = [];
         $secondaryActions = [];
-        $unitId = Auth::user()->unit_kerja_id;
+
+        $user = Auth::user();
+        $activeJabatan = $user->pegawai?->jabatanAktif()->first();
+        $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
 
         if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id === $unitId) {
             $primaryActions[] = Action::make('edit')
@@ -133,29 +138,39 @@ class DetailSurat extends Page implements HasForms
             ->icon('heroicon-o-arrow-down-tray')
             ->action(fn() => redirect()->route('surat.export', $this->surat));
 
+        // AKSIS KHSUS DRAFT
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
         }
 
+        // AKSI KHUSUS SURAT PENGAJUAN
         if ($this->surat->tipe_surat === 'PENGAJUAN') {
             $hasPendingPersetujuan = $this->surat->riwayats()
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
                 ->exists();
 
-            $hasRiwayats = $this->surat->riwayats()
-                ->where('unit_tujuan_id', $unitId)
-                ->exists();
-
             $persetujuan = $this->getActionPersetujuan();
 
-            if ($hasPendingPersetujuan ){//|| !$hasRiwayats) {
+            if ($hasPendingPersetujuan) {
                 if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
                 if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
                 if (isset($persetujuan[2])) $secondaryActions[] = $persetujuan[2]; // Tolak
             }
 
             if (isset($persetujuan[3])) $primaryActions[] = $persetujuan[3]; // Buat Terbitan
+        }
+
+        // AKSI KHUSUS SURAT INTERNAL
+        if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id !== $unitId) {
+            $hasPendingTugas = $this->surat->riwayats()
+                ->where('status', 'MENUNGGU')
+                ->where('unit_tujuan_id', $unitId)
+                ->exists();
+            if ($hasPendingTugas) {
+                $internalActions = $this->getActionSelesaiInternal();
+                if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
+            }
         }
 
         $disposisi = $this->getActionDisposisi();
