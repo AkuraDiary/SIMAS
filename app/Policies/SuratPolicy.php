@@ -14,7 +14,7 @@ class SuratPolicy
     public function viewAny(User $user): bool
     {
         
-        return $user->peran === 'stafunit';
+        return in_array($user->tipe_entitas, ['STAF', 'MAHASISWA']);
     }
 
     /**
@@ -45,6 +45,11 @@ class SuratPolicy
             return true;
         }
 
+        // 4. Mahasiswa melihat surat mereka sendiri
+        if ($user->tipe_entitas === 'MAHASISWA' && $surat->user_pembuat_id === $user->id) {
+            return true;
+        }
+
         return false;
     }
 
@@ -54,7 +59,7 @@ class SuratPolicy
      */
     public function create(User $user): bool
     {
-        return $user->peran === 'stafunit';
+        return in_array($user->tipe_entitas, ['STAF', 'MAHASISWA']);
     }
 
     /**
@@ -62,8 +67,10 @@ class SuratPolicy
      */
     public function update(User $user, Surat $surat): bool
     {
-        
-        return $user->peran === 'stafunit';
+        if ($user->tipe_entitas === 'MAHASISWA' && $surat->user_pembuat_id === $user->id) {
+            return true;
+        }
+        return $user->tipe_entitas === 'STAF';
     }
 
     /**
@@ -71,8 +78,10 @@ class SuratPolicy
      */
     public function delete(User $user, Surat $surat): bool
     {
-        
-        return $user->peran === 'stafunit';
+        if ($user->tipe_entitas === 'MAHASISWA' && $surat->user_pembuat_id === $user->id) {
+            return true;
+        }
+        return $user->tipe_entitas === 'STAF';
     }
 
     /**
@@ -81,7 +90,7 @@ class SuratPolicy
     public function restore(User $user, Surat $surat): bool
     {
         
-        return $user->peran === 'stafunit';
+        return $user->tipe_entitas === 'STAF';
     }
 
     /**
@@ -90,6 +99,6 @@ class SuratPolicy
     public function forceDelete(User $user, Surat $surat): bool
     {
        
-        return $user->peran === 'stafunit';
+        return $user->tipe_entitas === 'STAF';
     }
 }

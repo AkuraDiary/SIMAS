@@ -15,10 +15,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('surat_id')->constrained()->cascadeOnDelete();
             $table->foreignId('unit_kerja_id')->nullable()->constrained()->nullOnDelete();
-            $table->enum('jenis_tujuan', ['utama', 'tembusan']);
+            $table->enum('jenis_tujuan', ['UTAMA', 'TEMBUSAN']);
             $table->dateTime('tanggal_terima')->nullable();
             $table->enum('status_baca', ['BELUM', 'SUDAH'])->default('BELUM');
-            $table->text('respon')->nullable();
         });
     }
 
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('surat_units');
+        Schema::dropIfExists('surat_unit');
     }
 };

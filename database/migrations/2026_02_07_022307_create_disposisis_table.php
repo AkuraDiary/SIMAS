@@ -13,18 +13,17 @@ return new class extends Migration
     {
         Schema::create('disposisis', function (Blueprint $table) {
             $table->id();
-            $table->string('jenis_instruksi');
-            $table->enum('sifat', ['rahasia', 'penting', 'biasa', 'segera', 'sangat segera']);
-            $table->text('catatan')->nullable();
-            $table->dateTime('tanggal_disposisi');
-            $table->dateTime('tanggal_update')->nullable();
-            $table->enum('status_disposisi', ['BARU', 'DIPROSES', 'SELESAI']);
             $table->foreignId('surat_id')->constrained();
+            $table->foreignId('user_pembuat_id')->constrained('users');
             $table->foreignId('unit_tujuan_id')->constrained('unit_kerjas');
-            $table->foreignId('unit_pembuat_id')->constrained('unit_kerjas');
-            $table->unique(['surat_id', 'unit_tujuan_id']); // spam prevention
             // Self-referencing
             $table->foreignId('parent_disposisi_id')->nullable()->constrained('disposisis');
+            $table->string('jenis_instruksi')->comment('cth: Untuk Ditindaklanjuti, Untuk Diketahui');
+            $table->enum('sifat', ['RAHASIA', 'PENTING', 'BIASA', 'SEGERA', 'SANGAT_SEGERA'])->nullable();
+            $table->text('catatan')->nullable();
+            $table->enum('status_disposisi', ['BARU', 'DIPROSES', 'SELESAI'])->default('BARU');
+            $table->dateTime('tanggal_disposisi');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

@@ -4,29 +4,70 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UnitKerja extends Model
 {
     /** @use HasFactory<\Database\Factories\UnitKerjaFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'parent_id',
+        'jenis_unit_id',
         'nama_unit',
-        'jenis_unit',
-        'status_unit',
+        'singkatan',
+        'is_active',
     ];
 
-    public function users(): HasMany
+    protected function casts(): array
     {
-        return $this->hasMany(User::class);
+        return [
+            'is_active' => 'boolean',
+        ];
     }
 
     public function getRouteKeyName(): string
     {
         return 'nama_unit';
     }
+
+    public function jenisUnit(): BelongsTo
+    {
+        return $this->belongsTo(JenisUnit::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(UnitKerja::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(UnitKerja::class, 'parent_id');
+    }
+
+    /**
+     * Position titles defined for this unit.
+     * Order by level_jabatan for consistent display (level 1 = most senior).
+     */
+    public function jabatans(): HasMany
+    {
+        return $this->hasMany(Jabatan::class)->orderBy('level_jabatan');
+    }
+
+    /**
+     * Active/inactive jabatan assignments of staff placed in this unit.
+     * A unit's "staff roster" is now this relation (not a direct users() FK),
+     * since a user's unit is assigned via user_pegawai_jabatans, not a column on users.
+     */
+    public function pegawaiJabatans(): HasMany
+    {
+        return $this->hasMany(UserPegawaiJabatan::class);
+    }
+
     public function arsipSurats(): HasMany
     {
         return $this->hasMany(ArsipSurat::class);
@@ -35,6 +76,21 @@ class UnitKerja extends Model
     public function kategoriArsips(): HasMany
     {
         return $this->hasMany(KategoriArsip::class);
+    }
+
+    public function formatNomorSurats(): HasMany
+    {
+        return $this->hasMany(FormatNomorSurat::class);
+    }
+
+    public function templateAkses(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Template::class,
+            'template_unit_akses',
+            'unit_kerja_id',
+            'template_id'
+        );
     }
 
     // Surat yang dikirim oleh unit

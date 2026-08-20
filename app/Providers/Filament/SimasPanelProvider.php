@@ -21,6 +21,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\SimasDashboard;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
+use App\Filament\Pages\Admin\ManageOrganisasi;
 use App\Models\User;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Illuminate\Session\Middleware\StartSession;
@@ -44,10 +45,13 @@ class SimasPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Indigo,
             ])
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('7s')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 SimasDashboard::class,
+                ManageOrganisasi::class,
                 SuratMasuk::class,
                 DetailSurat::class
             ])

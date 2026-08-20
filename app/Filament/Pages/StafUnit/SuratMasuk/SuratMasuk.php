@@ -3,23 +3,39 @@
 namespace App\Filament\Pages\StafUnit\SuratMasuk;
 
 use App\Models\Surat;
+use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Resources\Concerns\HasTabs;
+use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Illuminate\Support\Facades\Auth;
-use Filament\Support\Icons\Heroicon;
-use BackedEnum;
-use Filament\Notifications\Notification;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\EmbeddedTable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
+
 
 class SuratMasuk extends Page implements HasTable
 {
-    use InteractsWithTable;
-    protected string $view = 'filament.pages.staf-unit.surat-masuk.surat-masuk';
+    use InteractsWithTable, HasTabs;
+
+
     public int $lastCount = 0;
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema->components([
+            $this->getTabsContentComponent(),
+            EmbeddedTable::make(),
+        ]);
+    }
 
     public function mount(): void
     {
@@ -58,7 +74,7 @@ class SuratMasuk extends Page implements HasTable
 
     public static function canAccess(): bool
     {
-        return Auth::user()?->peran === 'stafunit';
+        return Auth::user()?->tipe_entitas === 'STAF';
     }
     public function getBreadcrumbs(): array
     {
@@ -84,9 +100,9 @@ class SuratMasuk extends Page implements HasTable
                 'unitPengirim',
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
+                'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
             ])
-
-            ->orderByDesc('tanggal_kirim');
+            ->orderByDesc('created_at');
     }
 
 
@@ -97,171 +113,164 @@ class SuratMasuk extends Page implements HasTable
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
             ->columns([
-
-                // TextColumn::make('status_surat')
-                //     ->label('Status Surat')
-                //     ->searchable()
-                //     ->badge()
-                //     ->sortable()
-                //     ->getStateUsing(function (Surat $record): string {
-                //         return match ($record?->status_surat) {
-                //             'TERKIRIM' => 'Surat Baru',
-                //             default => $record?->status_surat,
-                //         };
-                //     })
-                //     ->color(function (Surat $record): string {
-
-                //         return match ($record->status_surat) {
-                //             'BARU' => 'primary',
-                //             'DIPROSES' => 'warning',
-                //             'SELESAI' => 'success',
-                //             default => 'secondary',
-                //         };
-                //     }),
-
-                TextColumn::make('tanggal_kirim')
-                    ->label('Tanggal Kirim')
-                    ->searchable()
-                    ->sortable(),
-
-                TextColumn::make('nomor_surat')
-                    ->label('Nomor Surat')
-                    ->searchable(),
-
                 TextColumn::make('perihal')
-                    ->label('Perihal')
+                    ->label('Perihal & Pengirim')
+                    ->searchable(['perihal', 'pengirim_nama'])
+                    ->weight('bold')
                     ->wrap()
-                    ->searchable(),
+                    ->description(function (Surat $record) {
+                        $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
+                        $pengirim = $record->tipe_surat === 'EKSTERNAL'
+                            ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
+                            : ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '-') . ' - ' . ($record->unitPengirim?->nama_unit ?? '-');
+                        return $nomor . $pengirim;
+                    }),
 
                 TextColumn::make('tipe_surat')
-                    ->label('Tipe Surat')
-                    ->sortable()
-                    ->searchable()
-                    ->badge(),
-
-                TextColumn::make('unitPengirim.nama_unit')
-                    ->label('Pengirim')
-                    ->getStateUsing(function (Surat $record): string {
-                        if ($record->tipe_surat === 'EKSTERNAL') {
-                            return $record->pengirim_eksternal . ' melalui ' .  $record->unitPengirim->nama_unit;
-                        } else {
-                            return $record->unitPengirim->nama_unit;
-                        }
-                    }),
-
-                TextColumn::make('tujuan_label')
-                    ->label('Tujuan')
+                    ->label('Tipe')
                     ->badge()
-                    ->getStateUsing(function (Surat $record): string {
-                        $unitId = Auth::user()->unit_kerja_id;
-
-                        $disposisi = $record->disposisis
-                            ->firstWhere('unit_tujuan_id', $unitId);
-
-                        if ($disposisi) {
-                            $unitAsal = $disposisi->unitPembuat?->nama_unit;
-                            return $unitAsal
-                                ? 'Disposisi dari ' . $unitAsal
-                                : 'Disposisi';
-                        }
-
-                        $suratUnit = $record->suratUnits->first();
-
-                        return match ($suratUnit?->jenis_tujuan) {
-                            'utama' => 'Tujuan Utama',
-                            'tembusan' => 'Tembusan',
-                            default => '-',
-                        };
-                    })
-                    ->color(function (Surat $record): string {
-                        $unitId = Auth::user()->unit_kerja_id;
-
-                        if ($record->disposisis->contains('unit_tujuan_id', $unitId)) {
-                            return 'warning';
-                        }
-
-                        return match ($record->suratUnits->first()?->jenis_tujuan) {
-                            'utama' => 'primary',
-                            'tembusan' => 'gray',
-                            default => 'secondary',
-                        };
+                    ->color(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'gray',
+                        'EKSTERNAL' => 'warning',
+                        'PENGAJUAN' => 'info',
+                        default => 'gray',
                     }),
 
 
-                TextColumn::make('status_baca')
+                TextColumn::make('status_surat')
+                    ->label('Status Surat')
+                    ->searchable()
+                    ->badge()
+                    ->getStateUsing(function (Surat $record, $livewire) {
+                        // if ($record->tipe_surat ==='PENGAJUAN') {
+                        //     return 'PENGAJUAN: ' . $record->status_surat;
+                        // }
+
+                        $disposisi = $record->disposisis->firstWhere('unit_tujuan_id', Auth::user()->unit_kerja_id)?->status_disposisi;
+                        if ($disposisi) return 'DISPOSISI: ' . strtoupper($disposisi);
+
+                        else return $record->status_surat;
+                    })
+                    ->color(fn(?string $state) => match (true) {
+                        $state === 'SELESAI' => 'success',
+                        $state === 'DIPROSES' => 'warning',
+                        $state === 'REVISI' => 'danger',
+                        $state === 'DITOLAK' => 'danger',
+                        str_contains($state ?? '', 'DISPOSISI: MENUNGGU') => 'warning',
+                        str_contains($state ?? '', 'DISPOSISI: DIPROSES') => 'primary',
+                        str_contains($state ?? '', 'DISPOSISI: SELESAI') => 'success',
+                        str_contains($state ?? '', 'PENGAJUAN: DIPROSES') => 'warning',
+                        str_contains($state ?? '', 'PENGAJUAN: SELESAI') => 'success',
+                        default => 'gray',
+                    }),
+
+
+
+                TextColumn::make('tanggal_kirim')
+                    ->label('Tanggal Masuk')
+                    ->dateTime('d M Y, H:i')
+                    ->sortable(),
+
+                TextColumn::make('status baca')
                     ->label('Status Baca')
                     ->badge()
-                    ->getStateUsing(function (Surat $record) {
-                        return $record->suratUnits->first()?->status_baca;
+                    ->getStateUsing(function (Surat $record, $livewire) {
+                        $baca = $record->suratUnits->firstWhere('unit_kerja_id', Auth::user()->unit_kerja_id)?->status_baca;
+
+                        // If there is no SuratUnit record, it means it's pure disposisi
+                        if (!$baca) return null;
+
+                        return $baca === 'SUDAH' ? 'DIBACA' : 'BARU';
                     })
-                    ->hidden(
-                        false
-                    )
-                    ->color(fn(?string $state) => match ($state) {
-                        'BELUM' => 'danger',
-                        'SUDAH' => 'success',
+                    ->color(fn(?string $state) => match (true) {
+                        $state === 'BARU' => 'danger',
+                        $state === 'DIBACA' => 'success',
                         default => 'gray',
-                    })->formatStateUsing(
-                        fn(string $state): string =>
-                        strtoupper($state) === 'SUDAH'
-                            ? 'Sudah Dibaca'
-                            : 'Belum Dibaca'
-                    ),
-
-                TextColumn::make('status_disposisi')
-                    ->label('Disposisi')
-                    ->badge()
-                    ->getStateUsing(function (Surat $record) {
-                        $unitId = Auth::user()->unit_kerja_id;
-
-                        return $record->disposisis
-                            ->firstWhere('unit_tujuan_id', $unitId)
-                            ?->status_disposisi;
-                    })
-
-                    ->color(fn(?string $state) => match ($state) {
-                        'BARU' => 'danger',
-                        'DIPROSES' => 'warning',
-                        'SELESAI' => 'success',
-                        default => null,
                     }),
 
-
+            ])
+            ->recordActions([
             ])
             ->filters([
-
-                SelectFilter::make('jenis_masuk')
-                    ->options([
-                        'langsung' => 'Surat Langsung',
-                        'disposisi' => 'Disposisi',
+                \Filament\Tables\Filters\Filter::make('tanggal')
+                    ->schema([
+                        DatePicker::make('dari_tanggal')
+                            ->label('Dari Tanggal'),
+                        DatePicker::make('sampai_tanggal')
+                            ->label('Sampai Tanggal'),
                     ])
-                    ->modifyQueryUsing(function (Builder $query, array $data) {
-                        // Access the selected value via the 'value' key
-                        $selectedValue = $data['value'] ?? null;
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['dari_tanggal'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
+                            )
+                            ->when(
+                                $data['sampai_tanggal'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
+                            );
+                    }),
 
-                        // If nothing is selected
-                        if (blank($selectedValue)) {
-                            return $query;
-                        }
-                        $unitId = Auth::user()->unit_kerja_id;
-
-                        match ($selectedValue) {
-                            'langsung'  => $query->masukLangsung($unitId),
-                            'disposisi' => $query->disposisi($unitId),
-                            default     => null,
-                        };
-
-                        $query->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                            $q->where('unit_kerja_id', $unitId);
-                        });
-                        return $query;
-                    })
+                \Filament\Tables\Filters\SelectFilter::make('tipe_surat')
+                    ->label('Tipe Surat')
+                    ->options([
+                        'INTERNAL' => 'Internal',
+                        'PENGAJUAN' => 'Pengajuan',
+                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                        'EKSTERNAL' => 'Eksternal',
+                    ]),
             ])
-            ->recordUrl(
-                fn(Surat $record): string => DetailSurat::getUrl(
-                    parameters: ['surat' => $record->id],
+            ->recordUrl(function (Surat $record) {
+                $isPersetujuan = $record->riwayats->isNotEmpty();
+
+                return DetailSurat::getUrl(
+                    parameters: [
+                        'surat' => $record->id,
+                        'scope' => $isPersetujuan ? 'persetujuan' : 'masuk'
+                    ],
                     panel: 'simas'
-                )
-            );
+                );
+            })
+            ->modifyQueryUsing($this->modifyQueryWithActiveTab(...));
+    }
+
+    public function getDefaultActiveTab(): string | int | null
+    {
+        return 'semua';
+    }
+
+    public function getTabs(): array
+    {
+        return [
+            'semua' => Tab::make('Semua')
+                ->modifyQueryUsing(function (Builder $query) {
+                    // untukUnit is already applied in getTableQuery
+                    return $query;
+                }),
+            'langsung' => Tab::make('Langsung')
+                ->modifyQueryUsing(function (Builder $query) {
+                    $unitId = Auth::user()->unit_kerja_id;
+                    return $query->masukLangsung($unitId);
+                }),
+            'disposisi' => Tab::make('Disposisi')
+                ->modifyQueryUsing(function (Builder $query) {
+                    $unitId = Auth::user()->unit_kerja_id;
+                    return $query->disposisi($unitId);
+                }),
+            'persetujuan' => Tab::make('Pengajuan')
+                ->modifyQueryUsing(function (Builder $query) {
+                    $unitId = Auth::user()->unit_kerja_id;
+                    return $query->where('tipe_surat', 'PENGAJUAN');
+                        // ->whereHas('riwayats', function ($q) use ($unitId) {
+                        //     $q->where('status', 'MENUNGGU')
+                        //         ->where('unit_tujuan_id', $unitId);
+                        // });
+                    // return $query->where('status_surat', 'DIPROSES')
+                    //     ->whereHas('riwayats', function ($q) use ($unitId) {
+                    //         $q->where('status', 'MENUNGGU')
+                    //             ->where('unit_tujuan_id', $unitId);
+                    //     });
+                }),
+        ];
     }
 }

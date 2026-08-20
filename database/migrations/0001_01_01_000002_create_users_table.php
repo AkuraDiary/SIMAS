@@ -15,12 +15,13 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('username')->unique();
-            $table->string('password');
-            $table->string('nama_lengkap');
             $table->string('email')->nullable()->unique();
-            $table->enum('peran', ['superadmin', 'stafunit']);
-            $table->enum('status_user', ['aktif', 'nonaktif']);
-            $table->foreignId('unit_kerja_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('password');
+            $table->string('phone', 20)->nullable();
+            $table->enum('tipe_entitas', ['STAF', 'MAHASISWA', 'ADMIN']);
+            $table->boolean('is_active')->default(true);
+            $table->rememberToken();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -38,6 +39,7 @@ return new class extends Migration
             $table->text('user_agent')->nullable();
             $table->longText('payload');
             $table->integer('last_activity')->index();
+            
         });
     }
 

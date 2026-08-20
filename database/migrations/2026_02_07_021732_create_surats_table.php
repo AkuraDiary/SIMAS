@@ -13,17 +13,27 @@ return new class extends Migration
     {
         Schema::create('surats', function (Blueprint $table) {
             $table->id();
-            $table->string('nomor_agenda');
-            $table->string('nomor_surat');
-            $table->string('perihal');
-            $table->string('pengirim_eksternal')->nullable();
-            $table->enum('tipe_surat', ['INTERNAL', 'EKSTERNAL',])->default('INTERNAL');
-            $table->text('isi_surat')->nullable();
-            $table->dateTime('tanggal_buat');
-            $table->dateTime('tanggal_kirim')->nullable();
-            $table->enum('status_surat', ['DRAFT', 'TERKIRIM', 'DIPROSES', 'SELESAI']);
+            $table->foreignId('template_id')->nullable()->constrained('templates')->nullOnDelete();
+            $table->foreignId('user_pegawai_jabatan_id')->nullable()->constrained('user_pegawai_jabatans')->nullOnDelete()
+                ->comment('NULL jika diajukan Mahasiswa/Guest');
+            $table->foreignId('reply_to_surat_id')->nullable()->constrained('surats')->nullOnDelete()
+                ->comment('thread balasan NDE, reply = surat baru independen');
+            $table->foreignId('terbitan_for_surat_id')->nullable()->constrained('surats')->nullOnDelete()
+                ->comment('TERBITAN sebagai output dari PENGAJUAN');
             $table->foreignId('unit_pengirim_id')->constrained('unit_kerjas');
-            $table->foreignId('user_pembuat_id')->constrained('users');
+            $table->foreignId('user_pembuat_id')->nullable()->constrained('users')->nullOnDelete()
+                ->comment('NULL jika Guest tanpa login');
+            $table->string('pengirim_nim')->nullable()->comment('diisi jika Mahasiswa via jalur publik tanpa login');
+            $table->string('pengirim_nama')->nullable()->comment('dapat diisi Guest atau mahasiswa');
+            $table->string('pengirim_email')->nullable()->comment('dapat diisi Guest atau mahasiswa');
+            $table->json('pengirim_metadata')->nullable()->comment('diisi metadata pengirim eksternal baik guest maupun mahasiswa');
+            $table->string('perihal');
+            $table->enum('tipe_surat', ['INTERNAL', 'PENGAJUAN', 'TERBITAN', 'EKSTERNAL'])->default('INTERNAL');
+            $table->enum('status_surat', ['DRAFT', 'DIPROSES', 'REVISI', 'TERKIRIM', 'SELESAI', 'DITOLAK', 'DIBATALKAN']);
+            $table->json('content')->nullable()->comment('hasil isian form field_variables, di-merge ke .docx via PHPWord');
+            $table->string('tracking_code')->nullable()->unique()->comment('pelacakan untuk Guest & Mahasiswa tanpa login');
+            $table->text('qr_code_payload')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

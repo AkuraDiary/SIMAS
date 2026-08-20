@@ -22,11 +22,8 @@ class UserFactory extends Factory
     {
         return [
             'username' => fake()->unique()->userName(),
-            'nama_lengkap' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'peran' => 'stafunit',
-            'status_user' => 'aktif',
-            'unit_kerja_id' => UnitKerja::factory(),
+            'tipe_entitas' => 'STAF',
             'password' => Hash::make('password'),
         ];
     }
@@ -35,11 +32,31 @@ class UserFactory extends Factory
     {
         return $this->state(fn () => [
             'username' => 'admin',
-            'nama_lengkap' => 'Super Admin',
             'email' => 'admin@internal.test',
-            'peran' => 'superadmin',
-            'unit_kerja_id' => null,
-            'password' => Hash::make('admin'),
+            'tipe_entitas' => 'ADMIN',
+            'password' => Hash::make('password'),
+        ]);
+    }
+
+
+    public function createMahasiswa(): static
+    {
+        return $this->state(fn () => [
+            'username' => 'mahasiswa',
+            'email' => 'mahasiswa@internal.test',
+            'tipe_entitas' => 'MAHASISWA',
+            'password' => Hash::make('password'),
+        ]);
+    }
+
+
+    public function createPegawai(): static
+    {
+        return $this->state(fn () => [
+            'username' => 'pegawai',
+            'email' => 'pegawai@internal.test',
+            'tipe_entitas' => 'STAF',
+            'password' => Hash::make('password'),
         ]);
     }
 

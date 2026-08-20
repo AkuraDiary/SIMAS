@@ -22,14 +22,27 @@ class SuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
-    
+    public static function canViewAny(): bool
+    {
+        return in_array(auth()->user()->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
+
+
     public static function canAccess(): bool
     {
-        return Auth::user()?->peran === 'stafunit';
+        return Auth::user()?->tipe_entitas === 'STAF';
     }
     public static function getNavigationItems(): array
     {
+        $unitId = Auth::user()?->unit_kerja_id;
+        $pendingCount = $unitId ? Surat::query()
+            ->where('status_surat', 'DIPROSES')
+            ->whereHas('riwayats', fn($q) => $q->where('status', 'MENUNGGU')->where('unit_tujuan_id', $unitId))
+            ->count() : 0;
+
         return [
+
             NavigationItem::make('Surat Keluar')
                 ->icon('heroicon-o-paper-airplane')
                 ->url(static::getUrl('index', ['scope' => 'keluar']))
@@ -39,7 +52,6 @@ class SuratResource extends Resource
                 ->icon('heroicon-o-pencil-square')
                 ->url(static::getUrl('index', ['scope' => 'draft']))
                 ->isActiveWhen(fn() => Request::query('scope') === 'draft'),
-
 
             NavigationItem::make('Arsip Surat')
                 ->icon('heroicon-o-archive-box')
@@ -53,20 +65,32 @@ class SuratResource extends Resource
     {
         $query = parent::getEloquentQuery();
 
-        $unitId = Auth::user()->unit_kerja_id;
+        $unitId = Auth::user()?->unit_kerja_id;
 
         return match (request('scope')) {
+            'persetujuan' => $query
+                ->where('status_surat', 'DIPROSES')
+                ->whereHas('riwayats', function ($q) use ($unitId) {
+                    $q->where('status', 'MENUNGGU')
+                      ->where('unit_tujuan_id', $unitId);
+                }),
+
             'draft' => $query
                 ->where('unit_pengirim_id', $unitId)
                 ->where('status_surat', 'DRAFT'),
 
             'keluar' => $query
-                ->where('unit_pengirim_id', $unitId)
+                ->where(function ($q) use ($unitId) {
+                    $q->where('unit_pengirim_id', $unitId)
+                      ->orWhereHas('disposisis', function ($dq) use ($unitId) {
+                          $userIds = \App\Models\User::ofUnitKerja($unitId)->pluck('id');
+                          $dq->whereIn('user_pembuat_id', $userIds);
+                      });
+                })
                 ->where('status_surat', '!=', 'DRAFT')
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                     $q->where('unit_kerja_id', $unitId);
                 }),
-
 
             'arsip' => $query
                 ->whereHas(
@@ -77,6 +101,11 @@ class SuratResource extends Resource
                 ->with([
                     'arsipSurats.kategoriArsip'
                 ]),
+
+            'pengajuan' => $query
+                ->where('tipe_surat', 'PENGAJUAN')
+                ->where('status_surat', '!=', 'DRAFT')
+                ->whereNull('terbitan_for_surat_id'),
 
             // all surat sent by this user
             default => $query

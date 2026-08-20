@@ -10,6 +10,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use App\Models\Surat;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
+use App\Filament\Resources\Surats\Pages\CreateSurat;
 use App\Filament\Resources\Surats\Pages\EditSurat;
 use App\Models\KategoriArsip;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -34,51 +35,90 @@ class SuratsTable
     {
 
         return $table
+        ->poll('7s')
             ->columns([
-                TextColumn::make('nomor_agenda')
-                    ->searchable(),
-                TextColumn::make('nomor_surat')
-                    ->searchable(),
                 TextColumn::make('perihal')
-                    ->searchable(),
-                TextColumn::make('tanggal_buat')
-                    ->dateTime()
-                    ->sortable(),
-                TextColumn::make('tanggal_kirim')
-                    ->dateTime()
-                    ->sortable(),
+                    ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject' : 'Subject')
+                    ->searchable()
+                    ->weight('bold')
+                    ->description(function (Surat $record, $livewire) {
+                        $scope = $livewire->scope ?? request('scope');
+                        if ($scope === 'draft') {
+                            return $record->nomor_surat ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                        }
+                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
+                    }),
 
+                TextColumn::make('pembuat.name')
+                    ->label('Dibuat Oleh')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft')
+                    ->getStateUsing(fn(Surat $record) => $record->userPegawaiJabatan->pegawai->nama_lengkap  ?? '-'),
 
                 TextColumn::make('status_surat')
+                    ->label('Status')
                     ->badge()
-                    ->visible(fn($livewire) => $livewire->scope != 'arsip'),
+                    ->color(fn(?string $state) => match (true) {
+                        $state === 'SELESAI' => 'success',
+                        $state === 'DIPROSES' => 'warning',
+                        $state === 'REVISI' => 'danger',
+                        $state === 'DITOLAK' => 'danger',
+                        str_contains($state ?? '', 'DISPOSISI: MENUNGGU') => 'warning',
+                        str_contains($state ?? '', 'DISPOSISI: DIPROSES') => 'primary',
+                        str_contains($state ?? '', 'DISPOSISI: SELESAI') => 'success',
+                        str_contains($state ?? '', 'PENGAJUAN: DIPROSES') => 'warning',
+                        str_contains($state ?? '', 'PENGAJUAN: SELESAI') => 'success',
+                        default => 'gray',
+                    })
+                    ->visible(fn($livewire) => !in_array($livewire->scope ?? request('scope'), ['arsip', 'draft'])),
 
                 TextColumn::make('arsip_kategori')
-                    ->label('Diarsipkan Di')
+                    ->label('Category')
                     ->badge()
-                    ->visible(fn($livewire) => $livewire->scope === 'arsip')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
                     ->getStateUsing(function (Surat $record) {
                         $unitId = Auth::user()->unit_kerja_id;
-
-                        $arsip = $record->arsipSurats
-                            ->firstWhere('unit_kerja_id', $unitId);
-
+                        $arsip = $record->arsipSurats->firstWhere('unit_kerja_id', $unitId);
                         return $arsip?->kategoriArsip?->nama ?? '-';
                     })
-                    ->color('success'),
-
+                    ->color('gray'),
 
                 TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label('Dibuat')
+                    ->dateTime('d M Y, H:i')
+                    ->sortable(),
 
                 TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->label(fn($livewire) => match ($livewire->scope ?? request('scope')) {
+                        'arsip' => 'Diarsipkan',
+                        default => 'Terakhir Update'
+                    })
+                    ->dateTime('d M Y, H:i')
+                    ->sortable(),
+
+
             ])
             ->filters([
+
+                SelectFilter::make('jenis_surat_keluar')
+                    ->label('Jenis Keluar')
+                    ->options([
+                        'surat' => 'Surat Keluar Utama',
+                        'disposisi' => 'Disposisi Keluar',
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        $value = $data['value'] ?? null;
+                        if ($value === 'surat') {
+                            return $query->where('unit_pengirim_id', Auth::user()->unit_kerja_id);
+                        } elseif ($value === 'disposisi') {
+                            return $query->whereHas('disposisis', function ($q) {
+                                $unitId = Auth::user()->unit_kerja_id;
+                                $userIds = \App\Models\User::ofUnitKerja($unitId)->pluck('id');
+                                $q->whereIn('user_pembuat_id', $userIds);
+                            });
+                        }
+                        return $query;
+                    })
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'keluar'),
 
                 SelectFilter::make('kategori_arsip_id')
                     ->label('Kategori Arsip')
@@ -106,22 +146,25 @@ class SuratsTable
 
 
             ])
-            ->recordActions([
-                EditAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
-                DeleteAction::make()->visible(fn($record) => $record->status_surat === 'DRAFT'),
+            ->recordUrl(function (Surat $record) {
+                if (in_array($record->status_surat, ['DRAFT'])) {
+                    return EditSurat::getUrl(['record' => $record->id]);
+                }
 
-            ])
-            ->recordUrl(
-                fn(Surat $record) => $record->status_surat === 'DRAFT'
-                    ? EditSurat::getUrl(['record' => $record->id])
-                    : DetailSurat::getUrl(
-                        parameters: [
-                            'surat' => $record->id,
-                            'scope' => request('scope') ?? 'masuk',
-                        ],
-                        panel: 'simas'
-                    )
-            )
+                $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
+                $isPersetujuan = $record->riwayats()
+                    ->where('status', 'MENUNGGU')
+                    ->where('unit_tujuan_id', $unitId)
+                    ->exists();
+
+                return DetailSurat::getUrl(
+                    parameters: [
+                        'surat' => $record->id,
+                        'scope' => $isPersetujuan ? 'persetujuan' : (request('scope') ?? 'masuk'),
+                    ],
+                    panel: 'simas'
+                );
+            })
 
             ->toolbarActions([])
             ->emptyStateHeading('TIdak Ada Data Surat')

@@ -8,6 +8,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin
@@ -26,6 +27,7 @@ class Login extends BaseLogin
     }
     protected function getCredentialsFromFormData(array $data): array
     {
+        // dd(Hash::make($data['password']));
         return [
             'username' => $data['username'],
             'password' => $data['password'],

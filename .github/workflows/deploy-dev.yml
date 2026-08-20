@@ -1,0 +1,52 @@
+name: Deploy Dev via SSH
+
+# This tells GitHub to only run this script when you push code to the "dev" branch
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Download your repository's code to the GitHub server
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Set up PHP so we can install Composer packages
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      # 3. Install the PHP backend packages (to exclude local dev tools add --no-dev)
+      - name: Install Composer Dependencies
+        run: composer install --optimize-autoloader --no-interaction --prefer-dist
+
+      # 4. Set up Node.js so we can build your Filament and Tailwind CSS
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 5. Install NPM packages and build the frontend assets
+      - name: Install NPM Dependencies & Build Assets
+        run: |
+          npm cache clean --force
+          rm -rf node_modules package-lock.json
+          npm install
+          npm run build
+
+      # 6. Deploy Via SCP
+      - name: Deploy via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: "/home/${{ secrets.SERVER_USERNAME }}/elsimas.my.id/github_actions/"
+          rm: false

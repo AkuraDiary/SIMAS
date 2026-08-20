@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ class Disposisi extends Model implements HasMedia
 {
     /** @use HasFactory<\Database\Factories\DisposisiFactory> */
     use InteractsWithMedia;
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public function registerMediaCollections(): void
     {
@@ -26,11 +27,11 @@ class Disposisi extends Model implements HasMedia
         'sifat',
         'catatan',
         'tanggal_disposisi',
-        'tanggal_update',
         'status_disposisi',
         'surat_id',
         'unit_tujuan_id',
-        'unit_pembuat_id',
+        'user_pembuat_id',
+        'user_pegawai_jabatan_id',
         'parent_disposisi_id',
     ];
 
@@ -44,9 +45,15 @@ class Disposisi extends Model implements HasMedia
         return $this->belongsTo(UnitKerja::class, 'unit_tujuan_id');
     }
 
-    public function unitPembuat(): BelongsTo
+    // Disposisi is made by a person (user), not a unit
+    public function pembuat(): BelongsTo
     {
-        return $this->belongsTo(UnitKerja::class, 'unit_pembuat_id');
+        return $this->belongsTo(User::class, 'user_pembuat_id');
+    }
+
+    public function userPegawaiJabatan(): BelongsTo
+    {
+        return $this->belongsTo(UserPegawaiJabatan::class, 'user_pegawai_jabatan_id');
     }
 
     public function children(): HasMany

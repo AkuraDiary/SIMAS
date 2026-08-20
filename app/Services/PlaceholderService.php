@@ -1,0 +1,520 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Template;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
+use Saade\FilamentAutograph\Forms\Components\SignaturePad;
+
+class PlaceholderService
+{
+    /**
+     * Extract placeholders matching the format {{ field_name }}, loop blocks, and dot notation.
+     * Returns a structured array of fields with metadata (key, label, type, repeater_fields).
+     */
+    public function extractPlaceholders(string $html): array
+    {
+        $fields = [];
+        $tempHtml = $html;
+
+        // 1. Scan HTML Loop Blocks: [loop:parent] ... {{ child }} ... [/loop:parent]
+        if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\](.*?)\[\/loop:\1\]/is', $tempHtml, $loopMatches, PREG_SET_ORDER)) {
+            foreach ($loopMatches as $match) {
+                $parentKey = $match[1];
+                $blockContent = $match[2];
+
+                preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $blockContent, $childMatches);
+                $subFields = array_unique($childMatches[1] ?? []);
+
+                $repeaterFields = [];
+                foreach ($subFields as $subField) {
+                    $repeaterFields[] = [
+                        'key' => $subField,
+                        'label' => ucwords(str_replace('_', ' ', $subField)),
+                    ];
+                }
+
+                $fields[] = [
+                    'key' => $parentKey,
+                    'label' => ucwords(str_replace('_', ' ', $parentKey)),
+                    'type' => 'repeater',
+                    'repeater_fields' => $repeaterFields,
+                ];
+
+                $tempHtml = str_replace($match[0], '', $tempHtml);
+            }
+        }
+
+        // 2. Scan DOCX Block tags: ${parent} ... {{ child }} ... ${/parent}
+        if (preg_match_all('/\$\{([a-zA-Z0-9_]+)\}(.*?)\$\{\/\1\}/is', $tempHtml, $docxMatches, PREG_SET_ORDER)) {
+            foreach ($docxMatches as $match) {
+                $parentKey = $match[1];
+                $blockContent = $match[2];
+
+                preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $blockContent, $childMatches);
+                $subFields = array_unique($childMatches[1] ?? []);
+
+                $repeaterFields = [];
+                foreach ($subFields as $subField) {
+                    $repeaterFields[] = [
+                        'key' => $subField,
+                        'label' => ucwords(str_replace('_', ' ', $subField)),
+                    ];
+                }
+
+                $fields[] = [
+                    'key' => $parentKey,
+                    'label' => ucwords(str_replace('_', ' ', $parentKey)),
+                    'type' => 'repeater',
+                    'repeater_fields' => $repeaterFields,
+                ];
+
+                $tempHtml = str_replace($match[0], '', $tempHtml);
+            }
+        }
+
+        // 3. Scan DOCX Table Row notation: {{ parent.child }}
+        if (preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*\}\}/', $tempHtml, $dotMatches, PREG_SET_ORDER)) {
+            $groupedDots = [];
+            foreach ($dotMatches as $match) {
+                $parentKey = $match[1];
+                $childKey = $match[2];
+                $groupedDots[$parentKey][] = $childKey;
+
+                $tempHtml = str_replace($match[0], '', $tempHtml);
+            }
+
+            foreach ($groupedDots as $parentKey => $children) {
+                $children = array_unique($children);
+                $repeaterFields = [];
+                foreach ($children as $subField) {
+                    $repeaterFields[] = [
+                        'key' => $subField,
+                        'label' => ucwords(str_replace('_', ' ', $subField)),
+                    ];
+                }
+
+                $existingIndex = null;
+                foreach ($fields as $idx => $f) {
+                    if ($f['key'] === $parentKey) {
+                        $existingIndex = $idx;
+                        break;
+                    }
+                }
+
+                if ($existingIndex !== null) {
+                    $existingSubKeys = array_column($fields[$existingIndex]['repeater_fields'], 'key');
+                    foreach ($repeaterFields as $rf) {
+                        if (!in_array($rf['key'], $existingSubKeys)) {
+                            $fields[$existingIndex]['repeater_fields'][] = $rf;
+                        }
+                    }
+                } else {
+                    $fields[] = [
+                        'key' => $parentKey,
+                        'label' => ucwords(str_replace('_', ' ', $parentKey)),
+                        'type' => 'repeater',
+                        'repeater_fields' => $repeaterFields,
+                    ];
+                }
+            }
+        }
+
+        // 4. Scan Flat Placeholders: {{ field }}
+        preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $tempHtml, $flatMatches);
+        $flatFields = array_unique($flatMatches[1] ?? []);
+
+        foreach ($flatFields as $flatField) {
+            $fields[] = [
+                'key' => $flatField,
+                'label' => ucwords(str_replace('_', ' ', $flatField)),
+                'type' => 'text',
+            ];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Merge newly extracted fields with the existing fields from state.
+     * Keeps user labels/types, adds new ones, removes deleted ones.
+     */
+    public function syncExtractedToVariables(array $extractedFields, array $currentVars): array
+    {
+        $existingKeys = array_column($currentVars, 'key');
+
+        // Add new fields
+        foreach ($extractedFields as $field) {
+            if (!in_array($field['key'], $existingKeys)) {
+                $currentVars[] = $field;
+            }
+        }
+
+        // Clean up deleted fields
+        $extractedKeys = array_column($extractedFields, 'key');
+        $uuidVars = [];
+        foreach ($currentVars as $index => $var) {
+            $key = $var['key'] ?? '';
+            if (!in_array($key, $extractedKeys)) {
+                continue;
+            }
+            if (is_numeric($index)) {
+                $uuidVars[(string) \Illuminate\Support\Str::uuid()] = $var;
+            } else {
+                $uuidVars[$index] = $var;
+            }
+        }
+
+        return $uuidVars;
+    }
+
+    /**
+     * Inject missing variables back into the HTML content block.
+     * Returns the updated HTML string and the count of items added.
+     */
+    public function syncVariablesToHtml(string $html, array $currentVars): array
+    {
+        $addedCount = 0;
+
+        foreach ($currentVars as $var) {
+            $key = $var['key'] ?? null;
+            if (!$key) continue;
+
+            $type = $var['type'] ?? 'text';
+
+            if ($type === 'repeater') {
+                if (strpos($html, '[loop:' . $key . ']') === false) {
+                    $subContent = '';
+                    $subFields = $var['repeater_fields'] ?? [];
+                    foreach ($subFields as $sf) {
+                        $sfKey = $sf['key'] ?? null;
+                        $sfLabel = $sf['label'] ?? '';
+                        if ($sfKey) {
+                            $subContent .= $sfLabel . ': {{ ' . $sfKey . ' }}<br>';
+                        }
+                    }
+                    $html .= "<p>[loop:{$key}]<br>{$subContent}[/loop:{$key}]</p>";
+                    $addedCount++;
+                }
+            } else {
+                if (strpos($html, '{{ ' . $key . ' }}') === false && strpos($html, '{{' . $key . '}}') === false) {
+                    $html .= '<p>{{ ' . $key . ' }}</p>';
+                    $addedCount++;
+                }
+            }
+        }
+
+        return [
+            'html' => $html,
+            'addedCount' => $addedCount
+        ];
+    }
+
+    /**
+     * Ensure hydrated variables are correctly structured for Filament.
+     * Prevent flat arrays with UUID strings from replacing data structures.
+     */
+    public function formatHydratedVariables(?array $state): array
+    {
+        if (empty($state)) return [];
+
+        $isOldFormat = false;
+        foreach ($state as $key => $value) {
+            if (is_string($key) && !is_array($value)) {
+                $isOldFormat = true;
+                break;
+            }
+        }
+
+        if ($isOldFormat) {
+            $newFormat = [];
+            foreach ($state as $key => $value) {
+                $newFormat[(string) \Illuminate\Support\Str::uuid()] = [
+                    'key' => $key,
+                    'label' => is_string($value) ? $value : 'Unknown',
+                    'type' => 'text',
+                ];
+            }
+            return $newFormat;
+        }
+
+        // Ensure state has UUID keys
+        $uuidState = [];
+        foreach ($state as $index => $item) {
+            if (is_numeric($index)) {
+                $uuidState[(string) \Illuminate\Support\Str::uuid()] = $item;
+            } else {
+                $uuidState[$index] = $item;
+            }
+        }
+
+        return $uuidState;
+    }
+
+    /**
+     * Generate dynamic Filament Form Schema based on the field_variables structure.
+     */
+    public function generateFilamentSchema(array $fieldVariables): array
+    {
+        $schema = [];
+
+        foreach ($fieldVariables as $field) {
+            $key = $field['key'] ?? null;
+            $label = $field['label'] ?? 'Unknown';
+            $type = $field['type'] ?? 'text';
+
+            if (!$key) continue;
+
+            $contentKey = "content.{$key}";
+
+            switch ($type) {
+                case 'long_text':
+                    $schema[] = \Filament\Forms\Components\Textarea::make($contentKey)
+                        ->label($label)
+                        ->required()
+                        ->live(debounce: 500);
+                    break;
+                case 'number':
+                    $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
+                        ->label($label)
+                        ->numeric()
+                        ->required()
+                        ->live(debounce: 500);
+                    break;
+                case 'date':
+                    $schema[] = \Filament\Forms\Components\DatePicker::make($contentKey)
+                        ->label($label)
+                        ->required()
+                        ->live(debounce: 500);
+                    break;
+                case 'repeater':
+                    $subSchema = [];
+                    $subFields = $field['repeater_fields'] ?? [];
+                    foreach ($subFields as $subField) {
+                        $subKey = $subField['key'] ?? null;
+                        $subLabel = $subField['label'] ?? 'Unknown';
+                        if ($subKey) {
+                            $subSchema[] = \Filament\Forms\Components\TextInput::make($subKey)
+                                ->label($subLabel)
+                                ->required()
+                                ->live(debounce: 500);
+                        }
+                    }
+                    $schema[] = \Filament\Forms\Components\Repeater::make($contentKey)
+                        ->label($label)
+                        ->schema($subSchema)
+                        ->defaultItems(1)
+                        ->addActionLabel('Tambah ' . $label)
+                        ->live(debounce: 500);
+                    break;
+                case 'signature':
+                    $isOptional = $field['is_optional_signature'] ?? false;
+                    $schema[] = Fieldset::make($label)
+                        ->schema([
+
+                            Radio::make($contentKey . '_method')
+                                ->label('Metode Input')
+                                ->options([
+                                    'draw' => 'Gambar Langsung',
+                                    'upload' => 'Upload File Image',
+                                ])
+                                ->columns(2)
+                                ->default('draw')
+                                ->reactive()
+                                ->afterStateUpdated(function ($state, Set $set) use ($contentKey) {
+                                    $set($contentKey . '_draw', null);
+                                    $set($contentKey . '_upload', null);
+                                })->columnSpanFull(),
+
+                            SignaturePad::make($contentKey . '_draw')
+                                ->label('Gambar Tanda Tangan')
+                                ->downloadable()                    // Allow download of the signature (defaults to false)
+                                ->downloadableFormats([             // Available formats for download (defaults to all)
+                                    DownloadableFormat::PNG,
+                                    DownloadableFormat::JPG,
+                                    DownloadableFormat::SVG,
+                                ])
+                                ->exportBackgroundColor('rgba(0,0,0,0)')
+                                ->exportPenColor('#000000')
+                                ->backgroundColor('#ffffff')       // White background on light mode
+                                ->backgroundColorOnDark('#111111') // Transparent background to let Tailwind classes show
+                                ->penColor('#000000')              // Black pen on light mode
+                                ->penColorOnDark('#ffffff')        // White pen on dark mode
+                                ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
+                                ->required(!$isOptional)
+                                ->default(null)
+                                ->columnSpanFull()
+                                ->live(debounce: 500),
+                            FileUpload::make($contentKey . '_upload')
+                                ->label('Upload Tanda Tangan')
+                                ->image()
+                                ->disk('public')
+                                ->directory('signatures')
+                                ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
+                                ->required(!$isOptional)
+                                ->default(null)
+                                ->columnSpanFull()
+                                ->live(debounce: 500),
+                        ]);
+                    break;
+                case 'text':
+                default:
+                    $schema[] = TextInput::make($contentKey)
+                        ->label($label)
+                        ->required()
+                        ->live(debounce: 500);
+                    break;
+            }
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Render the template's HTML by injecting the provided data.
+     */
+    public function renderHtml(Template $template, array $data): string
+    {
+        $html = $template->content_html ?? '';
+
+        // Self-healing: if content_html is empty but it's a DOCX template, generate it once and save it
+        if (empty($html) && $template->render_engine === 'DOCX') {
+            $media = $template->getFirstMedia('template_file');
+            if ($media && file_exists($media->getPath())) {
+                try {
+                    $html = app(\App\Services\DocxTemplateService::class)->convertToHtml($media->getPath());
+                    $template->updateQuietly(['content_html' => $html]);
+                } catch (\Exception $e) {
+                    $html = '';
+                }
+            }
+        }
+
+        if (empty($html)) return '';
+
+        $html = $this->normalizeTableLoops($html);
+
+        // Handle Repeaters / loops
+        if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\](.*?)\[\/loop:\1\]/is', $html, $loopMatches, PREG_SET_ORDER)) {
+            foreach ($loopMatches as $match) {
+                $parentKey = $match[1];
+                $blockContent = $match[2];
+
+                $repeaterData = $data[$parentKey] ?? [];
+                $renderedRows = '';
+
+                if (is_array($repeaterData)) {
+                    foreach ($repeaterData as $row) {
+                        $rowContent = $blockContent;
+                        // Replace child vars inside the loop
+                        if (is_array($row)) {
+                            foreach ($row as $childKey => $childValue) {
+                                $rowContent = preg_replace('/\{\{\s*' . preg_quote($childKey, '/') . '\s*\}\}/', (string) $childValue, $rowContent);
+                            }
+                        }
+                        $renderedRows .= $rowContent;
+                    }
+                }
+
+                $html = str_replace($match[0], $renderedRows, $html);
+            }
+        }
+
+        // Handle flat vars
+        // Handle flat vars (text, date, number, etc.)
+        foreach ($data as $key => $value) {
+            if (!is_array($value) && $value !== null && $value !== '') {
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', (string) $value, $html);
+            }
+        }
+
+        // Handle signature vars specifically
+        foreach ($template->field_variables ?? [] as $field) {
+            $key = $field['key'] ?? '';
+            if (!$key || $field['type'] !== 'signature') continue;
+
+            $method = $data[$key . '_method'] ?? 'draw';
+            $val = '';
+            if ($method === 'draw') {
+                $val = $data[$key . '_draw'] ?? '';
+                if ($val) {
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
+                }
+            } elseif ($method === 'upload') {
+                $val = $data[$key . '_upload'] ?? '';
+                if ($val) {
+                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
+                }
+            }
+
+            if ($val) {
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $val), $html);
+            }
+        }
+
+        // Clean up remaining un-filled placeholders to make it obvious they are missing
+        $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<span style="color:#ef4444; font-weight:bold;">[$1]</span>', $html);
+
+        // Inject basic CSS to ensure tables and lists render properly within Tailwind's reset environment
+        $css = '<style>
+            .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+            .docx-preview-wrapper th, .docx-preview-wrapper td { border: 1px solid #d1d5db; text-align: left; padding: 0.25rem; }
+            .docx-preview-wrapper th { background-color: #f3f4f6; font-weight: bold; }
+        </style>';
+
+        return '<div class="docx-preview-wrapper">' . $css . $html . '</div>';
+    }
+
+    /**
+     * Fixes table row loops in Rich Text Editors by moving [loop] tags outside the <tr>
+     * if they were placed inside table cells.
+     */
+    private function normalizeTableLoops(string $html): string
+    {
+        if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\].*?\[\/loop:\1\]/is', $html, $matches, PREG_OFFSET_CAPTURE)) {
+            // Process from end to start to avoid offset shifting issues
+            for ($i = count($matches[0]) - 1; $i >= 0; $i--) {
+                $fullMatch = $matches[0][$i][0];
+                $startPos = $matches[0][$i][1];
+                $loopName = $matches[1][$i][0];
+
+                // Check if it crosses cell boundaries
+                if (stripos($fullMatch, '</td>') !== false) {
+                    // Find TR start before the loop
+                    $trStart = strrpos(substr($html, 0, $startPos), '<tr');
+
+                    // Find TR end after the loop
+                    $endPos = $startPos + strlen($fullMatch);
+                    $trEndPos = stripos($html, '</tr>', $endPos);
+
+                    if ($trStart !== false && $trEndPos !== false) {
+                        $trEnd = $trEndPos + 5; // include </tr>
+
+                        // Extract the whole TR block
+                        $trBlock = substr($html, $trStart, $trEnd - $trStart);
+
+                        // Remove paragraph wrappers that ONLY contain the loop tag
+                        $trBlockClean = preg_replace('/<p>(?:\s|&nbsp;|<br>)*\[\/?loop:' . $loopName . '\](?:\s|&nbsp;|<br>)*<\/p>/is', '', $trBlock);
+
+                        // Remove the loop tags from INSIDE the TR block and swallow surrounding spaces
+                        $trBlockClean = preg_replace('/(?:\s|&nbsp;)*\[\/?loop:' . $loopName . '\](?:\s|&nbsp;)*/is', '', $trBlockClean);
+
+                        // Wrap the clean TR block with the loop tags
+                        $newBlock = "[loop:$loopName]\n$trBlockClean\n[/loop:$loopName]";
+
+                        // Replace in original HTML
+                        $html = substr_replace($html, $newBlock, $trStart, $trEnd - $trStart);
+                    }
+                }
+            }
+        }
+        return $html;
+    }
+}
