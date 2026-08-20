@@ -39,7 +39,7 @@ class ListSurats extends ListRecords
     public function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label("Buat Surat Baru"),
+            CreateAction::make()->label("Buat Surat Baru")->visible(fn () => $this->scope !== 'arsip'),
         ];
     }
 }

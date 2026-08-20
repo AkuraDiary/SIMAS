@@ -64,11 +64,11 @@ class SuratResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user = Auth::user();
-        $activeJabatan = $user?->pegawai?->jabatanAktif()->first();
-        $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : $user?->unit_kerja_id;
+        // $user = Auth::user();
+        // $activeJabatan = $user?->pegawai?->jabatanAktif()->first();
+        // $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : $user?->unit_kerja_id;
 
-        // $unitId = Auth::user()?->unit_kerja_id;
+        $unitId = Auth::user()?->unit_kerja_id;
 
         return match (request('scope')) {
             'persetujuan' => $query

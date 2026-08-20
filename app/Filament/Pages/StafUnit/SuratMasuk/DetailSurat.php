@@ -122,8 +122,9 @@ class DetailSurat extends Page implements HasForms
         $secondaryActions = [];
 
         $user = Auth::user();
-        $activeJabatan = $user->pegawai?->jabatanAktif()->first();
-        $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
+        // $activeJabatan = $user->pegawai?->jabatanAktif()->first();
+        $unitId = Auth::user()->unit_kerja_id;
+        // $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
 
         if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id === $unitId) {
             $primaryActions[] = Action::make('edit')

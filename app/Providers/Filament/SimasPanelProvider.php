@@ -24,6 +24,7 @@ use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Filament\Pages\Admin\ManageOrganisasi;
 use App\Models\User;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
+use Filament\Actions\Action;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
@@ -44,6 +45,12 @@ class SimasPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->colors([
                 'primary' => Color::Indigo,
+            ])
+            ->userMenuItems([
+                Action::make('Switch')
+                    ->label('Ganti Peran (Unit)')
+                    ->url(fn (): string => \App\Filament\Pages\SwitchRole::getUrl())
+                    ->icon('heroicon-o-arrow-path-rounded-square'),
             ])
             ->databaseNotifications()
             ->databaseNotificationsPolling('7s')
