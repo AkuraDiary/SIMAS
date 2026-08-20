@@ -150,6 +150,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         return [
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'settings' => 'array',
         ];
     }
 

@@ -2,10 +2,12 @@
 
 namespace App\Filament\Pages\Auth;
 
-use Filament\Pages\Page;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
-use Filament\Schemas\Schema;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Pages\Page;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Support\Components\Component;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +28,20 @@ class EditProfile extends BaseEditProfile
                 $this->getEmailFormComponent(),
                 $this->getPasswordFormComponent(),
                 $this->getPasswordConfirmationFormComponent(),
+                //  Section Pengaturan
+                Section::make('Pengaturan Aplikasi')
+                    ->description('Sesuaikan preferensi aplikasi Anda di sini.')
+                    ->schema([
+                        // \Filament\Forms\Components\Toggle::make('settings.notifikasi_email')
+                        //     ->label('Terima Notifikasi via Email')
+                        //     ->default(true),
+
+                        Toggle::make('settings.notifikasi_whatsapp')
+                            ->label('Terima Notifikasi via WhatsApp')
+                            ->default(false),
+                    ])
+                    ->columns(2),
+
             ]);
     }
 
