@@ -1,5 +1,22 @@
 <x-filament-panels::page>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
 
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+    </style>
     <x-filament::modal
         id="preview-modal"
         width="7xl">
@@ -132,7 +149,7 @@
                     <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Perjalanan Surat</span>
                 </x-slot>
 
-                <div class="mt-4">
+                <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
                     @include('filament.pages.components.surat-timeline')
                 </div>
             </x-filament::section>
@@ -144,7 +161,7 @@
                     </div>
                 </x-slot>
 
-                <div class="mt-4">
+                <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
                     @if ($surat->disposisis->isEmpty())
                     <div class="flex flex-col items-center justify-center py-6 text-center">
                         <x-heroicon-o-document-text class="w-8 h-8 text-gray-400 mb-2" />
@@ -163,7 +180,7 @@
                                 <h3 class="text-sm font-bold text-gray-900 dark:text-white">
                                     Ke {{ $d->unitTujuan->nama_unit }}
                                 </h3>
-                                @if($d->status_disposisi === 'selesai')
+                                @if($d->status_disposisi === 'SELESAI')
                                 <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Selesai</span>
                                 @else
                                 <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Sedang Proses</span>
