@@ -3,11 +3,8 @@
 namespace App\Filament\Pages;
 
 
-use App\Filament\Widgets\StafUnitStats;
-use App\Filament\Widgets\SuperAdminStats;
 use BackedEnum;
 use Filament\Pages\Dashboard as BaseDashboard;
-use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
 
 class SimasDashboard extends BaseDashboard

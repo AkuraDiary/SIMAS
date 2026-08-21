@@ -115,7 +115,17 @@ class SuratMasuk extends Page implements HasTable
             ->columns([
                 TextColumn::make('perihal')
                     ->label('Perihal & Pengirim')
-                    ->searchable(['perihal', 'pengirim_nama'])
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query
+                            ->where('perihal', 'like', "%{$search}%")
+                            ->orWhere('pengirim_nama', 'like', "%{$search}%")
+                            ->orWhereHas('userPegawaiJabatan.pegawai', function ($q) use ($search) {
+                                $q->where('nama_lengkap', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('unitPengirim', function ($q) use ($search) {
+                                $q->where('nama_unit', 'like', "%{$search}%");
+                            });
+                    })
                     ->weight('bold')
                     ->wrap()
                     ->description(function (Surat $record) {
