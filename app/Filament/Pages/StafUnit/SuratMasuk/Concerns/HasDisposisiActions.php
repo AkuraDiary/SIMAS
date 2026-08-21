@@ -52,69 +52,75 @@ trait HasDisposisiActions
     protected function getDisposisiForm(): array
     {
         return [
-            Select::make('unit_tujuan_ids')
-                ->label('Tujuan Disposisi')
-                ->options(
-                    UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
-                        ->pluck('nama_unit', 'id')
-                )
-                ->searchable()
-                ->multiple()
-                ->required(),
+            \Filament\Forms\Components\Repeater::make('tujuan_disposisi')
+                ->label('Daftar Tujuan & Instruksi')
+                ->schema([
+                    Select::make('unit_tujuan_id')
+                        ->label('Unit Tujuan')
+                        ->options(
+                            UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
+                                ->pluck('nama_unit', 'id')
+                        )
+                        ->searchable()
+                        ->required(),
 
-            Select::make('jenis_instruksi')
-                ->label('Jenis Instruksi')
-                ->options([
-                    'tindaklanjuti' => 'Tindak lanjuti',
-                    'koordinasikan' => 'Koordinasikan',
-                    'laporkan' => 'Laporkan',
-                    'arsipkan' => 'Arsipkan',
-                    'saran' => 'Ajukan Pendapat / Saran',
-                    'diketahui' => 'Untuk diperhatikan / diketahui',
-                    'laporan' => 'Laporan / Laporkan',
-                    'acc' => 'Setuju / ACC',
-                    'pengecekan' => 'Adakan Pengecekan',
-                    'mewakili' => 'Agar Mewakili',
-                    'jawab' => 'Siapkan Jawaban',
-                    'diselesaikan' => 'Untuk Diselesaikan',
-                    'bahas' => 'Bahas Bersama',
-                    'edarkan' => 'Gandakan / Edarkan',
-                    'lainnya' => 'Instruksi Lainnya',
+                    Select::make('jenis_instruksi')
+                        ->label('Jenis Instruksi')
+                        ->options([
+                            'tindaklanjuti' => 'Tindak lanjuti',
+                            'koordinasikan' => 'Koordinasikan',
+                            'laporkan' => 'Laporkan',
+                            'arsipkan' => 'Arsipkan',
+                            'saran' => 'Ajukan Pendapat / Saran',
+                            'diketahui' => 'Untuk diperhatikan / diketahui',
+                            'laporan' => 'Laporan / Laporkan',
+                            'acc' => 'Setuju / ACC',
+                            'pengecekan' => 'Adakan Pengecekan',
+                            'mewakili' => 'Agar Mewakili',
+                            'jawab' => 'Siapkan Jawaban',
+                            'diselesaikan' => 'Untuk Diselesaikan',
+                            'bahas' => 'Bahas Bersama',
+                            'edarkan' => 'Gandakan / Edarkan',
+                            'lainnya' => 'Instruksi Lainnya',
+                        ])
+                        ->reactive()
+                        ->required(),
+
+                    Textarea::make('instruksi_custom')
+                        ->label('Instruksi Khusus')
+                        ->rows(2)
+                        ->required(fn($get) => $get('jenis_instruksi') === 'lainnya')
+                        ->visible(fn($get) => $get('jenis_instruksi') === 'lainnya'),
+
+                    Select::make('sifat')
+                        ->options([
+                            'rahasia' => 'Rahasia',
+                            'penting' => 'Penting',
+                            'biasa' => 'Biasa',
+                            'segera' => 'Segera',
+                            'sangat segera' => 'Sangat Segera',
+                        ])
+                        ->required(),
+
+                    Textarea::make('catatan')
+                        ->label('Catatan (Opsional)')
+                        ->rows(2),
                 ])
-                ->reactive()
-                ->required(),
+                ->columns(2) // Makes the repeater look compact
+                ->minItems(1)
+                ->addActionLabel('Tambah Tujuan Disposisi'),
 
-            Textarea::make('instruksi_custom')
-                ->label('Instruksi Khusus')
-                ->rows(3)
-                ->required(fn($get) => $get('jenis_instruksi') === 'lainnya')
-                ->visible(fn($get) => $get('jenis_instruksi') === 'lainnya'),
-
-            Select::make('sifat')
-                ->options([
-                    'rahasia' => 'Rahasia',
-                    'penting' => 'Penting',
-                    'biasa' => 'Biasa',
-                    'segera' => 'Segera',
-                    'sangat segera' => 'Sangat Segera',
-                ])
-                ->required(),
-
+            // Bukti ditaruh di luar repeater agar cukup diupload 1 kali untuk seluruh disposisi ini
             SpatieMediaLibraryFileUpload::make('bukti')
-                ->label("Bukti Disposisi (Max 5MB)")
+                ->label("Bukti Disposisi (Opsional, Max 5MB)")
                 ->multiple(false)
                 ->dehydrated(true)
                 ->image()
                 ->collection('bukti-disposisi')
                 ->preserveFilenames()
                 ->maxSize(5048),
-
-            Textarea::make('catatan')
-                ->label('Catatan')
-                ->rows(4),
         ];
     }
-
     protected function handleDisposisi(array $data, Action $action): void
     {
         $user = Auth::user();
@@ -126,14 +132,13 @@ trait HasDisposisiActions
             ->sortByDesc('tanggal_disposisi')
             ->first();
 
-        $jenisInstruksi = $data['jenis_instruksi'] === 'lainnya'
-            ? $data['instruksi_custom']
-            : $data['jenis_instruksi'];
-
         $skipped = [];
         $successCount = 0;
 
-        foreach ($data['unit_tujuan_ids'] as $unitTujuanId) {
+        $tujuanList = $data['tujuan_disposisi'] ?? [];
+
+        foreach ($tujuanList as $item) {
+            $unitTujuanId = $item['unit_tujuan_id'];
 
             $alreadyExists = Disposisi::where('surat_id', $this->surat->id)
                 ->where('unit_tujuan_id', $unitTujuanId)
@@ -147,14 +152,18 @@ trait HasDisposisiActions
 
             $activeJabatan = Auth::user()->getActiveJabatan();
 
+            $jenisInstruksi = $item['jenis_instruksi'] === 'lainnya'
+                ? $item['instruksi_custom']
+                : $item['jenis_instruksi'];
+
             $disposisi = Disposisi::create([
                 'surat_id' => $this->surat->id,
                 'unit_tujuan_id' => $unitTujuanId,
                 'user_pembuat_id' => Auth::id(),
                 'user_pegawai_jabatan_id' => $activeJabatan?->id,
                 'jenis_instruksi' => $jenisInstruksi,
-                'sifat' => $data['sifat'],
-                'catatan' => $data['catatan'],
+                'sifat' => $item['sifat'],
+                'catatan' => $item['catatan'],
                 'status_disposisi' => 'BARU',
                 'tanggal_disposisi' => now(),
                 'parent_disposisi_id' => $parentDisposisi?->id,
@@ -169,6 +178,7 @@ trait HasDisposisiActions
                     ->sendToDatabase($targetUsers);
             }
 
+            // Lampirkan bukti yang sama ke setiap record disposisi
             if (!empty($data['bukti'])) {
                 $disposisi
                     ->addMedia($data['bukti'])
@@ -191,7 +201,6 @@ trait HasDisposisiActions
             $this->refreshPage('Disposisi berhasil', 'Surat telah berhasil didisposisikan.');
         }
     }
-
     protected function handleRespondDisposisi(array $data): void
     {
         $unitId = Auth::user()->unit_kerja_id;
