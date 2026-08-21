@@ -14,6 +14,10 @@ class SwitchRole extends Page
     protected static ?string $title = 'Ganti Peran Aktif';
     protected static string|UnitEnum|null $navigationGroup = 'Pengaturan';
 
+    public static function canAccess(): bool
+    {
+        return Auth::user()?->tipe_entitas !== 'ADMIN';
+    }
     protected string $view = 'filament.pages.switch-role';
 
     public $activeJabatanId;

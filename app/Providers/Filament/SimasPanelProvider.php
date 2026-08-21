@@ -7,7 +7,6 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -22,10 +21,10 @@ use App\Filament\Pages\SimasDashboard;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Filament\Pages\Admin\ManageOrganisasi;
-use App\Models\User;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Actions\Action;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class SimasPanelProvider extends PanelProvider
@@ -46,12 +45,17 @@ class SimasPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Indigo,
             ])
-            ->userMenuItems([
-                Action::make('Switch')
-                    ->label('Ganti Peran (Unit)')
-                    ->url(fn (): string => \App\Filament\Pages\SwitchRole::getUrl())
-                    ->icon('heroicon-o-arrow-path-rounded-square'),
-            ])
+            ->userMenuItems(
+                [
+                    Action::make('Switch')
+                        ->label('Ganti Peran (Unit)')
+                        ->url(fn(): string => \App\Filament\Pages\SwitchRole::getUrl())
+                        ->icon('heroicon-o-arrow-path-rounded-square')
+                        ->visible(fn(): bool => auth()->check() && auth()->user()->tipe_entitas !== 'ADMIN'),
+
+
+                ]
+            )
             ->databaseNotifications()
             ->databaseNotificationsPolling('7s')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
