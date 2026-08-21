@@ -27,7 +27,7 @@ class SuratsTable
 
     public function mount(): void
     {
-        $this->scope = request()->get('scope', 'masuk');
+        $this->scope = request()->input('scope', 'masuk');
     }
 
 
@@ -35,7 +35,7 @@ class SuratsTable
     {
 
         return $table
-        ->poll('7s')
+        // ->poll('7s')
             ->columns([
                 TextColumn::make('perihal')
                     ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject' : 'Subject')
@@ -148,7 +148,7 @@ class SuratsTable
             ])
             ->recordUrl(function (Surat $record) {
                 if (in_array($record->status_surat, ['DRAFT'])) {
-                    return EditSurat::getUrl(['record' => $record->id]);
+                    return EditSurat::getUrl(['record' => $record]);
                 }
 
                 $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
@@ -159,7 +159,8 @@ class SuratsTable
 
                 return DetailSurat::getUrl(
                     parameters: [
-                        'surat' => $record->id,
+                        'record' => $record,
+                        'surat' => $record,
                         'scope' => $isPersetujuan ? 'persetujuan' : (request('scope') ?? 'masuk'),
                     ],
                     panel: 'simas'

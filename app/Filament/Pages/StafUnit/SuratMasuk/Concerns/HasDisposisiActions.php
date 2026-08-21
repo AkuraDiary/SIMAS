@@ -145,7 +145,7 @@ trait HasDisposisiActions
                 continue;
             }
 
-            $activeJabatan = Auth::user()->pegawai?->jabatanAktif()?->first();
+            $activeJabatan = Auth::user()->getActiveJabatan();
 
             $disposisi = Disposisi::create([
                 'surat_id' => $this->surat->id,
@@ -219,7 +219,7 @@ trait HasDisposisiActions
             if ($pembuat) {
                 Notification::make()
                     ->title('Disposisi Selesai')
-                    ->body("Unit " . Auth::user()->pegawai?->jabatanAktif()?->first()?->unitKerja?->nama_unit . " telah menyelesaikan disposisi pada surat: " . $this->surat->perihal)
+                    ->body("Unit " . Auth::user()->unitKerja?->nama_unit . " telah menyelesaikan disposisi pada surat: " . $this->surat->perihal)
                     ->success()
                     ->sendToDatabase($pembuat);
             }

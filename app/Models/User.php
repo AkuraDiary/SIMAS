@@ -64,6 +64,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasOne(UserMahasiswa::class);
     }
 
+
     /**
      * Currently-active unit assignment for a staff user (via user_pegawai -> user_pegawai_jabatans).
      * A pegawai could technically hold more than one active jabatan; this resolves to one row
@@ -82,26 +83,55 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * Computed convenience accessor. Resolves to the same value as before the refactor
+     * Dapatkan UserPegawaiJabatan yang sedang aktif berdasarkan Session.
+     */
+    public function getActiveJabatan()
+    {
+        $sessionJabatanId = session('active_jabatan_id');
+
+        if ($sessionJabatanId) {
+            return UserPegawaiJabatan::find($sessionJabatanId);
+        }
+
+        // Jika belum ada di session, ambil jabatan pertama dari relasi yang sudah ada
+        $firstJabatan = $this->jabatanAktif;
+
+        if ($firstJabatan) {
+            session(['active_jabatan_id' => $firstJabatan->id]);
+        }
+
+        return $firstJabatan;
+    }
+
+    /**
+     * Dapatkan Unit ID dari jabatan yang sedang aktif.
+     */
+    public function getActiveUnitId()
+    {
+        return $this->getActiveJabatan()?->unit_kerja_id;
+    }
+
+    /**
+     * Computed convenience accessor (UPGRADED FOR MULTI JABATAN). Resolves to the same value as before the refactor
      * (users.unit_kerja_id), now derived through the active jabatan assignment.
      * Accessible as both $user->unit_kerja_id and $user->unitKerjaId.
      */
     protected function unitKerjaId(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->jabatanAktif?->unit_kerja_id,
+            get: fn() => $this->getActiveUnitId(),
         );
     }
 
     /**
-     * Computed convenience accessor returning the UnitKerja model itself.
+     * Computed convenience accessor  (UPGRADED FOR MULTI JABATAN) returning the UnitKerja model itself.
      * Accessible as both $user->unit_kerja and $user->unitKerja (legacy call sites use the latter).
      * NOTE: not a real Eloquent relation, so it can't be used with Filament's ->relationship().
      */
     protected function unitKerja(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->jabatanAktif?->unitKerja,
+            get: fn() => $this->getActiveJabatan()?->unitKerja,
         );
     }
 
@@ -112,7 +142,7 @@ class User extends Authenticatable implements FilamentUser, HasName
     protected function namaLengkap(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pegawai?->nama_lengkap ?? $this->mahasiswa?->nama_lengkap,
+            get: fn() => $this->pegawai?->nama_lengkap ?? $this->mahasiswa?->nama_lengkap,
         );
     }
 
@@ -150,6 +180,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         return [
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'settings' => 'array',
         ];
     }
 

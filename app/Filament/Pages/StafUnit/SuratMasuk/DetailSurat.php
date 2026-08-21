@@ -106,6 +106,14 @@ class DetailSurat extends Page implements HasForms
             ]);
         }
 
+        // Jika surat masih berstatus TERKIRIM, upgrade menjadi DIPROSES
+        if ($this->surat->status_surat === 'TERKIRIM') {
+            $this->surat->update(['status_surat' => 'DIPROSES']);
+
+            // Update properti di Livewire agar tombol Setuju/Tolak langsung muncul!
+            $this->surat->status_surat = 'DIPROSES';
+        }
+
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
 
         if ($this->surat->template_id && $this->surat->template) {
@@ -122,15 +130,16 @@ class DetailSurat extends Page implements HasForms
         $secondaryActions = [];
 
         $user = Auth::user();
-        $activeJabatan = $user->pegawai?->jabatanAktif()->first();
-        $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
+        // $activeJabatan = $user->pegawai?->jabatanAktif()->first();
+        $unitId = Auth::user()->unit_kerja_id;
+        // $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
 
         if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id === $unitId) {
             $primaryActions[] = Action::make('edit')
                 ->label('Perbaiki Surat')
                 ->icon('heroicon-o-pencil')
                 ->color('primary')
-                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat->id]));
+                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
         }
 
         $secondaryActions[] = Action::make('export')

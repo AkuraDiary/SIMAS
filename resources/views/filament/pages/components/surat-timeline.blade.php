@@ -7,10 +7,14 @@
         </span>
 
         <!-- Content -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ $event['title'] }}</h3>
+        <div class="flex flex-col gap-0.5 mb-2">
+            <h3 class="text-base font-bold text-gray-900 dark:text-white leading-tight">
+                {{ $event['title'] }}
+            </h3>
 
-            <time class="text-sm font-normal text-gray-400 sm:order-last sm:mb-0">{{ \Carbon\Carbon::parse($event['date'])->format('d M Y, H:i') }}</time>
+            <time class="text-xs font-medium text-gray-500">
+                {{ \Carbon\Carbon::parse($event['date'])->format('d M Y, H:i') }}
+            </time>
         </div>
         @if(!empty($event['instruksi']))
         <p class="text-xs font-bold text-gray-600 dark:text-gray-400 my-2"> Instruksi : {{ $event['instruksi'] }}</p>
