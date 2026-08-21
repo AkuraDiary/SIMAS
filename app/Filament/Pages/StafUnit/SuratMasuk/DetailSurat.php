@@ -106,6 +106,14 @@ class DetailSurat extends Page implements HasForms
             ]);
         }
 
+        // Jika surat masih berstatus TERKIRIM, upgrade menjadi DIPROSES
+        if ($this->surat->status_surat === 'TERKIRIM') {
+            $this->surat->update(['status_surat' => 'DIPROSES']);
+
+            // Update properti di Livewire agar tombol Setuju/Tolak langsung muncul!
+            $this->surat->status_surat = 'DIPROSES';
+        }
+
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
 
         if ($this->surat->template_id && $this->surat->template) {

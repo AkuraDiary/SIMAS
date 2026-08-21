@@ -72,7 +72,7 @@ class SuratResource extends Resource
 
         return match (request('scope')) {
             'persetujuan' => $query
-                ->where('status_surat', 'DIPROSES')
+                ->whereIn('status_surat', ['DIPROSES', 'TERKIRIM'])
                 ->whereHas('riwayats', function ($q) use ($unitId) {
                     $q->where('status', 'MENUNGGU')
                         ->where('unit_tujuan_id', $unitId);
