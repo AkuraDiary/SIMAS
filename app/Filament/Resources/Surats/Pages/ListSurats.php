@@ -48,7 +48,7 @@ class ListSurats extends ListRecords
 
     protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder | \Illuminate\Database\Eloquent\Relations\Relation | null
     {
-        
+
         $query = static::getResource()::getEloquentQuery();
         $unitId = \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
 
@@ -67,6 +67,8 @@ class ListSurats extends ListRecords
             'keluar' => $query
                 ->where(function ($q) use ($unitId) {
                     $q->where('unit_pengirim_id', $unitId)
+
+                    // manipulate this to deactivate the disposition letter from appearing in surat keluar - Seta
                         ->orWhereHas('disposisis', function ($dq) use ($unitId) {
                             $dq->whereHas('userPegawaiJabatan', function ($qJabatan) use ($unitId) {
                                 $qJabatan->where('unit_kerja_id', $unitId);
