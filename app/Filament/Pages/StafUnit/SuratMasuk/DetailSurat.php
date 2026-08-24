@@ -49,6 +49,7 @@ class DetailSurat extends Page implements HasForms
     public ?string $previewUrl = null;
     public ?string $downloadUrl = null;
     public bool $previewModal = false;
+    public bool $previewIsImage = false;
 
     public function getBreadcrumbs(): array
     {
@@ -263,6 +264,7 @@ class DetailSurat extends Page implements HasForms
     public function openPreview(int $mediaId): void
     {
         $media = Media::findOrFail($mediaId);
+        $this->previewIsImage = str_starts_with($media->mime_type, 'image/');
 
         if (str_starts_with($media->mime_type, 'image/') || $media->mime_type === 'application/pdf') {
             $this->previewUrl = route('media.file', $media->id);
