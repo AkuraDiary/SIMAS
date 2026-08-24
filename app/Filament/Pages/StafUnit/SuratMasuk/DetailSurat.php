@@ -131,6 +131,31 @@ class DetailSurat extends Page implements HasForms
 
         $unitId = Auth::user()->unit_kerja_id;
 
+        // Download Template Action
+        if ($this->surat->template_id) {
+            $secondaryActions[] = ActionGroup::make([
+                Action::make('download_blank')
+                    ->label('Unduh Template Asli (Kosong)')
+                    ->icon('heroicon-o-document')
+                    ->action(function () {
+                        $path = app(\App\Services\DocxTemplateService::class)->downloadBlankDocx($this->surat->template);
+                        return response()->download($path, 'Template_Kosong_' . $this->surat->template->nama_template . '.docx');
+                    }),
+
+                Action::make('download_filled')
+                    ->label('Unduh Draft Surat (.docx)')
+                    ->icon('heroicon-o-document-text')
+                    ->action(function () {
+                        $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->surat);
+                        return response()->download($path, 'Draft_Surat_' . $this->surat->perihal . '.docx');
+                    }),
+            ])
+            ->label('Unduh Dokumen (Word)')
+            ->icon('heroicon-o-arrow-down-tray')
+            ->button()
+            ->color('gray');
+        }
+
         // 1. TAMPILKAN TOMBOL PERBAIKI UNTUK PEMBUAT AWAL (Ubah === menjadi == agar kebal tipe data)
         if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id == $unitId) {
             $primaryActions[] = Action::make('edit')
