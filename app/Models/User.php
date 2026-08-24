@@ -37,6 +37,13 @@ class User extends Authenticatable implements FilamentUser, HasName
         'is_active',
     ];
 
+    public function getFilamentName(): string
+    {
+        $nama = $this->nama_lengkap ?? $this->username;
+
+        return $nama;
+    }
+
 
     public function canAccessPanel(Panel $panel): bool
     {
@@ -184,10 +191,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         ];
     }
 
-    public function getFilamentName(): string
-    {
-        return $this->username;
-    }
 
     public function getRouteKeyName(): string
     {

@@ -12,137 +12,129 @@ trait HasApprovalActions
     protected function getActionPersetujuan(): array
     {
         return [
-            Action::make('approve')
-                ->label('Setujui / TTD')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
-                ->schema([
-                    Textarea::make('catatan')
-                        ->label('Catatan Persetujuan (Opsional)')
-                        ->placeholder('Catatan atau catatan persetujuan...'),
-                ])
-                ->action(function (array $data): void {
-                    $activeRiwayat = $this->surat->riwayats()
-                        ->where('status', 'MENUNGGU')
-                        ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                        ->latest()
-                        ->first();
+            'group_proses' => \Filament\Actions\ActionGroup::make([
+                Action::make('approve_finish')
+                    ->label('Setujui & Selesai')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->schema([
+                        Textarea::make('catatan')
+                            ->label('Catatan Persetujuan Akhir (Opsional)'),
+                    ])
+                    ->action(function (array $data): void {
+                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        if (!$activeRiwayat) return;
 
-                    if (!$activeRiwayat) {
-                        Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                        return;
-                    }
+                        app(\App\Services\SuratRoutingService::class)->approveStep($activeRiwayat, Auth::user(), null, null, true, true, 'UTAMA', $data['catatan'] ?? null);
+                        $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
+                    }),
 
-                    app(\App\Services\SuratRoutingService::class)->approveStep(
-                        currentRiwayat: $activeRiwayat,
-                        actor: Auth::user(),
-                        isFinalStep: true,
-                        isSignatureRequired: true,
-                        catatan: $data['catatan'] ?? null
-                    );
+                Action::make('approve_forward')
+                    ->label('Setujui & Teruskan')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('primary')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('next_unit_tujuan_id')
+                            ->label('Teruskan Ke Unit')
+                            ->options(\App\Models\UnitKerja::where('id', '!=', Auth::user()->unit_kerja_id)->pluck('nama_unit', 'id'))
+                            ->searchable()->required(),
+                        \Filament\Forms\Components\Toggle::make('tambah_ttd')->label('Tambahkan Tanda Tangan (Tertanda)')->default(false),
+                        Textarea::make('catatan')->label('Catatan Penerusan (Opsional)'),
+                    ])
+                    ->action(function (array $data): void {
+                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        if (!$activeRiwayat) return;
 
-                    if ($this->surat->pembuat) {
-                        Notification::make()
-                            ->title('Surat Disetujui')
-                            ->body("Surat pengajuan Anda '{$this->surat->perihal}' telah disetujui.")
-                            ->success()
-                            ->sendToDatabase($this->surat->pembuat);
-                    }
+                        app(\App\Services\SuratRoutingService::class)->approveStep($activeRiwayat, Auth::user(), $data['next_unit_tujuan_id'], null, false, $data['tambah_ttd'] ?? false, 'UTAMA', $data['catatan'] ?? null);
+                        $this->refreshPage('Berhasil', 'Surat disetujui dan diteruskan.');
+                    }),
 
-                    $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
-                }),
-            Action::make('reject')
-                ->label('Minta Revisi')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
-                ->schema([
-                    Textarea::make('catatan')
-                        ->label('Alasan Revisi')
-                        ->required()
-                        ->placeholder('Jelaskan bagian yang perlu diperbaiki...'),
-                ])
-                ->action(function (array $data): void {
-                    $activeRiwayat = $this->surat->riwayats()
-                        ->where('status', 'MENUNGGU')
-                        ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                        ->latest()
-                        ->first();
+                Action::make('pure_forward')
+                    ->label('Teruskan Saja (Tanpa Setuju)')
+                    ->icon('heroicon-o-arrow-right-circle')
+                    ->color('gray')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('next_unit_tujuan_id')
+                            ->label('Teruskan Ke Unit')
+                            ->options(\App\Models\UnitKerja::where('id', '!=', Auth::user()->unit_kerja_id)->pluck('nama_unit', 'id'))
+                            ->searchable()->required(),
+                        Textarea::make('catatan')->label('Catatan (Opsional)'),
+                    ])
+                    ->action(function (array $data): void {
+                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        if (!$activeRiwayat) return;
 
-                    if (!$activeRiwayat) {
-                        Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                        return;
-                    }
+                        app(\App\Services\SuratRoutingService::class)->forwardStep($activeRiwayat, Auth::user(), $data['next_unit_tujuan_id'], $data['catatan'] ?? null);
+                        $this->refreshPage('Berhasil', 'Surat diteruskan tanpa persetujuan.');
+                    }),
+            ])
+            ->label('Proses Surat')
+            ->icon('heroicon-m-check-circle')
+            ->button()
+            ->color('success')
+            ->visible(fn() => $this->surat->status_surat === 'DIPROSES'),
 
-                    app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
-                        currentRiwayat: $activeRiwayat,
-                        actor: Auth::user(),
-                        newStatus: 'REVISI',
-                        catatan: $data['catatan']
-                    );
+            'group_kembalikan' => \Filament\Actions\ActionGroup::make([
+                Action::make('step_back')
+                    ->label('Kembalikan ke Langkah Sebelumnya')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('warning')
+                    ->schema([
+                        Textarea::make('catatan')->label('Alasan Dikembalikan')->required(),
+                    ])
+                    ->action(function (array $data): void {
+                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        if (!$activeRiwayat) return;
 
-                    if ($this->surat->pembuat) {
-                        Notification::make()
-                            ->title('Surat Perlu Direvisi')
-                            ->body("Surat pengajuan Anda '{$this->surat->perihal}' dikembalikan untuk revisi. Catatan: {$data['catatan']}")
-                            ->warning()
-                            ->sendToDatabase($this->surat->pembuat);
-                    }
+                        app(\App\Services\SuratRoutingService::class)->returnStep($activeRiwayat, Auth::user(), $data['catatan']);
+                        $this->refreshPage('Berhasil', 'Surat dikembalikan ke unit sebelumnya.');
+                    }),
 
-                    $this->refreshPage('Berhasil', 'Surat dikembalikan untuk revisi.');
-                }),
-            Action::make('tolak_persetujuan')
-                ->label('Tolak Persetujuan')
-                ->icon('heroicon-o-no-symbol')
-                ->color('danger')
-                ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
-                ->schema([
-                    Textarea::make('catatan')
-                        ->label('Alasan Penolakan')
-                        ->required()
-                        ->placeholder('Jelaskan mengapa surat ini ditolak...'),
-                ])
-                ->requiresConfirmation()
-                ->modalHeading('Tolak Surat Pengajuan')
-                ->modalDescription('Apakah Anda yakin ingin menolak surat pengajuan ini? Surat akan dibatalkan.')
-                ->action(function (array $data): void {
-                    $activeRiwayat = $this->surat->riwayats()
-                        ->where('status', 'MENUNGGU')
-                        ->where('unit_tujuan_id', Auth::user()->unit_kerja_id)
-                        ->latest()
-                        ->first();
+                Action::make('reject')
+                    ->label('Kembalikan ke Pembuat Awal (Reset)')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->schema([
+                        Textarea::make('catatan')->label('Alasan Revisi Total')->required(),
+                    ])
+                    ->action(function (array $data): void {
+                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        if (!$activeRiwayat) return;
 
-                    if (!$activeRiwayat) {
-                        Notification::make()->title('Langkah persetujuan tidak ditemukan')->danger()->send();
-                        return;
-                    }
+                        app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep($activeRiwayat, Auth::user(), 'REVISI', $data['catatan']);
+                        $this->refreshPage('Berhasil', 'Surat dikembalikan secara total ke pembuat.');
+                    }),
 
-                    app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep(
-                        currentRiwayat: $activeRiwayat,
-                        actor: Auth::user(),
-                        newStatus: 'DITOLAK',
-                        catatan: $data['catatan']
-                    );
+                Action::make('tolak_persetujuan')
+                    ->label('Tolak Surat Sepenuhnya')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->schema([
+                        Textarea::make('catatan')->label('Alasan Penolakan')->required(),
+                    ])
+                    ->requiresConfirmation()
+                    ->action(function (array $data): void {
+                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        if (!$activeRiwayat) return;
 
-                    if ($this->surat->pembuat) {
-                        Notification::make()
-                            ->title('Surat Ditolak')
-                            ->body("Surat pengajuan Anda '{$this->surat->perihal}' telah ditolak. Alasan: {$data['catatan']}")
-                            ->danger()
-                            ->sendToDatabase($this->surat->pembuat);
-                    }
+                        app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep($activeRiwayat, Auth::user(), 'DITOLAK', $data['catatan']);
+                        $this->refreshPage('Berhasil', 'Surat pengajuan ditolak permanen.');
+                    }),
+            ])
+            ->label('Kembalikan / Tolak')
+            ->icon('heroicon-m-x-circle')
+            ->button()
+            ->color('danger')
+            ->visible(fn() => $this->surat->status_surat === 'DIPROSES'),
 
-                    $this->refreshPage('Berhasil', 'Surat pengajuan berhasil ditolak dan dibatalkan.');
-                }),
-            Action::make('buat_terbitan')
+            'terbitan' => Action::make('buat_terbitan')
                 ->label('Terbitkan Surat Balasan')
                 ->icon('heroicon-o-document-plus')
-                ->color('primary')
+                ->color('gray')
                 ->visible(
                     fn() => $this->surat->tipe_surat === 'PENGAJUAN' &&
                         in_array($this->surat->status_surat, ['DIPROSES', 'SELESAI']) &&
-                        Auth::user()->unit_kerja_id !== $this->surat->unit_pengirim_id // user BUKAN pengirim surat pengajuan itu sendiri
+                        Auth::user()->unit_kerja_id !== $this->surat->unit_pengirim_id
                 )
                 ->url(fn() => \App\Filament\Resources\Surats\Pages\CreateSurat::getUrl(['terbitan_for_surat_id' => $this->surat->id, 'tipe_surat' => 'TERBITAN']))
                 ->openUrlInNewTab(),

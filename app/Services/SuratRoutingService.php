@@ -150,4 +150,75 @@ class SuratRoutingService
             return $surat->fresh();
         });
     }
+
+        /**
+     * Meneruskan surat tanpa memberikan persetujuan / TTD.
+     */
+    public function forwardStep(
+        SuratRiwayat $currentRiwayat,
+        User $actor,
+        int $nextUnitTujuanId,
+        ?string $catatan = null
+    ): Surat {
+        return DB::transaction(function () use ($currentRiwayat, $actor, $nextUnitTujuanId, $catatan) {
+            $surat = $currentRiwayat->surat;
+
+            // Mark current step as DITERUSKAN
+            $currentRiwayat->update([
+                'user_aktor_id' => $actor->id,
+                'status'        => 'DITERUSKAN',
+                'catatan'       => $catatan ?? 'Diteruskan ke unit selanjutnya',
+                'actioned_at'   => now(),
+            ]);
+
+            // Create next step in chain
+            SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => $currentRiwayat->id,
+                'unit_asal_id'   => $currentRiwayat->unit_tujuan_id,
+                'unit_tujuan_id' => $nextUnitTujuanId,
+                'user_aktor_id'  => null,
+                'status'         => 'MENUNGGU',
+                'catatan'        => 'Diteruskan untuk diproses.',
+                'actioned_at'    => null,
+            ]);
+
+            return $surat->fresh();
+        });
+    }
+
+    /**
+     * Kembalikan ke Langkah Sebelumnya (Step-back).
+     */
+    public function returnStep(
+        SuratRiwayat $currentRiwayat,
+        User $actor,
+        string $catatan
+    ): Surat {
+        return DB::transaction(function () use ($currentRiwayat, $actor, $catatan) {
+            $surat = $currentRiwayat->surat;
+
+            $currentRiwayat->update([
+                'user_aktor_id' => $actor->id,
+                'status'        => 'DIKEMBALIKAN',
+                'catatan'       => $catatan,
+                'actioned_at'   => now(),
+            ]);
+
+            // Create a new step routing it BACK to the unit that sent it to us
+            SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => $currentRiwayat->id,
+                'unit_asal_id'   => $currentRiwayat->unit_tujuan_id,
+                'unit_tujuan_id' => $currentRiwayat->unit_asal_id, // Pantulkan kembali ke pengirim sebelumnya
+                'user_aktor_id'  => null,
+                'status'         => 'MENUNGGU',
+                'catatan'        => 'Dikembalikan dengan catatan: ' . $catatan,
+                'actioned_at'    => null,
+            ]);
+
+            // Status surat tetap DIPROSES, karena belum mati/ditolak sepenuhnya
+            return $surat->fresh();
+        });
+    }
 }

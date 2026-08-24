@@ -23,36 +23,50 @@ trait HasSuratTimeline
         ];
 
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN)
-        foreach ($this->surat->riwayats as $riwayat) {
-            $icon = match ($riwayat->status) {
-                'DISETUJUI' => 'heroicon-m-check-circle',
-                'DITOLAK' => 'heroicon-m-x-circle',
-                'REVISI' => 'heroicon-m-pencil-square',
-                'DIPERBARUI' => 'heroicon-m-arrow-up-tray',
-                'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
-                default => 'heroicon-m-clock',
-            };
+               // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
+               foreach ($this->surat->riwayats as $riwayat) {
 
-            $bgColor = match ($riwayat->status) {
-                'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
-                'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
-                'REVISI' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
-                'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
-                'DIPERBARUI' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
-                default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
-            };
+                // Buat Judul Timeline Sangat Eksplisit!
+                $title = match ($riwayat->status) {
+                    'DISETUJUI' => 'Disetujui, dikirim ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                    'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                    'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                    'MENUNGGU' => 'Menunggu persetujuan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                    'DITOLAK' => 'Ditolak permanen oleh: ' . ($riwayat->unitAsal?->nama_unit ?? '-'),
+                    'REVISI' => 'Dikembalikan ke pembuat: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                    default => $riwayat->status,
+                };
 
+                $icon = match ($riwayat->status) {
+                    'DISETUJUI' => 'heroicon-m-check-circle',
+                    'DITERUSKAN' => 'heroicon-m-arrow-right-circle',
+                    'DITOLAK' => 'heroicon-m-x-circle',
+                    'REVISI' => 'heroicon-m-pencil-square',
+                    'DIPERBARUI' => 'heroicon-m-arrow-up-tray',
+                    'DIKEMBALIKAN' => 'heroicon-m-arrow-path',
+                    default => 'heroicon-m-clock',
+                };
 
-            $timeline[] = [
-                'title' =>  $riwayat->status,
-                'actor' => $riwayat->aktor?->nama_lengkap ?? '',
-                'unit' => $riwayat->unitTujuan?->nama_unit,
-                'catatan' => $riwayat->catatan,
-                'date' => $riwayat->actioned_at ?? $riwayat->created_at,
-                'color' => $bgColor,
-                'icon' => $icon,
-            ];
-        }
+                $bgColor = match ($riwayat->status) {
+                    'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
+                    'DITERUSKAN' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
+                    'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
+                    'REVISI' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
+                    'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
+                    'DIPERBARUI' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
+                    default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
+                };
+
+                $timeline[] = [
+                    'title' =>  $title,
+                    'actor' => $riwayat->aktor?->nama_lengkap ?? '',
+                    'unit' => $riwayat->unitAsal?->nama_unit, // Siapa yang mengambil aksi ini
+                    'catatan' => $riwayat->catatan,
+                    'date' => $riwayat->actioned_at ?? $riwayat->created_at,
+                    'color' => $bgColor,
+                    'icon' => $icon,
+                ];
+            }
 
         // 3. Disposisi
         foreach ($this->surat->disposisis as $disposisi) {

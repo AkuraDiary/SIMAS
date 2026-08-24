@@ -129,12 +129,10 @@ class DetailSurat extends Page implements HasForms
         $primaryActions = [];
         $secondaryActions = [];
 
-        $user = Auth::user();
-        // $activeJabatan = $user->pegawai?->jabatanAktif()->first();
         $unitId = Auth::user()->unit_kerja_id;
-        // $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
 
-        if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id === $unitId) {
+        // 1. TAMPILKAN TOMBOL PERBAIKI UNTUK PEMBUAT AWAL (Ubah === menjadi == agar kebal tipe data)
+        if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id == $unitId) {
             $primaryActions[] = Action::make('edit')
                 ->label('Perbaiki Surat')
                 ->icon('heroicon-o-pencil')
@@ -147,12 +145,11 @@ class DetailSurat extends Page implements HasForms
             ->icon('heroicon-o-arrow-down-tray')
             ->action(fn() => redirect()->route('surat.export', $this->surat));
 
-        // AKSIS KHSUS DRAFT
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
         }
 
-        // AKSI KHUSUS SURAT PENGAJUAN
+        // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK
         if ($this->surat->tipe_surat === 'PENGAJUAN') {
             $hasPendingPersetujuan = $this->surat->riwayats()
                 ->where('status', 'MENUNGGU')
@@ -162,16 +159,17 @@ class DetailSurat extends Page implements HasForms
             $persetujuan = $this->getActionPersetujuan();
 
             if ($hasPendingPersetujuan) {
-                if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
-                if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
-                if (isset($persetujuan[2])) $secondaryActions[] = $persetujuan[2]; // Tolak
+                // Jangan gunakan isset array key yang rawan error, langsung push object-nya
+                $primaryActions[] = $persetujuan['group_proses'] ?? null;
+                $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
             }
 
-            if (isset($persetujuan[3])) $primaryActions[] = $persetujuan[3]; // Buat Terbitan
+            if (isset($persetujuan['terbitan'])) {
+                $primaryActions[] = $persetujuan['terbitan'];
+            }
         }
 
-        // AKSI KHUSUS SURAT INTERNAL
-        if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id !== $unitId) {
+        if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
             $hasPendingTugas = $this->surat->riwayats()
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
@@ -183,13 +181,15 @@ class DetailSurat extends Page implements HasForms
         }
 
         $disposisi = $this->getActionDisposisi();
-        if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0]; // Disposisikan
-        if (isset($disposisi[1])) $primaryActions[] = $disposisi[1]; // Tindaklanjuti
+        if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0];
+        if (isset($disposisi[1])) $primaryActions[] = $disposisi[1];
 
-        $actions = $primaryActions;
+        // 3. RENDER SEMUA BUTTON
+        // Filter out any nulls that might have snuck into primaryActions
+        $actions = array_filter($primaryActions);
 
         if (count($secondaryActions) > 0) {
-            $actions[] = ActionGroup::make($secondaryActions)
+            $actions[] = ActionGroup::make(array_filter($secondaryActions))
                 ->label('Lainnya')
                 ->icon('heroicon-m-ellipsis-vertical')
                 ->button()
@@ -198,7 +198,6 @@ class DetailSurat extends Page implements HasForms
 
         return $actions;
     }
-
     public function openPreview(int $mediaId): void
     {
         $media = Media::findOrFail($mediaId);

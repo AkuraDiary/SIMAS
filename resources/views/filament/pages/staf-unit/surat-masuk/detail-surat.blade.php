@@ -25,7 +25,7 @@
         </x-slot>
 
         @if ($previewUrl)
-        <iframe src="{{ $previewUrl }}" style="height: 75vh;" class="border-0 w-full"></iframe>
+        <iframe src="{{ $previewUrl }}" style="height: 75vh;  object-fit: cover;" class="border-0 w-full"></iframe>
         @endif
 
         <x-slot name="footer">
