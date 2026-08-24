@@ -8,7 +8,7 @@
 
         <!-- Content -->
         <div class="flex flex-col gap-0.5 mb-2">
-            <h3 class="text-base font-bold text-gray-900 dark:text-white leading-tight">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white leading-tight">
                 {{ $event['title'] }}
             </h3>
 
@@ -19,7 +19,7 @@
         @if(!empty($event['instruksi']))
         <p class="text-xs font-bold text-gray-600 dark:text-gray-400 my-2"> Instruksi : {{ $event['instruksi'] }}</p>
         @endif
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-300">
+        <p class="text-xs font-medium text-gray-600 dark:text-gray-300">
             Oleh: {{ $event['actor'] }}
             @if($event['unit'])
             <span class="text-gray-400">({{ $event['unit'] }})</span>

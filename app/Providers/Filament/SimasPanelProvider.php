@@ -56,6 +56,7 @@ class SimasPanelProvider extends PanelProvider
 
                 ]
             )
+
             ->databaseNotifications()
             ->databaseNotificationsPolling('7s')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
