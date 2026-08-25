@@ -133,7 +133,7 @@
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Diterima Via</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Manual/Upload' : 'Sistem SIMAS' }}
+                            {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Eksternal (Manual)' : 'Sistem SIMAS' }}
                         </p>
                     </div>
 

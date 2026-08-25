@@ -22,13 +22,13 @@ trait HasSuratTimeline
             'icon' => 'heroicon-m-document-plus',
         ];
 
-        // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN)
+
                // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
                foreach ($this->surat->riwayats as $riwayat) {
 
-                // Buat Judul Timeline Sangat Eksplisit!
+
                 $title = match ($riwayat->status) {
-                    'DISETUJUI' => 'Disetujui, dikirim ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                    'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                     'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                     'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                     'MENUNGGU' => 'Menunggu persetujuan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
@@ -60,7 +60,7 @@ trait HasSuratTimeline
                 $timeline[] = [
                     'title' =>  $title,
                     'actor' => $riwayat->aktor?->nama_lengkap ?? '',
-                    'unit' => $riwayat->unitAsal?->nama_unit, // Siapa yang mengambil aksi ini
+                    'unit' => $riwayat->unitTujuan?->nama_unit, // Siapa yang mengambil aksi ini
                     'catatan' => $riwayat->catatan,
                     'date' => $riwayat->actioned_at ?? $riwayat->created_at,
                     'color' => $bgColor,
