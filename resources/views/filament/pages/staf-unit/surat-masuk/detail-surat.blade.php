@@ -25,13 +25,13 @@
         </x-slot>
 
         @if ($previewUrl)
-            @if($previewIsImage)
-                <div class="flex justify-center items-center h-[75vh] w-full bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
-                    <img src="{{ $previewUrl }}" class="max-h-full max-w-full object-contain" />
-                </div>
-            @else
-                <iframe src="{{ $previewUrl }}" style="height: 75vh;" class="border-0 w-full rounded-lg"></iframe>
-            @endif
+        @if($previewIsImage)
+        <div class="flex justify-center items-center h-[75vh] w-full bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
+            <img src="{{ $previewUrl }}" class="max-h-full max-w-full object-contain" />
+        </div>
+        @else
+        <iframe src="{{ $previewUrl }}" style="height: 75vh;" class="border-0 w-full rounded-lg"></iframe>
+        @endif
         @endif
 
         <x-slot name="footer">
@@ -65,7 +65,15 @@
 
             {{-- Lampiran Section --}}
             @php
-            $lampirans = $surat->getMedia('lampiran-surat');
+            $lampirans = collect();
+
+            // 1. Inherit Attachments from Parent (Pengajuan) if this is a Terbitan
+            if ($surat->terbitan_for_surat_id && $surat->terbitanForSurat) {
+            $lampirans = $lampirans->merge($surat->terbitanForSurat->getMedia('lampiran-surat'));
+            }
+
+            // 2. Add this letter's own attachments
+            $lampirans = $lampirans->merge($surat->getMedia('lampiran-surat'));
             @endphp
             @if ($lampirans->isNotEmpty())
             <x-filament::section>
