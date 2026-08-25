@@ -20,7 +20,8 @@ return new class extends Migration
                 ->comment('thread balasan NDE, reply = surat baru independen');
             $table->foreignId('terbitan_for_surat_id')->nullable()->constrained('surats')->nullOnDelete()
                 ->comment('TERBITAN sebagai output dari PENGAJUAN');
-            $table->foreignId('unit_pengirim_id')->constrained('unit_kerjas');
+            $table->foreignId('unit_pengirim_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
+            // $table->foreignId('unit_pengirim_id')->constrained('unit_kerjas');
             $table->foreignId('user_pembuat_id')->nullable()->constrained('users')->nullOnDelete()
                 ->comment('NULL jika Guest tanpa login');
             $table->string('pengirim_nim')->nullable()->comment('diisi jika Mahasiswa via jalur publik tanpa login');
@@ -28,6 +29,8 @@ return new class extends Migration
             $table->string('pengirim_email')->nullable()->comment('dapat diisi Guest atau mahasiswa');
             $table->json('pengirim_metadata')->nullable()->comment('diisi metadata pengirim eksternal baik guest maupun mahasiswa');
             $table->string('perihal');
+
+            $table->timestamp('tanggal_kirim')->nullable();
             $table->enum('tipe_surat', ['INTERNAL', 'PENGAJUAN', 'TERBITAN', 'EKSTERNAL'])->default('INTERNAL');
             $table->enum('status_surat', ['DRAFT', 'DIPROSES', 'REVISI', 'TERKIRIM', 'SELESAI', 'DITOLAK', 'DIBATALKAN']);
             $table->json('content')->nullable()->comment('hasil isian form field_variables, di-merge ke .docx via PHPWord');

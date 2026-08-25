@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('surat_id')->constrained();
             $table->foreignId('user_pembuat_id')->constrained('users');
             $table->foreignId('unit_tujuan_id')->constrained('unit_kerjas');
+            $table->foreignId('user_pegawai_jabatan_id')->nullable()->constrained('user_pegawai_jabatans')->nullOnDelete();
             // Self-referencing
             $table->foreignId('parent_disposisi_id')->nullable()->constrained('disposisis');
             $table->string('jenis_instruksi')->comment('cth: Untuk Ditindaklanjuti, Untuk Diketahui');

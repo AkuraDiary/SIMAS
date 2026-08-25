@@ -43,6 +43,6 @@ class SwitchRole extends Page
             ->success()
             ->send();
 
-        return redirect()->to('/simas');
+        return redirect()->to('/switch-role');
     }
 }

@@ -15,6 +15,7 @@ use App\Policies\UserPolicy;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAdded;
@@ -51,10 +52,10 @@ class AppServiceProvider extends ServiceProvider
                 $unit = auth()->user()->getActiveJabatan()?->unitKerja?->nama_unit ?? "Admin Sistem";
                 $switchUrl = \App\Filament\Pages\SwitchRole::getUrl();
 
-                // Changed from <div> to <a> and added hover effects so it feels like a real button!
-                return '<a href="' . $switchUrl . '" class="flex items-center px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors rounded-lg border border-primary-100 dark:border-primary-900 mr-4 cursor-pointer">
-                            <span class="mr-2">🏢</span>' . $unit . '
 
+                // Changed from <div> to <a> and added hover effects so it feels like a real button!
+                return '<a href="' . ( Auth::user()->tipe_entitas === 'ADMIN' ? '#' :  $switchUrl ). '" class="flex items-center px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors rounded-lg border border-primary-100 dark:border-primary-900 mr-4 cursor-pointer">
+                            <span class="mr-2">  ' . $unit . '</span>' . '
                         </a>';
             }
         );

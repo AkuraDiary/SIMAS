@@ -25,7 +25,13 @@
         </x-slot>
 
         @if ($previewUrl)
-        <iframe src="{{ $previewUrl }}" style="height: 75vh;  object-fit: cover;" class="border-0 w-full"></iframe>
+            @if($previewIsImage)
+                <div class="flex justify-center items-center h-[75vh] w-full bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
+                    <img src="{{ $previewUrl }}" class="max-h-full max-w-full object-contain" />
+                </div>
+            @else
+                <iframe src="{{ $previewUrl }}" style="height: 75vh;" class="border-0 w-full rounded-lg"></iframe>
+            @endif
         @endif
 
         <x-slot name="footer">
