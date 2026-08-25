@@ -101,8 +101,8 @@ class SuratMasuk extends Page implements HasTable
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
                 'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
-            ])
-            ->orderByDesc('created_at');
+            ]);
+        // ->orderByDesc('created_at');
     }
 
 
@@ -112,6 +112,7 @@ class SuratMasuk extends Page implements HasTable
             ->poll('7s')
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('perihal')
                     ->label('Perihal & Pengirim')
@@ -184,6 +185,18 @@ class SuratMasuk extends Page implements HasTable
                 TextColumn::make('status baca')
                     ->label('Status Baca')
                     ->badge()
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        // sort via sub-query pivot table
+                        $unitId = Auth::user()->unit_kerja_id;
+                        return $query->orderBy(
+                            \App\Models\SuratUnit::select('status_baca')
+                                ->whereColumn('surat_unit.surat_id', 'surats.id')
+                                ->where('unit_kerja_id', $unitId)
+                                ->take(1),
+                            $direction
+                        );
+                    })
+
                     ->getStateUsing(function (Surat $record, $livewire) {
                         $baca = $record->suratUnits->firstWhere('unit_kerja_id', Auth::user()->unit_kerja_id)?->status_baca;
 
@@ -199,8 +212,7 @@ class SuratMasuk extends Page implements HasTable
                     }),
 
             ])
-            ->recordActions([
-            ])
+            ->recordActions([])
             ->filters([
                 \Filament\Tables\Filters\Filter::make('tanggal')
                     ->schema([
@@ -271,10 +283,10 @@ class SuratMasuk extends Page implements HasTable
                 ->modifyQueryUsing(function (Builder $query) {
                     $unitId = Auth::user()->unit_kerja_id;
                     return $query->where('tipe_surat', 'PENGAJUAN');
-                        // ->whereHas('riwayats', function ($q) use ($unitId) {
-                        //     $q->where('status', 'MENUNGGU')
-                        //         ->where('unit_tujuan_id', $unitId);
-                        // });
+                    // ->whereHas('riwayats', function ($q) use ($unitId) {
+                    //     $q->where('status', 'MENUNGGU')
+                    //         ->where('unit_tujuan_id', $unitId);
+                    // });
                     // return $query->where('status_surat', 'DIPROSES')
                     //     ->whereHas('riwayats', function ($q) use ($unitId) {
                     //         $q->where('status', 'MENUNGGU')
