@@ -24,7 +24,19 @@ class FormatNomorSuratResource extends Resource
 
     public static function canAccess(): bool
     {
-        return Auth::user()?->tipe_entitas === 'ADMIN';
+        return in_array(Auth::user()?->tipe_entitas, ['ADMIN', 'STAF']);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        // Staf hanya boleh melihat format milik unitnya sendiri
+        if (Auth::user()?->tipe_entitas === 'STAF') {
+            $query->where('unit_kerja_id', Auth::user()->unit_kerja_id);
+        }
+
+        return $query;
     }
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHashtag;
