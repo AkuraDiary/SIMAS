@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('entry_point_unit_id')->nullable()->constrained('unit_kerjas')->nullOnDelete()
                 ->comment('unit penerima otomatis untuk surat publik/mahasiswa');
             $table->string('nama_template');
+            $table->text('deskripsi')->nullable();
             $table->enum('tipe_surat', ['INTERNAL', 'PENGAJUAN', 'TERBITAN', 'EKSTERNAL'])
                 ->comment('menentukan flow default surat yang dibuat dari template ini');
             $table->enum('aksesibilitas', ['PUBLIK', 'MAHASISWA', 'INTERNAL'])->default('INTERNAL');
