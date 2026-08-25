@@ -39,5 +39,12 @@ class DatabaseSeeder extends Seeder
        // Pivot SuratUnit
     //    $this->call(SuratUnitSeeder::class);
 
+        $this->call(JenisUnitsTableSeeder::class);
+        $this->call(UnitKerjasTableSeeder::class);
+        $this->call(UsersTableSeeder::class);
+        $this->call(JabatansTableSeeder::class);
+        $this->call(UserPegawaiTableSeeder::class);
+        $this->call(UserMahasiswaTableSeeder::class);
+        $this->call(UserPegawaiJabatansTableSeeder::class);
     }
 }
