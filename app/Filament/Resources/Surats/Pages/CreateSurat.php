@@ -20,6 +20,21 @@ class CreateSurat extends CreateRecord
     protected static ?string $title = 'Buat Surat';
     protected Width|string|null $maxContentWidth = 'full';
 
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        // Jika pakai template dan Path Builder manual kosong, copy dari Template!
+        if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
+            if (empty($data['approval_path'])) {
+                $template = \App\Models\Template::find($data['template_id']);
+                if ($template && !empty($template->approval_path)) {
+                    $data['approval_path'] = $template->approval_path;
+                }
+            }
+        }
+
+        return $data;
+    }
+
     public function getBreadcrumbs(): array
     {
         return [
