@@ -264,6 +264,8 @@ class PlaceholderService
     public function generateFilamentSchema(array $fieldVariables): array
     {
         $schema = [];
+        // Define reserved keywords that should not become form inputs
+        $reservedKeys = ['nomor_surat', 'tanggal_surat', 'tanggal_terbit', 'qr_code'];
 
         foreach ($fieldVariables as $field) {
             $key = $field['key'] ?? null;
@@ -271,6 +273,12 @@ class PlaceholderService
             $type = $field['type'] ?? 'text';
 
             if (!$key) continue;
+
+            // Skip reserved keys and any key starting with 'ttd_approver'
+            if (in_array(strtolower($key), $reservedKeys) || \Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_approver')) {
+                continue;
+            }
+
 
             $contentKey = "content.{$key}";
 
@@ -380,9 +388,21 @@ class PlaceholderService
     /**
      * Render the template's HTML by injecting the provided data.
      */
-    public function renderHtml(Template $template, array $data): string
+    public function renderHtml(Template $template, array $data, ?\App\Models\Surat $surat = null): string
     {
         $html = $template->content_html ?? '';
+
+        // Inject Reserved System Variables if a Surat instance is provided
+        if ($surat) {
+            $data['nomor_surat'] = $surat->nomor_surat ?? '_______________________';
+            $data['tanggal_surat'] = $surat->tanggal_kirim
+                ? \Carbon\Carbon::parse($surat->tanggal_kirim)->translatedFormat('d F Y')
+                : '.......................';
+            $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
+
+            // Note: QR Code and Approver TTDs will be injected here later when we build the TTD engine!
+        }
+
 
         // Self-healing: if content_html is empty but it's a DOCX template, generate it once and save it
         if (empty($html) && $template->render_engine === 'DOCX') {
