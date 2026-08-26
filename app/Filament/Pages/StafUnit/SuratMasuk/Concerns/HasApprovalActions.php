@@ -68,7 +68,7 @@ trait HasApprovalActions
                             ])
                     ])
                     ->action(function (array $data): void {
-                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         app(\App\Services\SuratRoutingService::class)->approveStep($activeRiwayat, Auth::user(), null, null, true, true, 'UTAMA', $data['catatan'] ?? null, $data);
@@ -88,7 +88,7 @@ trait HasApprovalActions
                         Textarea::make('catatan')->label('Catatan Penerusan (Opsional)'),
                     ])
                     ->action(function (array $data): void {
-                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         app(\App\Services\SuratRoutingService::class)->approveStep($activeRiwayat, Auth::user(), $data['next_unit_tujuan_id'], null, false, $data['tambah_ttd'] ?? false, 'UTAMA', $data['catatan'] ?? null);
@@ -107,7 +107,7 @@ trait HasApprovalActions
                         Textarea::make('catatan')->label('Catatan (Opsional)'),
                     ])
                     ->action(function (array $data): void {
-                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         app(\App\Services\SuratRoutingService::class)->forwardStep($activeRiwayat, Auth::user(), $data['next_unit_tujuan_id'], $data['catatan'] ?? null); // add $data as 9th param if it required to also signing while forwarding - Seta
@@ -129,7 +129,7 @@ trait HasApprovalActions
                         Textarea::make('catatan')->label('Alasan Dikembalikan')->required(),
                     ])
                     ->action(function (array $data): void {
-                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         app(\App\Services\SuratRoutingService::class)->returnStep($activeRiwayat, Auth::user(), $data['catatan']);
@@ -144,7 +144,7 @@ trait HasApprovalActions
                         Textarea::make('catatan')->label('Alasan Revisi Total')->required(),
                     ])
                     ->action(function (array $data): void {
-                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep($activeRiwayat, Auth::user(), 'REVISI', $data['catatan']);
@@ -160,7 +160,7 @@ trait HasApprovalActions
                     ])
                     ->requiresConfirmation()
                     ->action(function (array $data): void {
-                        $activeRiwayat = $this->surat->riwayats()->where('status', 'MENUNGGU')->where('unit_tujuan_id', Auth::user()->unit_kerja_id)->latest()->first();
+                        $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         app(\App\Services\SuratRoutingService::class)->rejectOrReviseStep($activeRiwayat, Auth::user(), 'DITOLAK', $data['catatan']);
@@ -185,5 +185,17 @@ trait HasApprovalActions
                 ->url(fn() => \App\Filament\Resources\Surats\Pages\CreateSurat::getUrl(['terbitan_for_surat_id' => $this->surat->id, 'tipe_surat' => 'TERBITAN']))
                 ->openUrlInNewTab(),
         ];
+    }
+
+        /**
+     * Get the currently active routing step (Riwayat) for the logged-in user's unit.
+     */
+    protected function getActiveRiwayat()
+    {
+        return $this->surat->riwayats()
+            ->where('status', 'MENUNGGU')
+            ->where('unit_tujuan_id', \Illuminate\Support\Facades\Auth::user()->unit_kerja_id)
+            ->latest()
+            ->first();
     }
 }
