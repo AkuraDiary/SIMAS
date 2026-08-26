@@ -400,11 +400,32 @@ class PlaceholderService
                 : '.......................';
             $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
 
-            // Note: QR Code and Approver TTDs will be injected here later when we build the TTD engine!
+            // Inject QR Code Dokumen Utama (Opsional, jika ada kebutuhan QR Global)
+            $data['qr_code'] = '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 80px; height: 80px;" />';
+
+            // Inject TTD & QR Code dari Database (surat_ttds)
+            foreach ($surat->suratTtds as $ttd) {
+                if ($ttd->placeholder_key) {
+                    $qrImg = '';
+                    if ($ttd->qr_code_path) {
+                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px;" /><br>';
+                    }
+
+                    $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
+
+                    // Render Visual TTD (Bisa Custom CSS nanti)
+                    $ttdVisual = '<div style="text-align: left; display: inline-block;">' .
+                        $qrImg .
+                        '<b><u>' . $namaTerang . '</u></b><br>' .
+                        '<span style="font-size: 10pt;">' . $ttd->jabatan_saat_ttd . '</span>' .
+                        '</div>';
+
+                    $data[$ttd->placeholder_key] = $ttdVisual;
+                }
+            }
         }
 
-
-        // Self-healing: if content_html is empty but it's a DOCX template, generate it once and save it
+        // Fallback : if content_html is empty but it's a DOCX template, generate it once and save it
         if (empty($html) && $template->render_engine === 'DOCX') {
             $media = $template->getFirstMedia('template_file');
             if ($media && file_exists($media->getPath())) {

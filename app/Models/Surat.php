@@ -105,7 +105,7 @@ class Surat extends Model implements HasMedia
         return $this->belongsTo(UnitKerja::class, 'unit_pengirim_id');
     }
 
-    // In Disposisi.php
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('lampiran-surat')
@@ -113,6 +113,11 @@ class Surat extends Model implements HasMedia
 
         $this->addMediaCollection('lampiran-preview')
             ->useDisk('private');
+
+        // Koleksi khusus untuk PDF terbitan final
+        $this->addMediaCollection('dokumen-final')
+            ->useDisk('private')
+            ->singleFile();
     }
     public function suratUnits(): HasMany
     {

@@ -19,6 +19,7 @@
         "orangehill/iseed": "^3.8",
         "phpoffice/phpword": "^1.4",
         "saade/filament-autograph": "^4.1",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/pdf-to-image": "^3.2",
         "vinkla/hashids": "^13.0"
     },

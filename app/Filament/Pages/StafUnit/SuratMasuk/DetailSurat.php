@@ -159,37 +159,21 @@ class DetailSurat extends Page implements HasForms
 
         // for downloading final letter
         if ($this->surat->tipe_surat === 'TERBITAN' && $this->surat->status_surat === 'SELESAI') {
+
             $primaryActions[] =
                 \Filament\Actions\Action::make('download_pdf')
                 ->label('Unduh PDF Resmi')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('success')
-                ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']))
+                ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']) && $this->surat->hasMedia('dokumen-final'))
                 ->action(function () {
-                    // 1. Render HTML yang sudah di-inject dengan data & tanda tangan
-                    $html = app(\App\Services\PlaceholderService::class)->renderHtml(
-                        $this->surat->template,
-                        $this->surat->content ?? []
-                    );
+                    // Ambil PDF yang sudah dikunci secara permanen di storage
+                    $media = $this->surat->getFirstMedia('dokumen-final');
+                    if ($media) {
+                        return response()->download($media->getPath(), $media->file_name);
+                    }
 
-                    // 2. Tambahkan style dasar agar ukuran mirip A4 di PDF
-                    $styledHtml = '
-                    <style>
-                        @page { margin: 2.5cm; }
-                        body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.5; }
-                    </style>
-                    ' . $html;
-
-                    // 3. Generate PDF menggunakan DOMPDF
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($styledHtml);
-
-                    // Default to A4 paper
-                    $pdf->setPaper('a4', 'portrait');
-
-                    $fileName = 'Surat_Resmi_' . str_replace(['/', '\\'], '_', $this->surat->nomor_surat ?? $this->surat->id) . '.pdf';
-
-                    // 4. Return PDF as a download directly to the browser
-                    return response()->streamDownload(fn() => print($pdf->output()), $fileName);
+                    Notification::make()->title('File PDF belum tergenerate!')->danger()->send();
                 });
         }
 
@@ -199,7 +183,7 @@ class DetailSurat extends Page implements HasForms
                 ->label('Generate Nomor Surat')
                 ->icon('heroicon-o-hashtag')
                 ->color('primary')
-                ->form([
+                ->schema([
                     \Filament\Forms\Components\DatePicker::make('tanggal_surat')
                         ->label('Tanggal Surat (Bisa Backdate)')
                         ->default(now())

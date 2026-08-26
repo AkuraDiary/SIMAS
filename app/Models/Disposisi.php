@@ -19,7 +19,7 @@ class Disposisi extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('bukti-disposisi')
-            ->singleFile(); // Since you set multiple(false) in Filament
+            ->singleFile(); // Since multiple(false) in Filament
     }
 
     protected $fillable = [
