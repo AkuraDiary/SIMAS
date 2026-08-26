@@ -251,7 +251,7 @@ class TemplateResource extends Resource
                                 return $label ? ($label . ' ({{ ' . $key . ' }})') : null;
                             })
                             ->afterStateHydrated(function ($component, $state) {
-                                $service = app(\App\Services\PlaceholderService::class);
+                                $service = app(\App\Services\FormSchemaService::class);
                                 $component->state($service->formatHydratedVariables($state));
                             })
                             ->hintAction(
@@ -301,7 +301,7 @@ class TemplateResource extends Resource
                                         $state = $get('content_html');
                                         if (!$state) return;
 
-                                        $service = app(\App\Services\PlaceholderService::class);
+                                        $service = app(\App\Services\FormSchemaService::class);
                                         $fields = $service->extractPlaceholders($state);
 
                                         $current = $get('field_variables') ?? [];
@@ -353,7 +353,7 @@ class TemplateResource extends Resource
 
                                         try {
                                             $docxService = app(\App\Services\DocxTemplateService::class);
-                                            $placeholderService = app(\App\Services\PlaceholderService::class);
+                                            $placeholderService = app(\App\Services\FormSchemaService::class);
 
                                             $html = $docxService->convertToHtml($path);
                                             $fields = $placeholderService->extractPlaceholders($html);
@@ -403,16 +403,16 @@ class TemplateResource extends Resource
 
                                         try {
                                             $docxService = app(\App\Services\DocxTemplateService::class);
-                                            $placeholderService = app(\App\Services\PlaceholderService::class);
+                                            $formSchemaService = app(\App\Services\FormSchemaService::class);
 
                                             $html = $docxService->convertToHtml($path);
-                                            $fields = $placeholderService->extractPlaceholders($html);
+                                            $fields = $formSchemaService->extractPlaceholders($html);
 
                                             $set('content_html', $html);
                                             $set('render_engine', 'HTML');
 
                                             $currentFields = $get('field_variables') ?? [];
-                                            $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
+                                            $currentFields = $formSchemaService->syncExtractedToVariables($fields, $currentFields);
                                             $set('field_variables', $currentFields);
 
                                             \Filament\Notifications\Notification::make()->title('Berhasil dikonversi ke HTML. Mode diubah menjadi Buat dari Awal.')->success()->send();

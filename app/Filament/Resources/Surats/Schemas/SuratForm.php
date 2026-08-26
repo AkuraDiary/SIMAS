@@ -6,6 +6,7 @@ use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use App\Models\Surat;
 use App\Models\Template;
 use App\Models\UnitKerja;
+use App\Services\FormSchemaService;
 use App\Services\PlaceholderService;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -246,7 +247,7 @@ class SuratForm
                                     ];
                                 }
 
-                                $service = app(PlaceholderService::class);
+                                $service = app(FormSchemaService::class);
                                 $schema = $service->generateFilamentSchema($allVariables);
 
                                 $schema[] = TextEntry::make('preview')
