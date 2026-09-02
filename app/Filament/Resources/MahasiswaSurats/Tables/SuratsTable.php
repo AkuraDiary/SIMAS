@@ -21,6 +21,11 @@ class SuratsTable
                 TextColumn::make('perihal')
                     ->label('Perihal')
                     ->searchable(),
+                TextColumn::make('nomorSuratLogs.nomor_lengkap')
+                    ->label('Nomor Surat')
+                    ->searchable()
+                    ->sortable()
+                    ->getStateUsing(fn(\App\Models\Surat $record) => $record->nomorSuratLogs->last()?->nomor_lengkap ?? '-'),
                 TextColumn::make('status_surat')
                     ->label('Status')
                     ->badge(),

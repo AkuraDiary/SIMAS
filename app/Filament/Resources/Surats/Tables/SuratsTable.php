@@ -44,10 +44,17 @@ class SuratsTable
                     ->description(function (Surat $record, $livewire) {
                         $scope = $livewire->scope ?? request('scope');
                         if ($scope === 'draft') {
-                            return $record->nomor_surat ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                            return $record->nomorSuratLogs->last()?->nomor_lengkap ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
                         }
                         return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
                     }),
+
+                TextColumn::make('nomorSuratLogs.nomor_lengkap')
+                    ->label('Nomor Surat')
+                    ->searchable()
+                    ->sortable()
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) !== 'draft')
+                    ->getStateUsing(fn(Surat $record) => $record->nomorSuratLogs->last()?->nomor_lengkap ?? '-'),
 
                 TextColumn::make('pembuat.name')
                     ->label('Dibuat Oleh')

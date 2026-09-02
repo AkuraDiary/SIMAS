@@ -154,18 +154,18 @@ class TemplateResource extends Resource
                     ->schema([
                         // [NEW] Helper Component
                         TextEntry::make('reserved_keywords_helper')
-                            ->label('Daftar Reserved Keywords (Dihasilkan Otomatis)')
+                            ->label('Daftar Reserved Keywords')
                             ->state(new \Illuminate\Support\HtmlString('
-                                <div style="background-color: #f3f4f6; padding: 10px; border-radius: 8px; font-size: 0.9em; margin-bottom: 15px;">
-                                    <strong>Keyword di bawah ini tidak akan meminta input dari user:</strong><br>
-                                    <ul style="list-style-type: disc; margin-left: 20px;">
-                                        <li><code>{{ nomor_surat }}</code> : Nomor surat (di-generate di akhir)</li>
-                                        <li><code>{{ tanggal_surat }}</code> : Tanggal dikirimnya surat</li>
-                                        <li><code>{{ tanggal_terbit }}</code> : Sama dengan tanggal surat</li>
-                                        <li><code>{{ qr_code }}</code> : QR Code pelacakan</li>
-                                        <li><code>{{ ttd_approver_... }}</code> : Tanda tangan untuk approver/penandatangan legal</li>
-                                    </ul>
-                                </div>
+                                <div class="bg-gray-50 border border-gray-200 text-gray-600 rounded-lg p-3 text-sm mb-4 dark:bg-gray-900/50 dark:border-gray-800 dark:text-gray-400">
+    <strong class="text-gray-900 dark:text-white">Keyword di bawah ini tidak akan meminta input dari user:</strong><br>
+    <ul class="list-disc ml-5 mt-2 space-y-1">
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ nomor_surat }}</code> : Nomor surat (di-generate di akhir)</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_surat }}</code> : Tanggal dikirimnya surat</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_terbit }}</code> : Sama dengan tanggal surat</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ qr_code }}</code> : QR Code pelacakan</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ ttd_approver_... }}</code> : Tanda tangan untuk approver/penandatangan legal</li>
+    </ul>
+</div>
                             '))
                             ->columnSpanFull(),
 
