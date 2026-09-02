@@ -3,11 +3,13 @@
 namespace App\Livewire;
 
 use AmidEsfahani\FilamentTinyEditor\TinyEditor;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Schemas\Components\Group;
@@ -16,9 +18,8 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
-use Livewire\Component;
 use Livewire\Attributes\Layout;
-use Filament\Forms\Components\ViewField;
+use Livewire\Component;
 
 
 #[Layout('components.layouts.app')]
@@ -47,7 +48,7 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Template')
                         ->description('Pilih jenis surat')
                         ->schema([
-                           ViewField::make('template_id')
+                            ViewField::make('template_id')
                                 ->view('components.template-selector') // We will create this file next
                                 ->columnSpanFull()
                                 ->required(),
@@ -139,6 +140,10 @@ class GuestPengajuan extends Component implements HasForms
                                 ->columnSpanFull(),
                         ]),
                 ])
+                    ->persistStepInQueryString()
+                    ->contained(false)
+                    
+
                     ->submitAction(new \Illuminate\Support\HtmlString('<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">Kirim Sekarang &nearr;</button>'))
             ])
             ->statePath('data');
