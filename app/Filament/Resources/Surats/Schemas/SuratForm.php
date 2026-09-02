@@ -98,7 +98,7 @@ class SuratForm
                                 ->options(function (Get $get) {
                                     $unitId = null;
                                     $upjId = $get('user_pegawai_jabatan_id');
-                                    
+
                                     if ($upjId) {
                                         $upj = \App\Models\UserPegawaiJabatan::find($upjId);
                                         $unitId = $upj?->unit_kerja_id;
@@ -300,9 +300,11 @@ class SuratForm
                                             }
                                         }
 
+                                        $placeholderService = app(\App\Services\PlaceholderService::class);
+                                        
                                         return new HtmlString(
                                             view('filament.forms.components.template-preview', [
-                                                'html' => $service->renderHtml($template, $data)
+                                                'html' => $placeholderService->renderHtml($template, $data)
                                             ])->render()
                                         );
                                     })

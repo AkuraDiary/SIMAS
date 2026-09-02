@@ -36,6 +36,7 @@ class Surat extends Model implements HasMedia
         'tipe_surat',
         'status_surat',
         'content',
+        'approval_path',
         'tracking_code',
         'qr_code_payload',
     ];
@@ -63,6 +64,7 @@ class Surat extends Model implements HasMedia
         return [
             'pengirim_metadata' => 'array',
             'content' => 'array',
+            'approval_path' => 'array',
         ];
     }
 

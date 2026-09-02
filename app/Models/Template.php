@@ -23,6 +23,7 @@ class Template extends Model implements HasMedia
         'tipe_surat',
         'aksesibilitas',
         'field_variables',
+        'approval_path',
         'template_file_path',
         'content_html',
         'render_engine',
@@ -34,6 +35,7 @@ class Template extends Model implements HasMedia
     {
         return [
             'field_variables' => 'array',
+            'approval_path' => 'array',
             'is_ttd_enabled' => 'boolean',
             'is_active' => 'boolean',
         ];
