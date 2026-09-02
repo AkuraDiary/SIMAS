@@ -80,13 +80,22 @@ class PlaceholderService
                 if ($ttd->placeholder_key) {
                     $qrImg = '';
                     if ($ttd->qr_code_path) {
-                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px;" /><br>';
+                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px;" pointer-events="none" /><br>';
                     }
 
                     $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
+                    
+                    // Merge coordinate data if available from current Livewire edit state
+                    $x = $data[$ttd->placeholder_key . '_posisi_x'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_x'] ?? $ttd->posisi_x);
+                    $y = $data[$ttd->placeholder_key . '_posisi_y'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_y'] ?? $ttd->posisi_y);
+                    
+                    $style = "text-align: left; display: inline-block; cursor: grab;";
+                    if ($x !== null && $y !== null) {
+                        $style .= " position: absolute; left: {$x}px; top: {$y}px;";
+                    }
 
-                    // Render Visual TTD (Bisa Custom CSS nanti)
-                    $ttdVisual = '<div style="text-align: left; display: inline-block;">' .
+                    // Render Visual TTD with draggable wrapper
+                    $ttdVisual = '<div class="draggable-signature" data-key="' . $ttd->placeholder_key . '" style="' . $style . '">' .
                         $qrImg .
                         '<b><u>' . $namaTerang . '</u></b><br>' .
                         '<span style="font-size: 10pt;">' . $ttd->jabatan_saat_ttd . '</span>' .
@@ -158,22 +167,49 @@ class PlaceholderService
             if ($method === 'draw') {
                 $val = $data[$key . '_draw'] ?? '';
                 if ($val) {
-                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px; pointer-events: none;" />';
                 }
             } elseif ($method === 'upload') {
                 $val = $data[$key . '_upload'] ?? '';
                 if ($val) {
-                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
+                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px; pointer-events: none;" />';
                 }
             }
 
             if ($val) {
-                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $val), $html);
+                $x = $data[$key . '_posisi_x'] ?? null;
+                $y = $data[$key . '_posisi_y'] ?? null;
+                
+                $style = "display: inline-block; cursor: grab;";
+                if ($x !== null && $y !== null) {
+                    $style .= " position: absolute; left: {$x}px; top: {$y}px;";
+                }
+                
+                $wrapper = '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">' . $val . '</div>';
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $wrapper), $html);
             }
         }
 
         // Clean up remaining un-filled placeholders to make it obvious they are missing
-        $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<span style="color:#ef4444; font-weight:bold;">[$1]</span>', $html);
+        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function($m) use ($data, $surat) {
+            $key = $m[1];
+            
+            // If it's a signature placeholder (starts with ttd_)
+            if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
+                // Read from live form data, or Surat JSON content
+                $x = $data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null);
+                $y = $data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null);
+                
+                $style = "color:#ef4444; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #ef4444; padding: 0.25rem; user-select: none;";
+                if ($x !== null && $y !== null) {
+                    $style .= " position: absolute; left: {$x}px; top: {$y}px;";
+                }
+                
+                return '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">[' . $key . ']</div>';
+            }
+            
+            return '<span style="color:#ef4444; font-weight:bold;">[' . $key . ']</span>';
+        }, $html);
 
         // Inject basic CSS to ensure tables and lists render properly within Tailwind's reset environment
         $css = '<style>

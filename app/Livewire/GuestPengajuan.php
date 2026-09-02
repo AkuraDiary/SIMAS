@@ -140,9 +140,20 @@ class GuestPengajuan extends Component implements HasForms
                                 ->columnSpanFull(),
                         ]),
                 ])
+
+                    ->nextAction(
+                        fn(Action $action) => $action
+                            ->label('Lanjutkan')
+                            ->extraAttributes([
+                                'style' => ' background-color: var(--color-primary-600)',
+                                // Injects your specific RGB definitions directly into the inline utility
+                                'class' => '!text-white'
+                            ])
+                            ->icon('heroicon-m-arrow-right')
+                    )
                     ->persistStepInQueryString()
                     ->contained(false)
-                    
+
 
                     ->submitAction(new \Illuminate\Support\HtmlString('<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">Kirim Sekarang &nearr;</button>'))
             ])
