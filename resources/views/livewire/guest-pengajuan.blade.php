@@ -58,11 +58,13 @@
         .fi-sc-wizard-header-step:not(:last-child)::after {
             content: '';
             position: absolute;
-            top: 1.25rem; /* Aligns with the vertical center of the circle icons */
+            top: 1.25rem;
+            /* Aligns with the vertical center of the circle icons */
             left: 50%;
             width: 100%;
             height: 2px;
-            background-color: #e5e7eb; /* Inactive gray line */
+            background-color: #e5e7eb;
+            /* Inactive gray line */
             z-index: 1;
             transition: background-color 0.3s ease;
         }
@@ -103,13 +105,13 @@
         }
 
         /* Restyle the active and inactive states to match Primary colors */
-        .fi-sc-wizard-header-step.fi-active .fi-sc-wizard-header-step-icon-ctn  {
+        .fi-sc-wizard-header-step.fi-active .fi-sc-wizard-header-step-icon-ctn {
             background-color: var(--color-primary-600) !important;
             color: white !important;
         }
 
-        .fi-sc-wizard-header-step.fi-active .fi-sc-wizard-header-step-number{
-             color: white !important;
+        .fi-sc-wizard-header-step.fi-active .fi-sc-wizard-header-step-number {
+            color: white !important;
         }
 
         .fi-sc-wizard-header-step.fi-completed .fi-sc-wizard-header-step-icon-ctn {
@@ -117,10 +119,17 @@
             color: var(--color-white) !important;
         }
 
-        .fi-sc-wizard-header-step:not(.fi-active):not(.fi-completed) .fi-sc-wizard-header-step-icon-ctn  {
+        .fi-sc-wizard-header-step:not(.fi-active):not(.fi-completed) .fi-sc-wizard-header-step-icon-ctn {
             background-color: var(--color-gray-200) !important;
             /* gray-200 */
-            color: var(--color-gray-500) !important;
+            color: var(--color-neutral-500) !important;
+            /* gray-500 */
+        }
+
+        .fi-sc-wizard-header-step:not(.fi-active):not(.fi-completed) .fi-sc-wizard-header-step-label{
+
+            /* gray-200 */
+            color: var(--color-neutral-400) !important;
             /* gray-500 */
         }
 
@@ -130,6 +139,14 @@
             text-align: center !important;
             width: 100% !important;
             vertical-align: top;
+        }
+
+        .fi-sc-wizard-header-step.fi-completed .fi-sc-wizard-header-step-label {
+            color: gray !important;
+        }
+
+        .fi-sc-wizard-header-step.fi-completed .fi-sc-wizard-header-step-description {
+            color: var(--color-neutral-500) !important;
         }
 
         .fi-sc-wizard-header-step-label {
