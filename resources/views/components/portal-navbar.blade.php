@@ -2,7 +2,7 @@
     <div>
         <a href="{{ route('home') }}" class="text-2xl font-bold text-primary-700 tracking-tight">SIMAS</a>
     </div>
-    <div class="hidden md:flex space-x-8 text-sm font-semibold text-gray-500">
+    <div class=" md:flex space-x-8 text-sm font-semibold text-gray-500">
         <a href="{{ route('home') }}" class="hover:text-primary-600 transition">Beranda</a>
         <a href="{{ route('lacak') }}" class="hover:text-primary-600 transition">Cek Status</a>
         <a href="#" class="hover:text-primary-600 transition">Pusat Bantuan</a>

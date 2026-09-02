@@ -49,18 +49,27 @@
             gap: 0 !important;
         }
 
-        /* Draw the thin gray line behind the steps */
+        /* Remove the static background line */
         .fi-sc-wizard-header::before {
+            display: none !important;
+        }
+
+        /* Draw a reactive line from each step to the next */
+        .fi-sc-wizard-header-step:not(:last-child)::after {
             content: '';
             position: absolute;
-            top: 2.75rem;
-            /* Aligns with the vertical center of the circle icons */
-            left: 12%;
-            right: 12%;
+            top: 1.25rem; /* Aligns with the vertical center of the circle icons */
+            left: 50%;
+            width: 100%;
             height: 2px;
-            background-color: black;
-            /* Gray line */
+            background-color: #e5e7eb; /* Inactive gray line */
             z-index: 1;
+            transition: background-color 0.3s ease;
+        }
+
+        /* When a step is completed, the line connecting to the NEXT step turns primary */
+        .fi-sc-wizard-header-step.fi-completed:not(:last-child)::after {
+            background-color: var(--color-primary-600) !important;
         }
 
         /* Hide Filament's default separators between steps */
