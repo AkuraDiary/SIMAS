@@ -35,14 +35,14 @@
 
         /* Add white background and pill shape strictly to the Stepper Header */
         .fi-sc-wizard-header {
-            background-color: white !important;
+
             border: 1px solid #f3f4f6 !important;
             border-radius: 1rem !important;
             padding: 1.5rem 2rem !important;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
-            margin-bottom: 2rem !important;
+
             justify-content: space-between !important;
-            max-width: fit-content;
+            max-width: 90%;
             margin-left: auto;
             margin-right: auto;
             position: relative;
@@ -55,12 +55,12 @@
             position: absolute;
             top: 2.75rem;
             /* Aligns with the vertical center of the circle icons */
-            left: 10%;
-            right: 10%;
+            left: 12%;
+            right: 12%;
             height: 2px;
             background-color: black;
             /* Gray line */
-            z-index: 0;
+            z-index: 1;
         }
 
         /* Hide Filament's default separators between steps */
@@ -71,7 +71,7 @@
         /* Make sure the steps sit above the line */
         .fi-sc-wizard-header-step {
             position: relative;
-            z-index: 1;
+            z-index: 2;
             flex: 1;
             min-width: 200px;
             /* Gives each step enough breathing room */
@@ -79,15 +79,18 @@
 
         /* Give the button a solid white background so it 'cuts' the line behind it */
         .fi-sc-wizard-header-step-btn {
-            background-color: white !important;
+
+            position: relative;
+            z-index: 3;
             flex-direction: column !important;
             align-items: center !important;
             /* Forces icon and text to center horizontally */
             justify-content: center !important;
             gap: 0.5rem !important;
             margin: 0 auto;
-            padding: 0 0.5rem !important;
-            width: 100% !important;
+            padding: 0 1rem !important;
+            /* Gives space around the label so the line cuts cleanly */
+            width: max-content !important;
         }
 
         /* Restyle the active and inactive states to match Primary colors */
@@ -133,7 +136,7 @@
         }
 
         .fi-sc-wizard-header-step-description {
-            min-height: 3lh;
+            min-height: 2lh;
             font-weight: 400 !important;
             text-align: center !important;
             max-width: 150px;

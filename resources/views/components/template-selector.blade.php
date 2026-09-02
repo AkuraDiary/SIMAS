@@ -19,69 +19,56 @@
         </div>
     </div>
 
+@php
+    $allowedAkses = ['PUBLIK'];
+    if (auth()->check() && auth()->user()->tipe_entitas === 'MAHASISWA') {
+        $allowedAkses[] = 'MAHASISWA';
+    }
+
+    $templates = \App\Models\Template::with('kategori')
+        ->where('is_active', true)
+        ->whereIn('aksesibilitas', $allowedAkses)
+        ->get();
+
+    $categories = $templates->pluck('kategori.nama_kategori')->filter()->unique()->values()->toArray();
+    array_unshift($categories, 'Semua');
+@endphp
+
     <!-- Filter Pills -->
     <div class="flex flex-wrap gap-2 mb-8">
-        <template x-for="filter in ['Semua', 'Akademik', 'Kepegawaian', 'Umum', 'Kemahasiswaan']">
-            <button @click="activeFilter = filter"
+        @foreach($categories as $filter)
+            <button @click="activeFilter = '{{ $filter }}'"
                     type="button"
-                    :class="activeFilter === filter ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'"
-                    class="px-5 py-2 rounded-full border text-sm font-semibold transition shadow-sm"
-                    x-text="filter">
+                    :class="activeFilter === '{{ $filter }}' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'"
+                    class="px-5 py-2 rounded-full border text-sm font-semibold transition shadow-sm">
+                {{ $filter }}
             </button>
-        </template>
+        @endforeach
     </div>
 
     <!-- Template Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-        <!-- Card 1 -->
-        <div @click="selectedTemplate = '1'"
-             :class="selectedTemplate === '1' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
-             class="bg-white border rounded-xl p-6 flex flex-col cursor-pointer transition">
-            <div class="w-12 h-12 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center mb-5">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        @forelse($templates as $template)
+            <div @click="selectedTemplate = '{{ $template->id }}'"
+                 x-show="(activeFilter === 'Semua' || '{{ $template->kategori?->nama_kategori ?? '' }}' === activeFilter) && ('{{ strtolower(addslashes($template->nama_template)) }}'.includes(search.toLowerCase()) || '{{ strtolower(addslashes($template->deskripsi ?? '')) }}'.includes(search.toLowerCase()))"
+                 :class="selectedTemplate === '{{ $template->id }}' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
+                 class="bg-white border rounded-xl p-6 flex flex-col cursor-pointer transition">
+                <div class="w-12 h-12 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center mb-5">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $template->nama_template }}</h3>
+                <p class="text-sm text-gray-500 mb-6 flex-grow">{{ $template->deskripsi ?? 'Tidak ada deskripsi.' }}</p>
+                <button type="button"
+                        :class="selectedTemplate === '{{ $template->id }}' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
+                        class="w-full border-2 font-bold py-2 rounded-lg transition text-sm">
+                    <span x-text="selectedTemplate === '{{ $template->id }}' ? 'Terpilih' : 'Pilih'"></span>
+                </button>
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Surat Keterangan Aktif Kuliah</h3>
-            <p class="text-sm text-gray-500 mb-6 flex-grow">Digunakan untuk keperluan administrasi luar kampus yang membutuhkan bukti status kemahasiswaan aktif.</p>
-            <button type="button"
-                    :class="selectedTemplate === '1' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
-                    class="w-full border-2 font-bold py-2 rounded-lg transition text-sm">
-                <span x-text="selectedTemplate === '1' ? 'Terpilih' : 'Pilih'"></span>
-            </button>
-        </div>
-
-        <!-- Card 2 -->
-        <div @click="selectedTemplate = '2'"
-             :class="selectedTemplate === '2' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
-             class="bg-white border rounded-xl p-6 flex flex-col cursor-pointer transition">
-            <div class="w-12 h-12 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center mb-5">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        @empty
+            <div class="col-span-full text-center py-10 text-gray-500">
+                Belum ada template surat yang tersedia.
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Surat Pengantar Magang / PKL</h3>
-            <p class="text-sm text-gray-500 mb-6 flex-grow">Surat resmi untuk izin melakukan penelitian di instansi atau lembaga mitra bagi mahasiswa.</p>
-            <button type="button"
-                    :class="selectedTemplate === '2' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
-                    class="w-full border-2 font-bold py-2 rounded-lg transition text-sm">
-                <span x-text="selectedTemplate === '2' ? 'Terpilih' : 'Pilih'"></span>
-            </button>
-        </div>
-
-        <!-- Card 3 -->
-        <div @click="selectedTemplate = '3'"
-             :class="selectedTemplate === '3' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
-             class="bg-white border rounded-xl p-6 flex flex-col cursor-pointer transition">
-            <div class="w-12 h-12 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center mb-5">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-2">Surat Keterangan Lulus (SKL)</h3>
-            <p class="text-sm text-gray-500 mb-6 flex-grow">Format universal untuk berbagai kebutuhan pernyataan tertulis resmi akademik.</p>
-            <button type="button"
-                    :class="selectedTemplate === '3' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
-                    class="w-full border-2 font-bold py-2 rounded-lg transition text-sm">
-                <span x-text="selectedTemplate === '3' ? 'Terpilih' : 'Pilih'"></span>
-            </button>
-        </div>
-
+        @endforelse
     </div>
 
     <!-- Hidden validation error message if they try to click Next without selecting -->
