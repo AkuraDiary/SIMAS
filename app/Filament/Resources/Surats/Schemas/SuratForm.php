@@ -95,7 +95,34 @@ class SuratForm
 
                             Select::make('template_id')
                                 ->label('Pilih Template Surat')
-                                ->options(Template::query()->pluck('nama_template', 'id'))
+                                ->options(function (Get $get) {
+                                    $unitId = null;
+                                    $upjId = $get('user_pegawai_jabatan_id');
+
+                                    if ($upjId) {
+                                        $upj = \App\Models\UserPegawaiJabatan::find($upjId);
+                                        $unitId = $upj?->unit_kerja_id;
+                                    } else {
+                                        $pegawai = \Illuminate\Support\Facades\Auth::user()?->pegawai;
+                                        $unitId = $pegawai?->jabatanAktif()?->first()?->unit_kerja_id;
+                                    }
+
+                                    $query = \App\Models\Template::where('aksesibilitas', 'INTERNAL')
+                                        ->where('is_active', true);
+
+                                    if ($unitId) {
+                                        $query->where(function ($q) use ($unitId) {
+                                            $q->doesntHave('unitAkses')
+                                              ->orWhereHas('unitAkses', function ($sub) use ($unitId) {
+                                                  $sub->where('unit_kerja_id', $unitId);
+                                              });
+                                        });
+                                    } else {
+                                        $query->doesntHave('unitAkses');
+                                    }
+
+                                    return $query->pluck('nama_template', 'id');
+                                })
                                 ->required(fn(Get $get) => $get('metode_pembuatan') === 'template')
                                 ->visible(fn(Get $get) => $get('metode_pembuatan') === 'template')
                                 ->live()
@@ -273,9 +300,11 @@ class SuratForm
                                             }
                                         }
 
+                                        $placeholderService = app(\App\Services\PlaceholderService::class);
+                                        
                                         return new HtmlString(
                                             view('filament.forms.components.template-preview', [
-                                                'html' => $service->renderHtml($template, $data)
+                                                'html' => $placeholderService->renderHtml($template, $data)
                                             ])->render()
                                         );
                                     })

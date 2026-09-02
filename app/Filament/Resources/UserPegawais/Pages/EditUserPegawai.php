@@ -118,7 +118,8 @@ class EditUserPegawai extends EditRecord
                                 ->password()
                                 ->revealable()
                                 ->minLength(8)
-                                ->helperText('Kosongkan jika tidak ingin mengubah password.'),
+                                ->rule(\Illuminate\Validation\Rules\Password::min(8)->letters()->numbers())
+                                ->helperText('Password minimal 8 karakter berisi kombinasi huruf dan angka. Kosongkan jika tidak ingin mengubah password.'),
 
                             TextInput::make('new_password_confirmation')
                                 ->label('Konfirmasi Password Baru')

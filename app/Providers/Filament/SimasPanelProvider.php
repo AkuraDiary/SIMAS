@@ -34,7 +34,7 @@ class SimasPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('simas')
-            ->path('')
+            ->path('internal')
             ->viteTheme('resources/css/filament/simas/theme.css')
             ->favicon(asset('favicon.png'))
             ->authGuard('web')
@@ -43,7 +43,32 @@ class SimasPanelProvider extends PanelProvider
             ->login(Login::class)
             ->sidebarCollapsibleOnDesktop()
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => [
+                    50 => '255, 242, 235',
+                    100 => '255, 222, 209',
+                    200 => '255, 186, 158',
+                    300 => '255, 145, 102',
+                    400 => '230, 101, 46',
+                    500 => '255, 125, 69',
+                    600 => '255, 125, 69',
+                    700 => '230, 101, 46',
+                    800 => '204, 76, 24',
+                    900 => '153, 52, 10',
+                    950 => '102, 31, 0',
+                ],
+                'secondary' => [
+                    50 => '255, 239, 230',
+                    100 => '255, 215, 194',
+                    200 => '255, 173, 133',
+                    300 => '255, 126, 61',
+                    400 => '255, 87, 10',
+                    500 => '255, 91, 0',
+                    600 => '255, 91, 0',
+                    700 => '255, 91, 0',
+                    800 => '204, 61, 0',
+                    900 => '153, 41, 0',
+                    950 => '102, 20, 0',
+                ],
             ])
             ->userMenuItems(
                 [
