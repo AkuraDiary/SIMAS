@@ -34,7 +34,7 @@ class SimasPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('simas')
-            ->path('')
+            ->path('internal')
             ->viteTheme('resources/css/filament/simas/theme.css')
             ->favicon(asset('favicon.png'))
             ->authGuard('web')
@@ -57,7 +57,7 @@ class SimasPanelProvider extends PanelProvider
                     950 => '102, 31, 0',
                 ],
                 'secondary' => [
-                    50 => '255, 239, 230',   
+                    50 => '255, 239, 230',
                     100 => '255, 215, 194',
                     200 => '255, 173, 133',
                     300 => '255, 126, 61',

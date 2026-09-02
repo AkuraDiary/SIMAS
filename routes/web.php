@@ -8,12 +8,20 @@ use App\Http\Controllers\SuratExportController;
 
 
 
+Route::get('/', function () {
+    return view('welcome');
+})->name('home');
+
+Route::get('/pengajuan', \App\Livewire\GuestPengajuan::class)->name('pengajuan');
+Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
+
+
 Route::get('/pengajuan', \App\Livewire\GuestPengajuan::class)->name('pengajuan');
 Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
 Route::middleware('auth')->group(function () {
     Route::get('/media/{media}/file', [MediaController::class, 'file'])
         ->name('media.file');
-    
+
         Route::get('/media/{media}/preview-word', [MediaController::class, 'previewWord'])
         ->name('media.preview.word');
 
