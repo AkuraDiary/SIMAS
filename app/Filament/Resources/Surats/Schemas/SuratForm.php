@@ -6,6 +6,7 @@ use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use App\Models\Surat;
 use App\Models\Template;
 use App\Models\UnitKerja;
+use App\Services\FormSchemaService;
 use App\Services\PlaceholderService;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -246,7 +247,7 @@ class SuratForm
                                     ];
                                 }
 
-                                $service = app(PlaceholderService::class);
+                                $service = app(FormSchemaService::class);
                                 $schema = $service->generateFilamentSchema($allVariables);
 
                                 $schema[] = TextEntry::make('preview')
@@ -282,6 +283,30 @@ class SuratForm
 
                                 return $schema;
                             })->columnSpanFull(),
+
+                            // Dynamic Path Builder
+                            Section::make('Jalur Persetujuan Khusus (Dynamic Path Builder)')
+                                ->description('Atur jalur persetujuan secara manual. Jika dikosongkan, sistem akan menggunakan jalur default dari Template.')
+                                ->schema([
+                                    \Filament\Forms\Components\Repeater::make('approval_path')
+                                        ->label('Alur Persetujuan & Tanda Tangan')
+                                        ->schema([
+                                            \Filament\Forms\Components\Select::make('jabatan_id')
+                                                ->label('Jabatan')
+                                                ->options(\App\Models\Jabatan::pluck('nama_jabatan', 'id'))
+                                                ->required()
+                                                ->searchable(),
+                                            \Filament\Forms\Components\Toggle::make('is_signer')
+                                                ->label('Penandatangan?')
+                                                ->default(false)
+                                                ->reactive(),
+                                            \Filament\Forms\Components\TextInput::make('placeholder_key')
+                                                ->label('Placeholder TTD')
+                                                ->visible(fn(Get $get) => $get('is_signer') === true),
+                                        ])
+                                        ->columns(3)
+                                ])
+                                ->collapsible(),
                         ]),
 
                         Section::make('Lampiran File')
@@ -352,6 +377,8 @@ class SuratForm
                 // Hidden::make('tanggal_kirim')
                 //     ->default(null)
                 //     ->dehydrated(),
+
+
             ]);
     }
 }

@@ -29,12 +29,34 @@ class SuratRoutingService
                 ]);
             }
 
+            // [NEW] Automated Routing Engine
+            $finalUnitTujuanId = $unitTujuanId;
+            $finalUserAktorId = $targetUserAktorId;
+
+            // Jika ada approval_path, paksa rute pertama ke Jabatan pertama di list!
+            if (!empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0) {
+                $firstStep = $surat->approval_path[0];
+                $jabatanId = $firstStep['jabatan_id'];
+
+                // Cari user aktif yang sedang memegang jabatan ini
+                $upj = \App\Models\UserPegawaiJabatan::with('pegawai.user')
+                    ->where('jabatan_id', $jabatanId)
+                    ->where('status_jabatan', 'AKTIF')
+                    ->first();
+
+                if ($upj && $upj->pegawai && $upj->pegawai->user) {
+                    $finalUnitTujuanId = $upj->unit_kerja_id;
+                    // Boleh set user_aktor_id jika ingin mengunci hanya orang tersebut yg bisa acc
+                    // $finalUserAktorId = $upj->pegawai->user->id;
+                }
+            }
+
             return SuratRiwayat::create([
                 'surat_id'       => $surat->id,
                 'parent_id'      => null,
                 'unit_asal_id'   => $surat->unit_pengirim_id,
-                'unit_tujuan_id' => $unitTujuanId,
-                'user_aktor_id'  => $targetUserAktorId,
+                'unit_tujuan_id' => $finalUnitTujuanId,
+                'user_aktor_id'  => $finalUserAktorId,
                 'status'         => 'MENUNGGU',
                 'catatan'        => $catatan ?? '',
                 'actioned_at'    => null,
@@ -54,7 +76,8 @@ class SuratRoutingService
         bool $isFinalStep = false,
         bool $isSignatureRequired = false,
         ?string $signatureType = 'UTAMA',
-        ?string $catatan = null
+        ?string $catatan = null,
+        ?array $signatureData = null
     ): Surat {
         return DB::transaction(function () use (
             $currentRiwayat,
@@ -78,26 +101,66 @@ class SuratRoutingService
 
             // 2. Record signature if required
             if ($isSignatureRequired) {
-                // Get active jabatan for snapshot
-                $pegawaiJabatan = UserPegawaiJabatan::with(['jabatan', 'unitKerja'])
-                    ->whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
+                // 2a. Cari placeholder_key dari approval_path
+                $placeholderKey = null;
+                $pegawaiJabatan = UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
                     ->where('status_jabatan', 'AKTIF')
                     ->first();
 
-                SuratTtd::create([
-                    'surat_id'         => $surat->id,
-                    'user_id'          => $actor->id,
-                    'tipe'             => $signatureType ?? 'UTAMA',
-                    'is_visible'       => true,
-                    'jabatan_saat_ttd' => $pegawaiJabatan?->jabatan?->nama_jabatan ?? 'Pejabat Berwenang',
-                    'unit_saat_ttd'    => $pegawaiJabatan?->unitKerja?->nama_unit ?? $surat->unitPengirim?->nama_unit ?? 'Unit Kerja',
-                    'signed_at'        => now(),
-                ]);
+                if (!empty($surat->approval_path) && is_array($surat->approval_path)) {
+                    foreach ($surat->approval_path as $step) {
+                        if (isset($step['jabatan_id']) && $step['jabatan_id'] == $pegawaiJabatan?->jabatan_id) {
+                            $placeholderKey = $step['placeholder_key'] ?? null;
+                            break;
+                        }
+                    }
+                }
+                // 2b. Serahkan urusan image processing & QR ke SignatureService!
+                app(\App\Services\SignatureService::class)->processDigitalSignature(
+                    $surat,
+                    $actor,
+                    $signatureData ?? [],
+                    $placeholderKey,
+                    $signatureType
+                );
+            }
+            
+            // 3. Advance to next step or mark as final
+            $automatedNextUnitId = null;
+
+            if (!empty($surat->approval_path) && is_array($surat->approval_path)) {
+                // Temukan kita ada di index ke berapa
+                $currentIndex = -1;
+                $currentJabatanId = \App\Models\UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
+                    ->where('status_jabatan', 'AKTIF')
+                    ->first()?->jabatan_id;
+
+                foreach ($surat->approval_path as $index => $step) {
+                    if ($step['jabatan_id'] == $currentJabatanId) {
+                        $currentIndex = $index;
+                        break;
+                    }
+                }
+
+                // Jika ada step selanjutnya, arahkan ke sana!
+                if ($currentIndex !== -1 && isset($surat->approval_path[$currentIndex + 1])) {
+                    $nextStep = $surat->approval_path[$currentIndex + 1];
+                    $upj = \App\Models\UserPegawaiJabatan::where('jabatan_id', $nextStep['jabatan_id'])
+                        ->where('status_jabatan', 'AKTIF')
+                        ->first();
+
+                    if ($upj) {
+                        $automatedNextUnitId = $upj->unit_kerja_id;
+                    }
+                }
             }
 
-            // 3. Advance to next step or mark as final
-            if ($isFinalStep || !$nextUnitTujuanId) {
-                $newStatus = 'SELESAI';//($surat->tipe_surat === 'PENGAJUAN') ? 'TERBIT' : 'SELESAI';
+            // Tentukan tujuan akhir: override dengan automated route jika ada
+            $finalNextUnitId = $automatedNextUnitId ?? $nextUnitTujuanId;
+            $finalIsFinalStep = $isFinalStep || (!$finalNextUnitId);
+
+            if ($finalIsFinalStep) {
+                $newStatus = 'SELESAI';
 
                 $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
                 if ($formatGlobal && empty($surat->nomor_surat)) {
@@ -106,16 +169,55 @@ class SuratRoutingService
 
                 $surat->status_surat = $newStatus;
                 $surat->save();
+
+                // 4. Finalisasi: Render HTML ke PDF dan lampirkan ke Surat
+                if ($surat->template_id) {
+                    // Tarik HTML yang sudah di-inject dengan Nomor Surat dan TTD QR Code
+                    $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
+
+                    // Render menggunakan DomPDF
+                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+                    $pdf->setPaper('A4', 'portrait');
+                    $pdfContent = $pdf->output();
+
+                    $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat ?? 'Terbitan');
+                    $fileName = 'Surat_Resmi_' . $safeNomor . '.pdf';
+
+                    // Simpan sebagai media
+                    $surat->addMediaFromString($pdfContent)
+                        ->usingName('Dokumen Final Resmi')
+                        ->usingFileName($fileName)
+                        ->toMediaCollection('dokumen-final');
+                }
+
+                // 5. Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
+                if ($surat->terbitan_for_surat_id) {
+                    $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);
+                    if ($pengajuan) {
+                        $pengajuan->update(['status_surat' => 'SELESAI']);
+
+                        // Opsional: Kirim notifikasi sistem ke pembuat pengajuan awal
+                        if ($pengajuan->user_pembuat_id) {
+                            $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
+                            if ($targetUser) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Surat Terbitan Selesai')
+                                    ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
+                                    ->success()
+                                    ->sendToDatabase($targetUser);
+                            }
+                        }
+                    }
+                }
             } else {
-                // Create next step in approval chain
                 SuratRiwayat::create([
                     'surat_id'       => $surat->id,
                     'parent_id'      => $currentRiwayat->id,
                     'unit_asal_id'   => $currentRiwayat->unit_tujuan_id,
-                    'unit_tujuan_id' => $nextUnitTujuanId,
-                    'user_aktor_id'  => $nextUserAktorId,
+                    'unit_tujuan_id' => $finalNextUnitId,
+                    'user_aktor_id'  => $nextUserAktorId, // biarkan null jika tak dikunci
                     'status'         => 'MENUNGGU',
-                    'catatan'        => 'Diteruskan untuk proses persetujuan selanjutnya.',
+                    'catatan'        => 'Diteruskan untuk proses persetujuan (Otomatis).',
                     'actioned_at'    => null,
                 ]);
             }
@@ -151,7 +253,7 @@ class SuratRoutingService
         });
     }
 
-        /**
+    /**
      * Meneruskan surat tanpa memberikan persetujuan / TTD.
      */
     public function forwardStep(

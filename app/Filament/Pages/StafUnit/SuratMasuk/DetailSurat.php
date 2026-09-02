@@ -5,6 +5,7 @@ namespace App\Filament\Pages\StafUnit\SuratMasuk;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasApprovalActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasArsipActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasDisposisiActions;
+use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasFinalisasiActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasInternalActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasSuratTimeline;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
@@ -28,6 +29,7 @@ class DetailSurat extends Page implements HasForms
     use HasApprovalActions;
     use HasArsipActions;
     use HasInternalActions;
+    use HasFinalisasiActions;
 
     public static function canAccess(): bool
     {
@@ -132,6 +134,9 @@ class DetailSurat extends Page implements HasForms
 
         $unitId = Auth::user()->unit_kerja_id;
 
+        // Inject Finalisasi Actions (Generate Nomor & Download PDF)
+        $primaryActions = array_merge($primaryActions, $this->getFinalisasiActions());
+
         // Download Template Action
         if ($this->surat->template_id) {
             $secondaryActions[] = ActionGroup::make([
@@ -156,43 +161,6 @@ class DetailSurat extends Page implements HasForms
                 ->button()
                 ->color('gray');
         }
-
-        // for downloading final letter
-        if ($this->surat->tipe_surat === 'TERBITAN' && $this->surat->status_surat === 'SELESAI') {
-            $primaryActions[] =
-                \Filament\Actions\Action::make('download_pdf')
-                ->label('Unduh PDF Resmi')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('success')
-                ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']))
-                ->action(function () {
-                    // 1. Render HTML yang sudah di-inject dengan data & tanda tangan
-                    $html = app(\App\Services\PlaceholderService::class)->renderHtml(
-                        $this->surat->template,
-                        $this->surat->content ?? []
-                    );
-
-                    // 2. Tambahkan style dasar agar ukuran mirip A4 di PDF
-                    $styledHtml = '
-                    <style>
-                        @page { margin: 2.5cm; }
-                        body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.5; }
-                    </style>
-                    ' . $html;
-
-                    // 3. Generate PDF menggunakan DOMPDF
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($styledHtml);
-
-                    // Default to A4 paper
-                    $pdf->setPaper('a4', 'portrait');
-
-                    $fileName = 'Surat_Resmi_' . str_replace(['/', '\\'], '_', $this->surat->nomor_surat ?? $this->surat->id) . '.pdf';
-
-                    // 4. Return PDF as a download directly to the browser
-                    return response()->streamDownload(fn() => print($pdf->output()), $fileName);
-                });
-        }
-
 
         // 1. TAMPILKAN TOMBOL PERBAIKI UNTUK PEMBUAT AWAL (Ubah === menjadi == agar kebal tipe data)
         if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id == $unitId) {

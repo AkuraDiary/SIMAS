@@ -16,6 +16,8 @@ class SuratTtd extends Model
         'is_visible',
         'jabatan_saat_ttd',
         'unit_saat_ttd',
+        'placeholder_key',
+        'qr_code_path',
         'halaman',
         'posisi_x',
         'posisi_y',

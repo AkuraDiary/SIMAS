@@ -205,10 +205,11 @@ trait HasDisposisiActions
     {
         $unitId = Auth::user()->unit_kerja_id;
 
-        $disposisi = $this->surat->disposisis
-            ->where('unit_tujuan_id', $unitId)
-            ->sortByDesc('tanggal_disposisi')
-            ->first();
+        $disposisi = $this->getActiveDisposisi();
+        // $this->surat->disposisis
+        //     ->where('unit_tujuan_id', $unitId)
+        //     ->sortByDesc('tanggal_disposisi')
+        //     ->first();
 
         if (! $disposisi) {
             abort(403);
@@ -252,5 +253,18 @@ trait HasDisposisiActions
             ->where('unit_tujuan_id', $unitId)
             ->where('status_disposisi', '!=', 'SELESAI')
             ->isNotEmpty();
+    }
+
+    /**
+     * Get the most recent active Disposisi targeted to the logged-in user's unit.
+     */
+    protected function getActiveDisposisi()
+    {
+        $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
+
+        return $this->surat->disposisis
+            ->where('unit_tujuan_id', $unitId)
+            ->sortByDesc('tanggal_disposisi')
+            ->first();
     }
 }
