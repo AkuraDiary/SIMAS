@@ -95,24 +95,34 @@ class GuestPengajuan extends Component implements HasForms
                             Select::make('pengirim_fakultas')
                                 ->label('Fakultas')
                                 ->placeholder('Pilih Fakultas')
-                                ->options([
-                                    'Fakultas Ilmu Komputer' => 'Fakultas Ilmu Komputer',
-                                    'Fakultas Ekonomi' => 'Fakultas Ekonomi',
-                                    'Fakultas Teknik' => 'Fakultas Teknik',
-                                    'Fakultas Hukum' => 'Fakultas Hukum',
-                                ])
+                                ->options(function () {
+                                    return \App\Models\UnitKerja::whereHas('jenisUnit', function ($query) {
+                                        $query->where('nama_jenis', 'like', '%Fakultas%');
+                                    })->pluck('nama_unit', 'id');
+                                })
+                                ->live()
+                                ->afterStateUpdated(fn(\Filament\Schemas\Components\Utilities\Set $set) => $set('pengirim_prodi', null))
                                 ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
                                 ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
 
                             Select::make('pengirim_prodi')
                                 ->label('Prodi')
-                                ->placeholder('Pilih Prodi')
-                                ->options([
-                                    'Teknik Informatika' => 'Teknik Informatika',
-                                    'Sistem Informasi' => 'Sistem Informasi',
-                                    'Manajemen' => 'Manajemen',
-                                    'Akuntansi' => 'Akuntansi',
-                                ])
+                                ->placeholder(fn(Get $get) => $get('pengirim_fakultas') ? 'Pilih Prodi' : 'Pilih Fakultas terlebih dahulu')
+                                ->options(function (Get $get) {
+                                    $fakultasId = $get('pengirim_fakultas');
+                                    
+                                    if (! $fakultasId) {
+                                        return [];
+                                    }
+                                    
+                                    return \App\Models\UnitKerja::where('parent_id', $fakultasId)
+                                        ->whereHas('jenisUnit', function ($query) {
+                                            $query->where('nama_jenis', 'like', '%Prodi%')
+                                                  ->orWhere('nama_jenis', 'like', '%Program Studi%');
+                                        })
+                                        ->pluck('nama_unit', 'id');
+                                })
+                                ->disabled(fn(Get $get) => ! $get('pengirim_fakultas'))
                                 ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
                                 ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
                         ])->columns(2),
@@ -195,11 +205,15 @@ class GuestPengajuan extends Component implements HasForms
                         ]),
                 ])
 
+                    ->previousAction(
+                        fn(Action $action) => $action
+                            ->label('Kembali')
+                    )
                     ->nextAction(
                         fn(Action $action) => $action
                             ->label('Lanjutkan')
                             ->extraAttributes([
-                                'style' => ' background-color: var(--color-primary-600)',
+                                'style' => ' background-color: var(--color-primary-600);',
                                 // Injects your specific RGB definitions directly into the inline utility
                                 'class' => '!text-white'
                             ])
