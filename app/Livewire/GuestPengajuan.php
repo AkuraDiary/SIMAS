@@ -57,20 +57,65 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Data Pengirim')
                         ->description('Informasi pemohon')
                         ->schema([
+                            ViewField::make('tipe_pengirim')
+                                ->view('components.tipe-pengirim-selector')
+                                ->default('guest')
+                                ->columnSpanFull(),
+
                             TextInput::make('pengirim_nama')
                                 ->label('Nama Lengkap')
-                                ->required(),
+                                ->placeholder('Masukkan nama lengkap sesuai identitas')
+                                ->required()
+                                ->columnSpan(fn(Get $get) => $get('tipe_pengirim') === 'guest' ? 'full' : 1),
+
                             TextInput::make('pengirim_nim')
-                                ->label('NIM / NIDN')
-                                ->required(),
-                            TextInput::make('pengirim_fakultas')
-                                ->label('Fakultas / Unit')
-                                ->required(),
+                                ->label('NIM')
+                                ->placeholder('Masukkan NIM anda')
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
+
                             TextInput::make('pengirim_email')
-                                ->label('Email Institusi')
+                                ->label('Alamat Email')
+                                ->placeholder('contoh@email.com')
                                 ->email()
                                 ->required(),
-                        ])->columns(2), // Makes it a 2-column grid!
+
+                            TextInput::make('pengirim_telp')
+                                ->label('Nomor Telepon / WhatsApp')
+                                ->placeholder('08xxxxxxxxxx')
+                                ->required(),
+
+                            TextInput::make('pengirim_instansi')
+                                ->label('Instansi / Asal Identitas')
+                                ->placeholder('Nama Universitas, Perusahaan, atau Instansi Asal')
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'guest')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'guest')
+                                ->columnSpanFull(),
+
+                            Select::make('pengirim_fakultas')
+                                ->label('Fakultas')
+                                ->placeholder('Pilih Fakultas')
+                                ->options([
+                                    'Fakultas Ilmu Komputer' => 'Fakultas Ilmu Komputer',
+                                    'Fakultas Ekonomi' => 'Fakultas Ekonomi',
+                                    'Fakultas Teknik' => 'Fakultas Teknik',
+                                    'Fakultas Hukum' => 'Fakultas Hukum',
+                                ])
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
+
+                            Select::make('pengirim_prodi')
+                                ->label('Prodi')
+                                ->placeholder('Pilih Prodi')
+                                ->options([
+                                    'Teknik Informatika' => 'Teknik Informatika',
+                                    'Sistem Informasi' => 'Sistem Informasi',
+                                    'Manajemen' => 'Manajemen',
+                                    'Akuntansi' => 'Akuntansi',
+                                ])
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
+                        ])->columns(2),
                     // STEP 3: ISI SURAT
                     // STEP 3: ISI SURAT
                     Step::make('Isi Surat')
@@ -88,29 +133,38 @@ class GuestPengajuan extends Component implements HasForms
                             TextInput::make('perihal')
                                 ->label('Subjek / Judul')
                                 ->required(),
-                            // DYNAMIC FIELDS BASED ON TEMPLATE
                             // If Template 1 (Surat Keterangan Aktif Kuliah) is selected
                             Group::make()->schema([
                                 TextInput::make('keperluan')
                                     ->label('Keperluan')
                                     ->placeholder('Contoh: Pengajuan Beasiswa PPA')
-                                    ->required(),
+                                    ->required(fn(Get $get) => $get('template_id') === '1'),
 
                                 Select::make('tahun_akademik')
                                     ->label('Tahun Akademik')
                                     ->options(['2023/2024' => '2023/2024', '2024/2025' => '2024/2025'])
-                                    ->required(),
+                                    ->required(fn(Get $get) => $get('template_id') === '1'),
 
                                 Select::make('semester')
                                     ->label('Semester')
                                     ->options(['Ganjil' => 'Ganjil', 'Genap' => 'Genap'])
-                                    ->required(),
+                                    ->required(fn(Get $get) => $get('template_id') === '1'),
                             ])->columns(2)
-                                ->visible(fn(Get $get) => $get('template_id') === '1'), // Only visible if Template 1 is selected!
-                            // If another template is selected, show generic content editor
+                                ->visible(fn(Get $get) => $get('template_id') === '1'),
+
+                            // If 'scratch' is selected, show TinyEditor
+                            TinyEditor::make('content_scratch')
+                                ->label('Isi Surat')
+                                ->profile('full')
+                                ->placeholder('Tuliskan isi surat secara bebas di sini...')
+                                ->visible(fn(Get $get) => $get('template_id') === 'scratch')
+                                ->required(fn(Get $get) => $get('template_id') === 'scratch')
+                                ->columnSpanFull(),
+
+                            // If another template is selected (not 1 and not scratch), show generic content editor
                             RichEditor::make('content')
                                 ->label('Isi Surat / Keperluan Tambahan')
-                                ->visible(fn(Get $get) => $get('template_id') !== '1')
+                                ->visible(fn(Get $get) => !in_array($get('template_id'), ['1', 'scratch', null]))
                                 ->columnSpanFull(),
                         ]),
                     // STEP 4: LAMPIRAN
