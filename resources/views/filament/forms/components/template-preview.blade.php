@@ -1,5 +1,4 @@
 <div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50"
-    wire:ignore
     x-data="{
         isDragging: false,
         dragEl: null,
@@ -70,9 +69,9 @@
                     pathPrefix = 'content.';
                 }
                 
-                // Tell Filament's Livewire state to remember the new coordinates
-                $wire.$set(pathPrefix + key + '_posisi_x', x);
-                $wire.$set(pathPrefix + key + '_posisi_y', y);
+                // Tell Filament's Livewire state to remember the new coordinates without triggering a network request
+                $wire.set(pathPrefix + key + '_posisi_x', x, false);
+                $wire.set(pathPrefix + key + '_posisi_y', y, false);
             }
             
             this.dragEl = null;
