@@ -169,11 +169,16 @@ $unitTujuanName = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
         <div>
             <h4 class="text-lg font-bold text-gray-900 mb-1">Draf Surat Digital</h4>
             <p class="text-sm text-gray-500 mb-4">Ini adalah dokumen yang dihasilkan otomatis berdasarkan data yang Anda masukkan. Pastikan isi surat sudah sesuai sebelum dikirim.</p>
-            <button type="button" wire:click="downloadDraft" class="text-primary-700 font-bold text-sm flex items-center gap-1 hover:underline">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button type="button" wire:click.prevent.preserve-scroll="downloadDraft" wire:loading.attr="disabled" class="text-primary-700 font-bold text-sm flex items-center gap-2 hover:underline disabled:opacity-50">
+                <svg wire:loading.remove wire:target="downloadDraft" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                 </svg>
-                Download Draft (.pdf)
+                <svg wire:loading wire:target="downloadDraft" class="animate-spin w-4 h-4 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span wire:loading.remove wire:target="downloadDraft">Download Draft (.pdf)</span>
+                <span wire:loading wire:target="downloadDraft">Menyiapkan Dokumen PDF...</span>
             </button>
         </div>
     </div>

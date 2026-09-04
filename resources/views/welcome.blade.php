@@ -38,7 +38,7 @@
                 <h2 class="text-2xl font-bold mb-2 text-gray-800">Lacak Pengajuan</h2>
                 <p class="text-gray-500 mb-6">Periksa dan lacak status pengajuan surat melalui kode unik surat</p>
                 <form action="{{ route('lacak') }}" method="GET" class="w-full flex space-x-2 mt-auto">
-                    <input type="text" name="tracking_code" placeholder="Masukkan Kode Pelacakan" class="flex-grow border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                    <input type="text" name="tracking_code" placeholder="Masukkan Kode Pelacakan" class="grow border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
                     <button type="submit" class="bg-secondary-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-secondary-600 transition shadow-sm shadow-secondary-200">Lacak</button>
                 </form>
             </div>

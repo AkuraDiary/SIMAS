@@ -292,7 +292,7 @@ class FormSchemaService
                                 ])
                                 ->columns(2)
                                 ->default('draw')
-                                ->reactive()
+                                ->live()
                                 ->afterStateUpdated(function ($state, Set $set) use ($contentKey) {
                                     $set($contentKey . '_draw', null);
                                     $set($contentKey . '_upload', null);
@@ -309,9 +309,9 @@ class FormSchemaService
                                 ->exportBackgroundColor('rgba(0,0,0,0)')
                                 ->exportPenColor('#000000')
                                 ->backgroundColor('#ffffff')       // White background on light mode
-                                ->backgroundColorOnDark('#111111') // Transparent background to let Tailwind classes show
+                                ->backgroundColorOnDark('#ffffff') // Transparent background to let Tailwind classes show
                                 ->penColor('#000000')              // Black pen on light mode
-                                ->penColorOnDark('#ffffff')        // White pen on dark mode
+                                ->penColorOnDark('#000000')        // White pen on dark mode (I'm reverting to, let's say, default)
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
                                 ->required(!$isOptional)
                                 ->default(null)

@@ -170,7 +170,14 @@
             display: flex;
             justify-self: center !important;
             justify-content: center !important;
+        }
 
+        /* Prevent step height collapse during Livewire morphs */
+        .fi-sc-wizard-step.fi-active {
+            min-height: 400px;
+        }
+        #guest-pengajuan-wrapper {
+            min-height: 500px;
         }
     </style>
 
@@ -182,4 +189,50 @@
         </form>
     </div>
     @endif
+
+    <script>
+        document.addEventListener('livewire:init', () => {
+            let savedScrollY = null;
+            let isNavigatingWizard = false;
+
+            // Detect when user clicks step navigation ("Lanjutkan", "Kembali", or wizard step headers)
+            document.addEventListener('click', (e) => {
+                const stepBtn = e.target.closest('.fi-sc-wizard-header-step-btn');
+                const footerNav = e.target.closest('.fi-sc-wizard-footer');
+                if (stepBtn || footerNav) {
+                    isNavigatingWizard = true;
+                }
+            }, true);
+
+            // Intercept Livewire commits on guest-pengajuan to lock scroll position during intra-step updates
+            Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+                const formEl = document.getElementById('guest-pengajuan-form');
+                if (formEl && (!isNavigatingWizard)) {
+                    savedScrollY = window.scrollY;
+                }
+
+                succeed(() => {
+                    if (!isNavigatingWizard && savedScrollY !== null && savedScrollY > 0) {
+                        const targetScroll = savedScrollY;
+                        requestAnimationFrame(() => {
+                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                        });
+                        setTimeout(() => {
+                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                        }, 50);
+                        setTimeout(() => {
+                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                        }, 150);
+                    }
+                    isNavigatingWizard = false;
+                    savedScrollY = null;
+                });
+
+                fail(() => {
+                    isNavigatingWizard = false;
+                    savedScrollY = null;
+                });
+            });
+        });
+    </script>
 </div>

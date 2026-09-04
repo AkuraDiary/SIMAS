@@ -224,9 +224,9 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Pratinjau')
                         ->description('Tinjau kembali pengajuan Anda')
                         ->schema([
-                            \Filament\Forms\Components\Placeholder::make('summary')
+                            TextEntry::make('summary')
                                 ->hiddenLabel()
-                                ->content(function(Get $get) {
+                                ->state(function(Get $get) {
                                     $isScratch = ($get('template_id') ?? '') === 'scratch';
                                     $renderedHtml = '';
 
@@ -362,7 +362,11 @@ class GuestPengajuan extends Component implements HasForms
         // Process file uploads (Spatie Media Library)
         if (!empty($state['lampiran'])) {
             foreach ($state['lampiran'] as $file) {
-                if (is_string($file)) {
+                if (is_object($file) && method_exists($file, 'getRealPath')) {
+                    $surat->addMedia($file->getRealPath())
+                          ->usingFileName($file->getClientOriginalName())
+                          ->toMediaCollection('lampiran-surat');
+                } elseif (is_string($file)) {
                     $path = storage_path('app/public/' . $file);
                     if (file_exists($path)) {
                         $surat->addMedia($path)
@@ -382,7 +386,20 @@ class GuestPengajuan extends Component implements HasForms
 
     public function downloadDraft()
     {
-        $state = $this->form->getState();
+        $state = $this->form->getRawState();
+
+        // Extract lampiran names from TemporaryUploadedFile or file array if lampiran_names is missing
+        if (empty($state['lampiran_names']) && !empty($state['lampiran'])) {
+            $lampiranNames = [];
+            foreach ($state['lampiran'] as $file) {
+                if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
+                    $lampiranNames[] = $file->getClientOriginalName();
+                } elseif (is_string($file)) {
+                    $lampiranNames[] = basename($file);
+                }
+            }
+            $state['lampiran_names'] = $lampiranNames;
+        }
 
         $isScratch = ($state['template_id'] ?? '') === 'scratch';
 
@@ -434,6 +451,7 @@ class GuestPengajuan extends Component implements HasForms
         $metadataHtml = view('filament.exports.surat.metadata', [
             'state' => $state,
             'tujuan' => $tujuan,
+
         ])->render();
 
         // Inject metadata at the end of the surat HTML with a page break

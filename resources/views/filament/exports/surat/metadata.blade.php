@@ -14,7 +14,7 @@
         </tr>
         <tr>
             <td style="width: 150px; font-weight: bold; padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">Fakultas / Prodi</td>
-            <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">: 
+            <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">:
                 @php
                     $fakultas = \App\Models\UnitKerja::find($state['pengirim_fakultas'] ?? null)?->nama_unit ?? '-';
                     $prodi = \App\Models\UnitKerja::find($state['pengirim_prodi'] ?? null)?->nama_unit ?? '-';
@@ -41,16 +41,35 @@
             <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">: {{ $tujuan }}</td>
         </tr>
         <tr>
-            <td style="width: 150px; font-weight: bold; padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">Waktu Pengajuan</td>
+            <td style="width: 150px; font-weight: bold; padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">Tanggal Buat</td>
             <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">: {{ \Carbon\Carbon::now()->format('d M Y H:i:s') }}</td>
         </tr>
         
-        @if(!empty($state['lampiran_names']))
+        @php
+            $lampiranList = [];
+            if (!empty($state['lampiran_names']) && is_array($state['lampiran_names'])) {
+                $lampiranList = array_values($state['lampiran_names']);
+            } elseif (!empty($state['lampiran']) && is_array($state['lampiran'])) {
+                $i = 1;
+                foreach ($state['lampiran'] as $file) {
+                    if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
+                        $lampiranList[] = $file->getClientOriginalName();
+                    } elseif (is_string($file)) {
+                        $lampiranList[] = basename($file);
+                    } else {
+                        $lampiranList[] = 'Lampiran ' . $i;
+                    }
+                    $i++;
+                }
+            }
+        @endphp
+
+        @if(!empty($lampiranList))
         <tr>
             <td style="width: 150px; font-weight: bold; padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">Dokumen Lampiran</td>
-            <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">: 
+            <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">:
                 <ul style="margin: 0; padding-left: 16px;">
-                @foreach($state['lampiran_names'] as $name)
+                @foreach($lampiranList as $name)
                     <li>{{ $name }}</li>
                 @endforeach
                 </ul>
