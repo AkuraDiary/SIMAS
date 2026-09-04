@@ -108,8 +108,8 @@ class SuratForm
                                         $upj = \App\Models\UserPegawaiJabatan::find($upjId);
                                         $unitId = $upj?->unit_kerja_id;
                                     } else {
-                                        $pegawai = \Illuminate\Support\Facades\Auth::user()?->pegawai;
-                                        $unitId = $pegawai?->jabatanAktif()?->first()?->unit_kerja_id;
+                                        $activeJabatan = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan();
+                                        $unitId = $activeJabatan?->unit_kerja_id ?? \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
                                     }
 
                                     $query = \App\Models\Template::where('aksesibilitas', 'INTERNAL')
@@ -169,10 +169,12 @@ class SuratForm
                                 })
                                 ->required()
                                 ->default(function () {
-                                    $pegawai = Auth::user()->pegawai;
-                                    if (!$pegawai) return null;
-                                    $first = $pegawai->jabatanAktif()->first();
-                                    return $first ? $first->id : null;
+                                    $activeJabatan = Auth::user()?->getActiveJabatan();
+                                    if ($activeJabatan) {
+                                        return $activeJabatan->id;
+                                    }
+                                    $pegawai = Auth::user()?->pegawai;
+                                    return $pegawai?->jabatanAktif()->first()?->id;
                                 })
                                 ->live()
                                 ->afterStateUpdated(function (Set $set, $state) {
@@ -199,10 +201,29 @@ class SuratForm
 
                                 Select::make('terbitan_for_surat_id')
                                     ->label('Merujuk ke Pengajuan')
-                                    ->options(fn() => \App\Models\Surat::query()->where('tipe_surat', 'PENGAJUAN')->pluck('perihal', 'id'))
+                                    ->options(function () {
+                                        return \App\Models\Surat::query()
+                                            ->where('tipe_surat', 'PENGAJUAN')
+                                            ->with([
+                                                'userPegawaiJabatan.pegawai',
+                                                'userPegawaiJabatan.jabatan',
+                                                'userPegawaiJabatan.unitKerja',
+                                                'unitPengirim',
+                                                'pembuat.pegawai',
+                                                'pembuat.mahasiswa',
+                                            ])
+                                            ->latest()
+                                            ->get()
+                                            ->mapWithKeys(function (\App\Models\Surat $surat) {
+                                                $pengirim = $surat->getIdentitasPengirim();
+                                                $nomor = $surat->nomor_surat ? "[{$surat->nomor_surat}] " : '';
+                                                return [$surat->id => "{$nomor}{$surat->perihal} (Pengirim: {$pengirim})"];
+                                            })
+                                            ->toArray();
+                                    })
                                     ->searchable()
                                     ->nullable()
-                                    ->helperText('Kosongkan jika Surat Terbitan Independen.')
+                                    ->helperText('Pilih surat pengajuan yang menjadi rujukan. Menampilkan perihal dan pengirim surat.')
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'TERBITAN'),
 
                                 TextInput::make('pengirim_eksternal')
@@ -580,7 +601,7 @@ class SuratForm
                             TextEntry::make('peran_label')
                                 ->label('Peran')
                                 ->state(function (Get $get) {
-                                    $upjId = $get('user_pegawai_jabatan_id');
+                                    $upjId = $get('user_pegawai_jabatan_id') ?? Auth::user()?->getActiveJabatan()?->id;
                                     if (!$upjId) return '-';
                                     $upj = \App\Models\UserPegawaiJabatan::with(['jabatan', 'unitKerja'])->find($upjId);
                                     if (!$upj) return '-';
@@ -606,10 +627,11 @@ class SuratForm
 
                 Hidden::make('unit_pengirim_id')
                     ->default(function () {
-                        $pegawai = Auth::user()->pegawai;
-                        if (!$pegawai) return Auth::user()->unit_kerja_id;
-                        $first = $pegawai->jabatanAktif()->first();
-                        return $first ? $first->unit_kerja_id : Auth::user()->unit_kerja_id;
+                        $activeJabatan = Auth::user()?->getActiveJabatan();
+                        if ($activeJabatan) {
+                            return $activeJabatan->unit_kerja_id;
+                        }
+                        return Auth::user()?->unit_kerja_id;
                     })
                     ->dehydrated(),
 

@@ -38,6 +38,14 @@ class SwitchRole extends Page
     {
         session(['active_jabatan_id' => $id]);
 
+        $user = Auth::user();
+        if ($user) {
+            $settings = $user->settings ?? [];
+            $settings['last_active_jabatan_id'] = (int) $id;
+            $user->settings = $settings;
+            $user->save();
+        }
+
         \Filament\Notifications\Notification::make()
             ->title('Peran berhasil diganti!')
             ->success()

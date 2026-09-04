@@ -35,6 +35,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         'phone',
         'tipe_entitas',
         'is_active',
+        'settings',
     ];
 
     public function getFilamentName(): string
@@ -90,17 +91,30 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * Dapatkan UserPegawaiJabatan yang sedang aktif berdasarkan Session.
+     * Dapatkan UserPegawaiJabatan yang sedang aktif berdasarkan Session atau Database Settings.
      */
     public function getActiveJabatan()
     {
         $sessionJabatanId = session('active_jabatan_id');
 
         if ($sessionJabatanId) {
-            return UserPegawaiJabatan::find($sessionJabatanId);
+            $upj = UserPegawaiJabatan::find($sessionJabatanId);
+            if ($upj && $upj->status_jabatan === 'AKTIF' && $upj->user_pegawai_id === $this->pegawai?->id) {
+                return $upj;
+            }
         }
 
-        // Jika belum ada di session, ambil jabatan pertama dari relasi yang sudah ada
+        // Cek riwayat peran terakhir dari kolom settings user (tanpa migrasi baru)
+        $lastJabatanId = $this->settings['last_active_jabatan_id'] ?? null;
+        if ($lastJabatanId) {
+            $upj = UserPegawaiJabatan::find($lastJabatanId);
+            if ($upj && $upj->status_jabatan === 'AKTIF' && $upj->user_pegawai_id === $this->pegawai?->id) {
+                session(['active_jabatan_id' => $upj->id]);
+                return $upj;
+            }
+        }
+
+        // Fallback: ambil jabatan pertama dari relasi yang sudah ada
         $firstJabatan = $this->jabatanAktif;
 
         if ($firstJabatan) {

@@ -90,8 +90,12 @@ class CreateSurat extends CreateRecord
     {
         parent::mount();
 
+        $activeJabatan = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan();
+
         if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
             $this->form->fill([
+                'user_pegawai_jabatan_id' => $activeJabatan?->id,
+                'unit_pengirim_id' => $activeJabatan?->unit_kerja_id,
                 'tipe_surat' => Request::query('tipe_surat', 'INTERNAL'),
                 'terbitan_for_surat_id' => Request::query('terbitan_for_surat_id'),
                 'status_surat' => 'DRAFT',
