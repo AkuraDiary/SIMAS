@@ -35,11 +35,30 @@ class SuratsTable
     {
 
         return $table
-        // ->poll('7s')
+            // ->poll('7s')
             ->columns([
                 TextColumn::make('perihal')
                     ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject' : 'Subject')
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function (Builder $q) use ($search) {
+                            $q->where('perihal', 'like', "%{$search}%")
+                                ->orWhere('pengirim_nama', 'like', "%{$search}%")
+                                ->orWhereHas('userPegawaiJabatan.pegawai', function ($sub) use ($search) {
+                                    $sub->where('nama_lengkap', 'like', "%{$search}%");
+                                })
+                                ->orWhereHas('unitPengirim', function ($sub) use ($search) {
+                                    $sub->where('nama_unit', 'like', "%{$search}%");
+                                });
+                        });
+                    })
+                    ->weight('bold')
+                    ->description(function (Surat $record, $livewire) {
+                        $scope = $livewire->scope ?? request('scope');
+                        if ($scope === 'draft') {
+                            return $record->nomorSuratLogs->last()?->nomor_lengkap ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                        }
+                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
+                    })
                     ->weight('bold')
                     ->description(function (Surat $record, $livewire) {
                         $scope = $livewire->scope ?? request('scope');
