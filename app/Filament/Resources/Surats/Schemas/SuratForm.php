@@ -113,9 +113,9 @@ class SuratForm
                                     if ($unitId) {
                                         $query->where(function ($q) use ($unitId) {
                                             $q->doesntHave('unitAkses')
-                                              ->orWhereHas('unitAkses', function ($sub) use ($unitId) {
-                                                  $sub->where('unit_kerja_id', $unitId);
-                                              });
+                                                ->orWhereHas('unitAkses', function ($sub) use ($unitId) {
+                                                    $sub->where('unit_kerja_id', $unitId);
+                                                });
                                         });
                                     } else {
                                         $query->doesntHave('unitAkses');
@@ -231,6 +231,9 @@ class SuratForm
                                         TinyEditor::make('content.isi_surat')
                                             ->profile('full')
                                             ->label('Isi Surat')
+                                            ->setCustomConfigs([
+                                                'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                                            ])
                                             ->placeholder('Tuliskan isi surat secara formal di sini...')
                                             ->required()
                                             ->columnSpanFull()
@@ -301,7 +304,7 @@ class SuratForm
                                         }
 
                                         $placeholderService = app(\App\Services\PlaceholderService::class);
-                                        
+
                                         return new HtmlString(
                                             view('filament.forms.components.template-preview', [
                                                 'html' => $placeholderService->renderHtml($template, $data)

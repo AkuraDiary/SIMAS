@@ -293,6 +293,9 @@ class TemplateResource extends Resource
                             ->placeholder('Mulai mengetik template Anda di sini...')
                             ->fileAttachmentsDisk('public')
                             ->fileAttachmentsDirectory('template-attachments')
+                            ->setCustomConfigs([
+                                        'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                                    ])
                             ->hintAction(
                                 Action::make('scanHtmlPlaceholders')
                                     ->label('Scan Placeholders')
