@@ -163,7 +163,7 @@
                                             ✓ Akses Penuh (Pimpinan)
                                         </span>
                                     @else
-                                        <select wire:model.defer="staffPermissions.{{ $staff['id'] }}.akses_surat_masuk" class="block w-full max-w-xs rounded-md border-gray-300 py-1.5 text-xs shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
+                                        <select wire:model.defer="staffPermissions.{{ $staff['id'] }}.akses_surat_masuk" class="p-4 block w-full max-w-xs rounded-md border-gray-300 py-1.5 text-xs shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
                                             <option value="DEFAULT">Ikuti Kebijakan Unit</option>
                                             <option value="SEMUA">Akses Penuh (Semua Surat Masuk)</option>
                                             <option value="HANYA_DISPOSISI">Hanya Surat Terdisposisi</option>
@@ -178,9 +178,9 @@
                                             Otomatis Berwenang
                                         </span>
                                     @else
-                                        <label class="inline-flex cursor-pointer items-center">
-                                            <input type="checkbox" wire:model.defer="staffPermissions.{{ $staff['id'] }}.can_disposisi" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 dark:border-gray-700 dark:bg-gray-900">
-                                            <span class="ml-2 text-xs text-gray-600 dark:text-gray-300">Izinkan</span>
+                                        <label class="inline-flex cursor-pointer gap-2 items-center">
+                                            <input type="checkbox" wire:model.defer="staffPermissions.{{ $staff['id'] }}.can_disposisi" class="h-4 w-4 mx-6 rounded border-gray-300 text-primary-600 focus:ring-primary-600 dark:border-gray-700 dark:bg-gray-900">
+                                            <span class="mx-4 text-xs text-gray-600 dark:text-gray-300">Izinkan</span>
                                         </label>
                                     @endif
                                 </td>
