@@ -16,10 +16,34 @@ class FormatNomorSuratForm
     {
         return $schema
             ->components([
+                \Filament\Forms\Components\Select::make('unit_kerja_id')
+                    ->label('Unit Kerja')
+                    ->relationship('unitKerja', 'nama_unit')
+                    ->placeholder('Format Global / Pusat (Semua Unit)')
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->visible(fn () => auth()->user()?->tipe_entitas === 'ADMIN')
+                    ->helperText('Kosongkan jika ingin dijadikan Format Global/Pusat sebagai default untuk semua unit.')
+                    ->columnSpanFull(),
+
                 TextInput::make('nama_format')
-                    ->label('Nama Format (mis. Format Pusat)')
+                    ->label('Nama Format (mis. Nota Dinas FT / Format Pusat)')
                     ->required()
                     ->maxLength(255),
+
+                \Filament\Forms\Components\Select::make('tipe_surat')
+                    ->label('Tipe Surat')
+                    ->options([
+                        'ALL' => 'Semua Tipe Surat (Default / Fallback)',
+                        'INTERNAL' => 'Surat Internal (Nota Dinas / Memo)',
+                        'PENGAJUAN' => 'Surat Pengajuan',
+                        'TERBITAN' => 'Surat Terbitan Resmi (SK / ST)',
+                        'EKSTERNAL' => 'Surat Eksternal',
+                    ])
+                    ->default('ALL')
+                    ->required()
+                    ->live(),
 
                 Actions::make([
                     Action::make('add_nomor')
@@ -34,24 +58,36 @@ class FormatNomorSuratForm
                         ->action(function (Set $set, Get $get) {
                             $set('format_penomoran', $get('format_penomoran') . '{KODE_UNIT}');
                         }),
-                    Action::make('add_tahun')
-                        ->label('+ {TAHUN} (Tahun)')
-                        ->color('gray')
-                        ->action(function (Set $set, Get $get) {
-                            $set('format_penomoran', $get('format_penomoran') . '{TAHUN}');
-                        }),
                     Action::make('add_bulan_romawi')
                         ->label('+ {BULAN_ROMAWI} (Bulan Romawi)')
                         ->color('gray')
                         ->action(function (Set $set, Get $get) {
                             $set('format_penomoran', $get('format_penomoran') . '{BULAN_ROMAWI}');
                         }),
+                    Action::make('add_bulan_angka')
+                        ->label('+ {BULAN_ANGKA} (Bulan Angka)')
+                        ->color('gray')
+                        ->action(function (Set $set, Get $get) {
+                            $set('format_penomoran', $get('format_penomoran') . '{BULAN_ANGKA}');
+                        }),
+                    Action::make('add_tahun')
+                        ->label('+ {TAHUN} (Tahun)')
+                        ->color('gray')
+                        ->action(function (Set $set, Get $get) {
+                            $set('format_penomoran', $get('format_penomoran') . '{TAHUN}');
+                        }),
+                    Action::make('add_tipe')
+                        ->label('+ {TIPE} (Kode Tipe)')
+                        ->color('gray')
+                        ->action(function (Set $set, Get $get) {
+                            $set('format_penomoran', $get('format_penomoran') . '{TIPE}');
+                        }),
                 ])->columnSpanFull(),
 
                 \Filament\Forms\Components\TextInput::make('format_penomoran')
-                    ->label('')
-                    ->placeholder('Contoh: ND/{KODE_UNIT}/{TAHUN}/{NOMOR}')
-                    ->helperText('Anda juga bisa mengetik variabel kustom seperti {KODE_KLASIFIKASI}. Pengguna akan diminta mengisi nilainya saat membuat surat.')
+                    ->label('Pola Penomoran')
+                    ->placeholder('Contoh: {NOMOR}/{KODE_UNIT}/{BULAN_ROMAWI}/{TAHUN}')
+                    ->helperText('Anda juga bisa mengetik variabel kustom seperti {KODE_KLASIFIKASI}. Pengguna dapat mengisi nilainya saat menetapkan nomor.')
                     ->required()
                     ->live()
                     ->columnSpanFull()
@@ -61,10 +97,23 @@ class FormatNomorSuratForm
                     ->label('LIVE PREVIEW')
                     ->state(function (Get $get) {
                         $format = $get('format_penomoran') ?? '';
-                        $format = str_replace('{NOMOR}', '001', $format);
+                        $padding = (int) ($get('padding_digit') ?? 3);
+                        $sampleNomor = str_pad('1', max(1, $padding), '0', STR_PAD_LEFT);
+                        $tipe = $get('tipe_surat') ?? 'ALL';
+                        $tipeCode = match ($tipe) {
+                            'INTERNAL' => 'ND',
+                            'PENGAJUAN' => 'PGN',
+                            'TERBITAN' => 'SK',
+                            'EKSTERNAL' => 'EKS',
+                            default => 'SRT',
+                        };
+
+                        $format = str_replace('{NOMOR}', $sampleNomor, $format);
                         $format = str_replace('{KODE_UNIT}', 'REK', $format);
-                        $format = str_replace('{BULAN_ROMAWI}', 'VIII', $format);
-                        $format = str_replace('{TAHUN}', date('Y'), $format);
+                        $format = str_replace('{BULAN_ROMAWI}', 'IX', $format);
+                        $format = str_replace('{BULAN_ANGKA}', '09', $format);
+                        $format = str_replace('{TAHUN}', (string) ($get('tahun') ?? date('Y')), $format);
+                        $format = str_replace('{TIPE}', $tipeCode, $format);
 
                         return new \Illuminate\Support\HtmlString('<div class="p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-white/10 shadow-sm rounded-lg text-lg font-mono flex items-center gap-3 text-gray-950 dark:text-white">
                             <svg class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -72,6 +121,16 @@ class FormatNomorSuratForm
                         </div>');
                     })
                     ->columnSpanFull(),
+
+                \Filament\Forms\Components\TextInput::make('padding_digit')
+                    ->label('Jumlah Digit Padding')
+                    ->required()
+                    ->numeric()
+                    ->default(3)
+                    ->minValue(1)
+                    ->maxValue(6)
+                    ->live()
+                    ->helperText('Contoh: 3 menghasilkan 001, 4 menghasilkan 0001.'),
 
                 \Filament\Forms\Components\TextInput::make('tahun')
                     ->label('Tahun Berjalan')
@@ -89,7 +148,7 @@ class FormatNomorSuratForm
                 \Filament\Forms\Components\Toggle::make('is_active')
                     ->label('Status Aktif')
                     ->default(true)
-                    ->helperText('Hanya ada satu format aktif (per unit/global) pada satu waktu.'),
+                    ->helperText('Format aktif akan digunakan sebagai acuan penomoran pada unit dan tipe yang bersangkutan.'),
             ]);
     }
 }

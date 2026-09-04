@@ -32,6 +32,8 @@ class Surat extends Model implements HasMedia
         'pengirim_nama',
         'pengirim_email',
         'pengirim_metadata',
+        'nomor_surat',
+        'nomor_surat_eksternal',
         'perihal',
         'tipe_surat',
         'status_surat',
@@ -149,6 +151,16 @@ class Surat extends Model implements HasMedia
     public function nomorSuratLogs(): HasMany
     {
         return $this->hasMany(NomorSuratLog::class);
+    }
+
+    public function nomorSuratLogTerakhir()
+    {
+        return $this->hasOne(NomorSuratLog::class)->latestOfMany();
+    }
+
+    public function isBackdate(): bool
+    {
+        return $this->nomorSuratLogs()->where('is_backdate', true)->exists();
     }
 
     // User pembuat surat (NULL jika Guest tanpa login)

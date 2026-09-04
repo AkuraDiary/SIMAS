@@ -2,117 +2,22 @@
 
 namespace App\Filament\Pages\StafUnit\SuratMasuk\Concerns;
 
+use App\Models\FormatNomorSurat;
+use App\Services\NomorSuratService;
+use App\Services\PlaceholderService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
-
-/**
- * Supposedly substitute (Haven't verified)
- *  // for downloading final letter
-        if ($this->surat->tipe_surat === 'TERBITAN' && $this->surat->status_surat === 'SELESAI') {
-
-            $primaryActions[] =
-                \Filament\Actions\Action::make('download_pdf')
-                ->label('Unduh PDF Resmi')
-                ->icon('heroicon-o-document-arrow-down')
-                ->color('success')
-                ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']) && $this->surat->hasMedia('dokumen-final'))
-                ->action(function () {
-                    // Ambil PDF yang sudah dikunci secara permanen di storage
-                    $media = $this->surat->getFirstMedia('dokumen-final');
-                    if ($media) {
-                        return response()->download($media->getPath(), $media->file_name);
-                    }
-
-                    Notification::make()->title('File PDF belum tergenerate!')->danger()->send();
-                });
-        }
-
-        // [NEW] Generate Nomor Action
-        if ($this->surat->tipe_surat === 'TERBITAN' && empty($this->surat->nomor_surat)) {
-            $primaryActions[] = Action::make('generate_nomor')
-                ->label('Generate Nomor Surat')
-                ->icon('heroicon-o-hashtag')
-                ->color('primary')
-                ->schema([
-                    \Filament\Forms\Components\DatePicker::make('tanggal_surat')
-                        ->label('Tanggal Surat (Bisa Backdate)')
-                        ->default(now())
-                        ->required()
-                        ->reactive(),
-
-                    \Filament\Forms\Components\Select::make('format_id')
-                        ->label('Pilih Format Penomoran')
-                        ->options(function () use ($unitId) {
-                            return \App\Models\FormatNomorSurat::where('is_active', true)
-                                ->where(function ($q) use ($unitId) {
-                                    $q->whereNull('unit_kerja_id')
-                                        ->orWhere('unit_kerja_id', $unitId);
-                                })
-                                ->get()
-                                ->pluck('nama_format', 'id');
-                        })
-                        ->required()
-                        ->reactive()
-                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                            if (! $state) return;
-                            $format = \App\Models\FormatNomorSurat::find($state);
-                            if ($format) {
-                                $nextNumber = $format->nomor_urut_terakhir + 1;
-                                $nextStr = str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-
-                                $tgl = $get('tanggal_surat') ? \Carbon\Carbon::parse($get('tanggal_surat')) : now();
-
-                                $preview = $format->format_penomoran;
-                                $preview = str_replace('{NOMOR}', $nextStr, $preview);
-                                $preview = str_replace('{KODE_UNIT}', Auth::user()->unitKerja?->kode_unit ?? 'UNIT', $preview);
-                                $preview = str_replace('{TAHUN}', $tgl->format('Y'), $preview);
-                                // Simple romanizer helper
-                                $romans = ['01' => 'I', '02' => 'II', '03' => 'III', '04' => 'IV', '05' => 'V', '06' => 'VI', '07' => 'VII', '08' => 'VIII', '09' => 'IX', '10' => 'X', '11' => 'XI', '12' => 'XII'];
-                                $preview = str_replace('{BULAN_ROMAWI}', $romans[$tgl->format('m')] ?? '', $preview);
-
-                                $set('nomor_surat_preview', $preview);
-                            }
-                        }),
-
-                    \Filament\Forms\Components\Toggle::make('is_manual')
-                        ->label('Kustomisasi Nomor / Sisipan Manual')
-                        ->reactive()
-                        ->helperText('Aktifkan jika Anda perlu menyisipkan nomor backdate secara manual (Cth: 151.A/UN/2026).'),
-
-                    \Filament\Forms\Components\TextInput::make('nomor_surat_preview')
-                        ->label('Preview / Nomor Akhir')
-                        ->disabled(fn(callable $get) => ! $get('is_manual'))
-                        ->dehydrated(true)
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    $isManual = $data['is_manual'] ?? false;
-                    $nomorAkhir = $data['nomor_surat_preview'];
-
-                    if (! $isManual) {
-                        // Increment the real counter in database!
-                        $format = \App\Models\FormatNomorSurat::find($data['format_id']);
-                        $format->increment('nomor_urut_terakhir');
-                    }
-
-                    $this->surat->update([
-                        'nomor_surat' => $nomorAkhir,
-                        'tanggal_kirim' => $data['tanggal_surat'],
-                        // Jika sudah ada nomornya, otomatis menjadi SELESAI
-                        'status_surat' => 'SELESAI'
-                    ]);
-
-                    $this->refreshPage('Nomor Surat Berhasil Digenerate!', 'Surat kini resmi berstatus SELESAI dan siap diunduh.');
-                });
-        }
-
- */
-
 
 trait HasFinalisasiActions
 {
@@ -138,78 +43,182 @@ trait HasFinalisasiActions
         }
 
         // 2. Generate Nomor Action
-        if ($this->surat->tipe_surat === 'TERBITAN' && empty($this->surat->nomor_surat)) {
+        // Berlaku untuk:
+        // a. TERBITAN yang belum bernomor
+        // b. Atau INTERNAL / PENGAJUAN / EKSTERNAL yang belum bernomor dan user berasal dari unit pengirim / admin
+        $canGenerateNomor = empty($this->surat->nomor_surat) && (
+            $this->surat->tipe_surat === 'TERBITAN' ||
+            $this->surat->unit_pengirim_id == $unitId ||
+            Auth::user()?->tipe_entitas === 'ADMIN'
+        );
+
+        if ($canGenerateNomor) {
             $actions[] = Action::make('generate_nomor')
-                ->label('Generate Nomor Surat')
+                ->label('Beri Nomor Surat')
                 ->icon('heroicon-o-hashtag')
                 ->color('primary')
+                ->modalHeading('Penomoran Surat' . ($this->surat->tipe_surat ? " ({$this->surat->tipe_surat})" : ''))
+                ->modalDescription('Tetapkan nomor surat resmi, sesuaikan tanggal surat (termasuk backdate), atau lakukan kustomisasi nomor sisipan.')
                 ->schema([
                     DatePicker::make('tanggal_surat')
-                        ->label('Tanggal Surat (Bisa Backdate)')
+                        ->label('Tanggal Surat')
                         ->default(now())
                         ->required()
-                        ->reactive(),
+                        ->live()
+                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                            $this->updateNomorPreview($set, $get);
+                        }),
 
                     Select::make('format_id')
                         ->label('Pilih Format Penomoran')
                         ->options(function () use ($unitId) {
-                            return \App\Models\FormatNomorSurat::where('is_active', true)
-                                ->where(function ($q) use ($unitId) {
-                                    $q->whereNull('unit_kerja_id')
-                                        ->orWhere('unit_kerja_id', $unitId);
-                                })
-                                ->get()
-                                ->pluck('nama_format', 'id');
+                            return app(NomorSuratService::class)->getAvailableFormats($unitId, $this->surat->tipe_surat);
+                        })
+                        ->default(function () use ($unitId) {
+                            return app(NomorSuratService::class)->resolveFormat($unitId, $this->surat->tipe_surat)?->id;
                         })
                         ->required()
-                        ->reactive()
-                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                            if (! $state) return;
-                            $format = \App\Models\FormatNomorSurat::find($state);
-                            if ($format) {
-                                $nextNumber = $format->nomor_urut_terakhir + 1;
-                                $nextStr = str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-                                $tgl = $get('tanggal_surat') ? \Carbon\Carbon::parse($get('tanggal_surat')) : now();
-                                $preview = $format->format_penomoran;
-                                $preview = str_replace('{NOMOR}', $nextStr, $preview);
-                                $preview = str_replace('{KODE_UNIT}', Auth::user()->unitKerja?->kode_unit ?? 'UNIT', $preview);
-                                $preview = str_replace('{TAHUN}', $tgl->format('Y'), $preview);
-                                $romans = ['01'=>'I','02'=>'II','03'=>'III','04'=>'IV','05'=>'V','06'=>'VI','07'=>'VII','08'=>'VIII','09'=>'IX','10'=>'X','11'=>'XI','12'=>'XII'];
-                                $preview = str_replace('{BULAN_ROMAWI}', $romans[$tgl->format('m')] ?? '', $preview);
-                                $set('nomor_surat_preview', $preview);
-                            }
+                        ->live()
+                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                            $this->updateNomorPreview($set, $get);
                         }),
 
                     Toggle::make('is_manual')
                         ->label('Kustomisasi Nomor / Sisipan Manual')
-                        ->reactive()
-                        ->helperText('Aktifkan jika Anda perlu menyisipkan nomor backdate secara manual (Cth: 151.A/UN/2026).'),
+                        ->live()
+                        ->helperText('Aktifkan jika Anda perlu menyisipkan nomor backdate manual (cth: 045.A) atau menyesuaikan teks nomor surat.'),
+
+                    TextInput::make('nomor_part')
+                        ->label('Nomor / Sisipan')
+                        ->placeholder('Contoh: 045.A atau 12.B')
+                        ->helperText('Nilai ini akan menyubstitusi {NOMOR} pada template.')
+                        ->visible(fn(Get $get) => (bool) $get('is_manual'))
+                        ->live()
+                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                            $this->updateNomorPreview($set, $get);
+                        }),
+
+                    Checkbox::make('increment_counter')
+                        ->label('Naikkan counter nomor urut?')
+                        ->default(false)
+                        ->visible(fn(Get $get) => (bool) $get('is_manual'))
+                        ->helperText('Biarkan tidak dicentang agar nomor sisipan lampau tidak memajukan counter penomoran berjalan.'),
 
                     TextInput::make('nomor_surat_preview')
-                        ->label('Preview / Nomor Akhir')
-                        ->disabled(fn(callable $get) => ! $get('is_manual'))
+                        ->label('Nomor Surat Final')
+                        ->disabled(fn(Get $get) => ! $get('is_manual'))
                         ->dehydrated(true)
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    $isManual = $data['is_manual'] ?? false;
-                    $nomorAkhir = $data['nomor_surat_preview'];
+                        ->required()
+                        ->helperText(fn(Get $get) => $get('is_manual')
+                            ? 'Anda dapat mengedit bebas teks nomor surat final ini jika diperlukan.'
+                            : 'Dihasilkan otomatis sesuai template dan nomor urut.'),
 
-                    if (! $isManual) {
-                        $format = \App\Models\FormatNomorSurat::find($data['format_id']);
-                        $format->increment('nomor_urut_terakhir');
+                    Textarea::make('alasan_backdate')
+                        ->label('Alasan Backdate')
+                        ->placeholder('Contoh: Surat keputusan telah ditetapkan pada tanggal lampau dan baru diadministrasikan hari ini.')
+                        ->helperText('Wajib diisi karena tanggal surat mendahului tanggal hari ini (audit trail).')
+                        ->visible(fn(Get $get) => app(NomorSuratService::class)->isDateBackdate($get('tanggal_surat')))
+                        ->required(fn(Get $get) => app(NomorSuratService::class)->isDateBackdate($get('tanggal_surat'))),
+                ])
+                ->mountUsing(function ($form) use ($unitId) {
+                    $service = app(NomorSuratService::class);
+                    $format = $service->resolveFormat($unitId, $this->surat->tipe_surat);
+                    $initialPreview = '';
+
+                    if ($format) {
+                        $initialPreview = $service->previewNomor(
+                            $format,
+                            now(),
+                            null,
+                            $this->surat->unitPengirim ?? Auth::user()->unitKerja,
+                            $this->surat->tipe_surat,
+                            $this->surat->content ?? []
+                        );
                     }
 
-                    $this->surat->update([
-                        'nomor_surat' => $nomorAkhir,
-                        'tanggal_kirim' => $data['tanggal_surat'],
-                        'status_surat' => 'SELESAI'
+                    $form->fill([
+                        'tanggal_surat' => now()->toDateString(),
+                        'format_id' => $format?->id,
+                        'is_manual' => false,
+                        'increment_counter' => false,
+                        'nomor_surat_preview' => $initialPreview,
+                    ]);
+                })
+                ->action(function (array $data) {
+                    $format = FormatNomorSurat::find($data['format_id']);
+                    if (!$format) {
+                        Notification::make()->title('Format nomor tidak ditemukan')->danger()->send();
+                        return;
+                    }
+
+                    $service = app(NomorSuratService::class);
+                    $nomorAkhir = $service->assignNomorSurat($this->surat, $format, [
+                        'tanggal_surat' => $data['tanggal_surat'],
+                        'nomor_surat_preview' => $data['nomor_surat_preview'],
+                        'is_manual' => (bool) ($data['is_manual'] ?? false),
+                        'increment_counter' => $data['is_manual']
+                            ? (bool) ($data['increment_counter'] ?? false)
+                            : true,
+                        'alasan_backdate' => $data['alasan_backdate'] ?? null,
+                        'user_id' => Auth::id(),
                     ]);
 
-                    $this->refreshPage('Nomor Surat Berhasil Digenerate!', 'Surat kini resmi berstatus SELESAI dan siap diunduh.');
+                    // Jika tipe TERBITAN, finalisasikan surat dan generate PDF
+                    if ($this->surat->tipe_surat === 'TERBITAN') {
+                        $this->surat->status_surat = 'SELESAI';
+                        $this->surat->save();
+
+                        if ($this->surat->template_id) {
+                            $html = app(PlaceholderService::class)->renderHtml(
+                                $this->surat->template,
+                                $this->surat->content ?? [],
+                                $this->surat
+                            );
+
+                            $pdf = Pdf::loadHTML($html)->setPaper('A4', 'portrait');
+                            $pdfContent = $pdf->output();
+
+                            $safeNomor = str_replace(['/', '\\'], '_', $nomorAkhir);
+                            $fileName = 'Surat_Resmi_' . $safeNomor . '.pdf';
+
+                            $this->surat->addMediaFromString($pdfContent)
+                                ->usingFileName($fileName)
+                                ->toMediaCollection('dokumen-final');
+                        }
+                    }
+
+                    $this->refreshPage(
+                        'Nomor Surat Berhasil Ditetapkan!',
+                        "Nomor surat: {$nomorAkhir}" . ($this->surat->tipe_surat === 'TERBITAN' ? '. Surat kini resmi SELESAI dan siap diunduh.' : '.')
+                    );
                 });
         }
 
         return $actions;
+    }
+
+    protected function updateNomorPreview(Set $set, Get $get): void
+    {
+        $formatId = $get('format_id');
+        if (!$formatId) return;
+
+        $format = FormatNomorSurat::find($formatId);
+        if (!$format) return;
+
+        $service = app(NomorSuratService::class);
+        $tgl = $get('tanggal_surat') ? Carbon::parse($get('tanggal_surat')) : Carbon::now();
+        $isManual = (bool) $get('is_manual');
+        $customPart = $isManual ? $get('nomor_part') : null;
+
+        $preview = $service->previewNomor(
+            $format,
+            $tgl,
+            $customPart,
+            $this->surat->unitPengirim ?? Auth::user()->unitKerja,
+            $this->surat->tipe_surat,
+            $this->surat->content ?? []
+        );
+
+        $set('nomor_surat_preview', $preview);
     }
 }

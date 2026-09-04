@@ -68,12 +68,29 @@ class SuratsTable
                         return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
                     }),
 
-                TextColumn::make('nomorSuratLogs.nomor_lengkap')
+                TextColumn::make('nomor_surat')
                     ->label('Nomor Surat')
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function (Builder $q) use ($search) {
+                            $q->where('nomor_surat', 'like', "%{$search}%")
+                                ->orWhere('nomor_surat_eksternal', 'like', "%{$search}%")
+                                ->orWhereHas('nomorSuratLogs', fn($lq) => $lq->where('nomor_lengkap', 'like', "%{$search}%"));
+                        });
+                    })
                     ->sortable()
+                    ->fontFamily('mono')
+                    ->description(function (Surat $record) {
+                        if ($record->isBackdate()) {
+                            $tgl = $record->nomorSuratLogs()->where('is_backdate', true)->latest('id')->first()?->tanggal_ditetapkan?->format('d/m/Y');
+                            return 'Backdate' . ($tgl ? " ({$tgl})" : '');
+                        }
+                        if ($record->nomor_surat_eksternal) {
+                            return 'Asal: ' . $record->nomor_surat_eksternal;
+                        }
+                        return null;
+                    })
                     ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) !== 'draft')
-                    ->getStateUsing(fn(Surat $record) => $record->nomorSuratLogs->last()?->nomor_lengkap ?? '-'),
+                    ->getStateUsing(fn(Surat $record) => $record->nomor_surat ?? $record->nomorSuratLogs->last()?->nomor_lengkap ?? '-'),
 
                 TextColumn::make('pembuat.name')
                     ->label('Dibuat Oleh')

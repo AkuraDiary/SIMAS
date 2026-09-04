@@ -8,14 +8,19 @@ use App\Models\Template;
 use App\Models\UnitKerja;
 use App\Services\FormSchemaService;
 use App\Services\PlaceholderService;
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
+use Carbon\Carbon;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -202,8 +207,16 @@ class SuratForm
 
                                 TextInput::make('pengirim_eksternal')
                                     ->label('Asal Pengirim Eksternal')
+                                    ->placeholder('Contoh: PT Telkom Indonesia / Kemendikbud')
                                     ->dehydrated()
                                     ->required(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL')
+                                    ->visible(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL'),
+
+                                TextInput::make('nomor_surat_eksternal')
+                                    ->label('Nomor Surat Asal (Eksternal)')
+                                    ->placeholder('Contoh: 012/DIR-PLN/VIII/2026')
+                                    ->helperText('Nomor surat yang tertera pada dokumen dari pihak luar.')
+                                    ->dehydrated()
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL'),
                             ]),
 
@@ -223,6 +236,136 @@ class SuratForm
                                 ->label('Perihal Surat (Subject)')
                                 ->placeholder('Masukkan judul surat...')
                                 ->required(),
+
+                            // Penomoran Surat (di antara metadata dan konten surat)
+                            Section::make('Penomoran Surat')
+                                ->description('Pilih apakah nomor surat digenerate otomatis saat dikirim atau ditetapkan sekarang (termasuk opsi backdate & sisipan).')
+                                ->icon('heroicon-o-hashtag')
+                                ->schema([
+                                    Radio::make('mode_penomoran')
+                                        ->label('Pilihan Penomoran')
+                                        ->options([
+                                            'auto' => 'Generate Otomatis saat Surat Dikirim',
+                                            'manual' => 'Tetapkan Nomor Sekarang / Backdate',
+                                        ])
+                                        ->default('auto')
+                                        ->inline()
+                                        ->live()
+                                        ->dehydrated(false)
+                                        ->afterStateHydrated(function ($component, ?\Illuminate\Database\Eloquent\Model $record) {
+                                            if ($record && !empty($record->nomor_surat)) {
+                                                $component->state('manual');
+                                            }
+                                        })
+                                        ->afterStateUpdated(function (Get $get, Set $set) {
+                                            if ($get('mode_penomoran') === 'auto') {
+                                                $set('nomor_surat', null);
+                                            } else {
+                                                static::updateFormNomorPreview($set, $get);
+                                            }
+                                        }),
+
+                                    Placeholder::make('info_auto_nomor')
+                                        ->hiddenLabel()
+                                        ->content(function (Get $get) {
+                                            $unitId = Auth::user()?->unit_kerja_id;
+                                            $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
+                                            $format = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);
+                                            $formatName = $format ? "[{$format->nama_format}] {$format->format_penomoran}" : 'Format Standar';
+                                            $nextEstimate = $format ? app(\App\Services\NomorSuratService::class)->previewNomor($format, now(), null, Auth::user()?->unitKerja, $tipeSurat) : '-';
+
+                                            return new \Illuminate\Support\HtmlString("
+                                                <div class='flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-900 dark:text-blue-200'>
+                                                    <svg class='w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z' /></svg>
+                                                    <div>
+                                                        <span>Nomor surat akan dibuat otomatis saat dikirim mengikuti pola: <strong>{$formatName}</strong>.</span>
+                                                        <br><span class='text-xs opacity-80 font-mono'>Estimasi nomor berikutnya: {$nextEstimate}</span>
+                                                    </div>
+                                                </div>
+                                            ");
+                                        })
+                                        ->visible(fn(Get $get) => ($get('mode_penomoran') ?? 'auto') === 'auto')
+                                        ->columnSpanFull(),
+
+                                    Grid::make(3)->schema([
+                                        DatePicker::make('tanggal_surat_input')
+                                            ->label('Tanggal Surat (Bisa Backdate)')
+                                            ->default(now())
+                                            ->live()
+                                            ->dehydrated(false)
+                                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                                static::updateFormNomorPreview($set, $get);
+                                            }),
+
+                                        Select::make('format_id_input')
+                                            ->label('Pola Format Penomoran')
+                                            ->options(function (Get $get) {
+                                                $unitId = Auth::user()?->unit_kerja_id;
+                                                return app(\App\Services\NomorSuratService::class)->getAvailableFormats($unitId, $get('tipe_surat'));
+                                            })
+                                            ->default(function (Get $get) {
+                                                $unitId = Auth::user()?->unit_kerja_id;
+                                                return app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $get('tipe_surat'))?->id;
+                                            })
+                                            ->live()
+                                            ->dehydrated(false)
+                                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                                static::updateFormNomorPreview($set, $get);
+                                            }),
+
+                                        Toggle::make('is_manual_sisipan')
+                                            ->label('Kustomisasi / Sisipan Manual')
+                                            ->default(false)
+                                            ->live()
+                                            ->dehydrated(false)
+                                            ->helperText('Aktifkan jika ingin menyisipkan nomor manual (cth: 045.A) atau mengedit format.')
+                                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                                static::updateFormNomorPreview($set, $get);
+                                            }),
+                                    ])->visible(fn(Get $get) => $get('mode_penomoran') === 'manual'),
+
+                                    Grid::make(2)->schema([
+                                        TextInput::make('nomor_sisipan_input')
+                                            ->label('Nomor / Sisipan')
+                                            ->placeholder('Contoh: 045.A')
+                                            ->helperText('Menggantikan token {NOMOR} pada template.')
+                                            ->live()
+                                            ->dehydrated(false)
+                                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                                static::updateFormNomorPreview($set, $get);
+                                            })
+                                            ->visible(fn(Get $get) => (bool) $get('is_manual_sisipan')),
+
+                                        Checkbox::make('increment_counter_input')
+                                            ->label('Naikkan counter nomor urut?')
+                                            ->default(false)
+                                            ->dehydrated(false)
+                                            ->helperText('Biarkan tidak dicentang agar nomor sisipan lampau tidak memajukan counter berjalan.')
+                                            ->visible(fn(Get $get) => (bool) $get('is_manual_sisipan')),
+                                    ])->visible(fn(Get $get) => $get('mode_penomoran') === 'manual'),
+
+                                    TextInput::make('nomor_surat')
+                                        ->label('Nomor Surat Final')
+                                        ->placeholder('Nomor surat akan terisi otomatis...')
+                                        ->helperText(fn(Get $get) => $get('is_manual_sisipan')
+                                            ? 'Anda dapat mengedit bebas seluruh teks nomor surat final di atas.'
+                                            : 'Nomor di-generate otomatis berdasarkan template.')
+                                        ->disabled(fn(Get $get) => ! $get('is_manual_sisipan'))
+                                        ->dehydrated(true)
+                                        ->required(fn(Get $get) => $get('mode_penomoran') === 'manual')
+                                        ->visible(fn(Get $get) => $get('mode_penomoran') === 'manual')
+                                        ->columnSpanFull(),
+
+                                    Textarea::make('alasan_backdate_input')
+                                        ->label('Alasan Backdate')
+                                        ->placeholder('Contoh: Surat fisik telah diputuskan tanggal lampau dan baru diadministrasikan sekarang.')
+                                        ->helperText('Wajib diisi karena tanggal surat merupakan tanggal lampau.')
+                                        ->dehydrated(false)
+                                        ->required(fn(Get $get) => $get('mode_penomoran') === 'manual' && app(\App\Services\NomorSuratService::class)->isDateBackdate($get('tanggal_surat_input')))
+                                        ->visible(fn(Get $get) => $get('mode_penomoran') === 'manual' && app(\App\Services\NomorSuratService::class)->isDateBackdate($get('tanggal_surat_input')))
+                                        ->columnSpanFull(),
+                                ])
+                                ->collapsible(),
 
                             // Dynamic Content / Rich Editor
                             Group::make()->schema(function (Get $get) {
@@ -249,12 +392,13 @@ class SuratForm
                                 $fieldVariables = $template ? ($template->field_variables ?? []) : [];
 
                                 // Intercept FormatNomorSurat for custom tags
-                                $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
+                                $unitId = Auth::user()?->unit_kerja_id;
+                                $formatNomor = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $get('tipe_surat') ?? 'INTERNAL');
                                 $customFormatVars = [];
-                                if ($formatGlobal && $formatGlobal->format_penomoran) {
-                                    preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $formatGlobal->format_penomoran, $matches);
+                                if ($formatNomor && $formatNomor->format_penomoran) {
+                                    preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $formatNomor->format_penomoran, $matches);
                                     if (!empty($matches[1])) {
-                                        $standardTags = ['NOMOR', 'KODE_UNIT', 'BULAN_ROMAWI', 'TAHUN'];
+                                        $standardTags = ['NOMOR', 'KODE_UNIT', 'BULAN_ROMAWI', 'BULAN_ANGKA', 'TAHUN', 'TIPE'];
                                         foreach ($matches[1] as $tag) {
                                             if (!in_array($tag, $standardTags)) {
                                                 $customFormatVars[] = [
@@ -285,7 +429,10 @@ class SuratForm
                                     ->state(function (Get $get) use ($template, $service, $allVariables) {
                                         $data = $get('content') ?? [];
 
-                                        // Force dependency tracking for all nested content keys
+                                        // Force dependency tracking for all nested content keys & numbering
+                                        $get('nomor_surat');
+                                        $get('tanggal_surat_input');
+
                                         foreach ($allVariables as $field) {
                                             if (!empty($field['key'])) {
                                                 if ($field['type'] === 'repeater') {
@@ -305,9 +452,18 @@ class SuratForm
 
                                         $placeholderService = app(\App\Services\PlaceholderService::class);
 
+                                        $previewData = $data;
+                                        if (!empty($get('nomor_surat'))) {
+                                            $previewData['nomor_surat'] = $get('nomor_surat');
+                                        }
+                                        if (!empty($get('tanggal_surat_input'))) {
+                                            $previewData['tanggal_surat'] = \Carbon\Carbon::parse($get('tanggal_surat_input'))->translatedFormat('d F Y');
+                                            $previewData['tanggal_terbit'] = $previewData['tanggal_surat'];
+                                        }
+
                                         return new HtmlString(
                                             view('filament.forms.components.template-preview', [
-                                                'html' => $placeholderService->renderHtml($template, $data)
+                                                'html' => $placeholderService->renderHtml($template, $previewData)
                                             ])->render()
                                         );
                                     })
@@ -317,8 +473,8 @@ class SuratForm
                             })->columnSpanFull(),
 
                             // Dynamic Path Builder
-                            Section::make('Jalur Persetujuan Khusus (Dynamic Path Builder)')
-                                ->description('Atur jalur persetujuan secara manual. Jika dikosongkan, sistem akan menggunakan jalur default dari Template.')
+                            Section::make('Jalur Persetujuan Khusus')
+                                ->description('Atur jalur persetujuan secara manual. Jika dikosongkan, sistem akan menggunakan jalur default dari Template atau sepenuhnya bergantung ke staf.')
                                 ->schema([
                                     \Filament\Forms\Components\Repeater::make('approval_path')
                                         ->label('Alur Persetujuan & Tanda Tangan')
@@ -412,5 +568,37 @@ class SuratForm
 
 
             ]);
+    }
+
+    public static function updateFormNomorPreview(Set $set, Get $get): void
+    {
+        $formatId = $get('format_id_input');
+        $unitId = Auth::user()?->unit_kerja_id;
+        $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
+
+        $format = $formatId
+            ? \App\Models\FormatNomorSurat::find($formatId)
+            : app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);
+
+        if (!$format) {
+            $set('nomor_surat', null);
+            return;
+        }
+
+        $service = app(\App\Services\NomorSuratService::class);
+        $tgl = $get('tanggal_surat_input') ? \Carbon\Carbon::parse($get('tanggal_surat_input')) : now();
+        $isManual = (bool) $get('is_manual_sisipan');
+        $customPart = $isManual ? $get('nomor_sisipan_input') : null;
+
+        $preview = $service->previewNomor(
+            $format,
+            $tgl,
+            $customPart,
+            Auth::user()?->unitKerja,
+            $tipeSurat,
+            $get('content') ?? []
+        );
+
+        $set('nomor_surat', $preview);
     }
 }

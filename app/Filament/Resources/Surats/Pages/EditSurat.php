@@ -66,6 +66,33 @@ class EditSurat extends EditRecord
                 'status_baca' => 'BELUM',
             ]);
         }
+
+        // Penanganan jika nomor_surat ditetapkan saat edit
+        if (!empty($surat->nomor_surat) && $surat->nomorSuratLogs()->doesntExist()) {
+            $formatId = $this->data['format_id_input'] ?? null;
+            $format = $formatId ? \App\Models\FormatNomorSurat::find($formatId) : null;
+            if (!$format) {
+                $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
+                    $surat->unit_pengirim_id,
+                    $surat->tipe_surat
+                );
+            }
+
+            if ($format) {
+                $isManual = (bool) ($this->data['is_manual_sisipan'] ?? false);
+                $incrementCounter = $isManual ? (bool) ($this->data['increment_counter_input'] ?? false) : true;
+                $tglSurat = !empty($this->data['tanggal_surat_input']) ? \Carbon\Carbon::parse($this->data['tanggal_surat_input']) : now();
+
+                app(\App\Services\NomorSuratService::class)->assignNomorSurat($surat, $format, [
+                    'tanggal_surat' => $tglSurat,
+                    'nomor_surat_preview' => $surat->nomor_surat,
+                    'is_manual' => $isManual,
+                    'increment_counter' => $incrementCounter,
+                    'alasan_backdate' => $this->data['alasan_backdate_input'] ?? null,
+                    'user_id' => auth()->id(),
+                ]);
+            }
+        }
     }
 
     protected function getHeaderActions(): array

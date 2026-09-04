@@ -22,11 +22,13 @@ class SuratRoutingService
                 'status_surat' => 'TERKIRIM',
             ]);
 
-            $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
-            if ($formatGlobal && empty($surat->nomor_surat)) {
-                $surat->update([
-                    'nomor_surat' => $formatGlobal->generateNomorSurat($surat)
-                ]);
+            $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
+                $surat->unit_pengirim_id,
+                $surat->tipe_surat
+            );
+            if ($format && empty($surat->nomor_surat)) {
+                $surat->nomor_surat = $format->generateNomorSurat($surat);
+                $surat->save();
             }
 
             // [NEW] Automated Routing Engine
@@ -162,9 +164,12 @@ class SuratRoutingService
             if ($finalIsFinalStep) {
                 $newStatus = 'SELESAI';
 
-                $formatGlobal = \App\Models\FormatNomorSurat::whereNull('unit_kerja_id')->where('is_active', true)->first();
-                if ($formatGlobal && empty($surat->nomor_surat)) {
-                    $surat->nomor_surat = $formatGlobal->generateNomorSurat($surat);
+                $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
+                    $surat->unit_pengirim_id,
+                    $surat->tipe_surat
+                );
+                if ($format && empty($surat->nomor_surat)) {
+                    $surat->nomor_surat = $format->generateNomorSurat($surat);
                 }
 
                 $surat->status_surat = $newStatus;

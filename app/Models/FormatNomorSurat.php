@@ -13,8 +13,10 @@ class FormatNomorSurat extends Model
 
     protected $fillable = [
         'unit_kerja_id',
+        'tipe_surat',
         'nama_format',
         'format_penomoran',
+        'padding_digit',
         'nomor_urut_terakhir',
         'tahun',
         'is_active',
@@ -24,6 +26,9 @@ class FormatNomorSurat extends Model
     {
         return [
             'is_active' => 'boolean',
+            'padding_digit' => 'integer',
+            'nomor_urut_terakhir' => 'integer',
+            'tahun' => 'integer',
         ];
     }
 
@@ -37,49 +42,34 @@ class FormatNomorSurat extends Model
         return $this->hasMany(NomorSuratLog::class, 'format_nomor_id');
     }
 
-    public function generateNomorSurat(Surat $surat): string
+    public function generateNomorSurat(Surat $surat, array $options = []): string
     {
-        $this->nomor_urut_terakhir++;
-        $this->save();
+        $service = app(\App\Services\NomorSuratService::class);
+        $tglSurat = isset($options['tanggal_surat'])
+            ? \Carbon\Carbon::parse($options['tanggal_surat'])
+            : ($surat->tanggal_kirim ?? now());
 
-        $nomorUrut = str_pad($this->nomor_urut_terakhir, 3, '0', STR_PAD_LEFT);
-        $kodeUnit = $surat->unitPengirim?->singkatan ?? 'UN';
+        $isManual = (bool) ($options['is_manual'] ?? false);
+        $customNomor = $options['nomor_surat_preview'] ?? null;
 
-        $romawiBulan = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI', 
-            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
-        ];
-        $bulan = $romawiBulan[date('n')];
-        $tahun = date('Y');
-
-        $format = $this->format_penomoran;
-
-        $format = str_replace('{NOMOR}', $nomorUrut, $format);
-        $format = str_replace('{KODE_UNIT}', $kodeUnit, $format);
-        $format = str_replace('{BULAN_ROMAWI}', $bulan, $format);
-        $format = str_replace('{TAHUN}', $tahun, $format);
-
-        // Parse remaining custom {TAG}s and try to replace them from $surat->content
-        preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $format, $matches);
-        if (!empty($matches[1])) {
-            $suratContent = $surat->content ?? [];
-            foreach ($matches[1] as $customTag) {
-                if (array_key_exists($customTag, $suratContent)) {
-                    $format = str_replace('{' . $customTag . '}', $suratContent[$customTag], $format);
-                }
-            }
+        if (!$customNomor) {
+            $customNomor = $service->previewNomor(
+                $this,
+                $tglSurat,
+                $options['nomor_part'] ?? null,
+                $surat->unitPengirim,
+                $surat->tipe_surat,
+                $surat->content ?? []
+            );
         }
 
-        $nomorLengkap = $format;
-
-        NomorSuratLog::create([
-            'surat_id' => $surat->id,
-            'format_nomor_id' => $this->id,
-            'nomor_urut' => $this->nomor_urut_terakhir,
-            'nomor_lengkap' => $nomorLengkap,
-            'tanggal_ditetapkan' => now(),
-        ]);
-
-        return $nomorLengkap;
+        return $service->assignNomorSurat($surat, $this, array_merge([
+            'tanggal_surat' => $tglSurat,
+            'nomor_surat_preview' => $customNomor,
+            'is_manual' => $isManual,
+            'increment_counter' => $options['increment_counter'] ?? (!$isManual),
+            'alasan_backdate' => $options['alasan_backdate'] ?? null,
+            'user_id' => $options['user_id'] ?? auth()->id(),
+        ], $options));
     }
 }

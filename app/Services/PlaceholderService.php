@@ -65,12 +65,17 @@ class PlaceholderService
         $html = $template->content_html ?? '';
 
         // Inject Reserved System Variables if a Surat instance is provided
-        if ($surat) {
-            $data['nomor_surat'] = $surat->nomor_surat ?? '_______________________';
-            $data['tanggal_surat'] = $surat->tanggal_kirim
+        if (!isset($data['nomor_surat']) || empty($data['nomor_surat'])) {
+            $data['nomor_surat'] = $surat?->nomor_surat ?? '_______________________';
+        }
+        if (!isset($data['tanggal_surat']) || empty($data['tanggal_surat'])) {
+            $data['tanggal_surat'] = ($surat && $surat->tanggal_kirim)
                 ? \Carbon\Carbon::parse($surat->tanggal_kirim)->translatedFormat('d F Y')
                 : '.......................';
-            $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
+        }
+        $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
+
+        if ($surat) {
 
             // Inject QR Code Dokumen Utama (Opsional, jika ada kebutuhan QR Global)
             $data['qr_code'] = '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 80px; height: 80px;" />';

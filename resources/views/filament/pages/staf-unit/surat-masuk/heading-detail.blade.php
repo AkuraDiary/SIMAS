@@ -1,8 +1,24 @@
 <div class="flex flex-col gap-1">
     <div class="flex items-center gap-2">
         @if($surat->nomor_surat)
-        <span class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-300 dark:border-gray-700">
+        <span class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-mono font-semibold px-2.5 py-1 rounded-full border border-gray-300 dark:border-gray-700">
             {{ $surat->nomor_surat }}
+        </span>
+        @endif
+
+        @if($surat->isBackdate())
+        @php
+            $lastBackdate = $surat->nomorSuratLogs()->where('is_backdate', true)->latest('id')->first();
+        @endphp
+        <span class="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 text-xs font-semibold px-2.5 py-1 rounded-full border border-amber-300 dark:border-amber-700 flex items-center gap-1" title="{{ $lastBackdate?->alasan_backdate ?? 'Surat Ditetapkan Mundur' }}">
+            <x-filament::icon icon="heroicon-m-clock" class="w-3.5 h-3.5" />
+            Backdate: {{ $lastBackdate?->tanggal_ditetapkan?->format('d/m/Y') }}
+        </span>
+        @endif
+
+        @if($surat->nomor_surat_eksternal)
+        <span class="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-xs font-semibold px-2.5 py-1 rounded-full border border-purple-300 dark:border-purple-700">
+            No. Asal: {{ $surat->nomor_surat_eksternal }}
         </span>
         @endif
         
