@@ -1,11 +1,25 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal SIMAS - Universitas Kadiri</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+
+    @vite(['resources/css/app.css', 'resources/css/filament/simas/theme.css', 'resources/js/app.js'])
+    @livewireStyles
+    @filamentStyles
+    <!-- Styles/Scripts -->
+
 </head>
+
 <body class="bg-gray-50 text-gray-800 font-sans antialiased">
     <!-- Navbar -->
     <x-portal-navbar />
@@ -21,28 +35,56 @@
             <!-- Ajukan Surat Card -->
             <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-start hover:border-primary-200 transition">
                 <div class="bg-primary-600 text-white p-3 rounded-lg mb-6 shadow-sm shadow-primary-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
                 </div>
                 <h2 class="text-2xl font-bold mb-2 text-gray-800">Ajukan Surat</h2>
                 <p class="text-gray-500 mb-8 flex-grow">Buat dan kirim surat baru ke Universitas Kadiri</p>
                 <a href="{{ route('pengajuan') }}" class="text-primary-600 font-semibold flex items-center hover:text-primary-800 transition">
-                    Mulai Pengajuan <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    Mulai Pengajuan <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
                 </a>
             </div>
 
             <!-- Lacak Pengajuan Card -->
             <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-start hover:border-secondary-200 transition">
                 <div class="bg-gray-100 text-gray-600 p-3 rounded-lg mb-6">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
                 </div>
                 <h2 class="text-2xl font-bold mb-2 text-gray-800">Lacak Pengajuan</h2>
                 <p class="text-gray-500 mb-6">Periksa dan lacak status pengajuan surat melalui kode unik surat</p>
-                <form action="{{ route('lacak') }}" method="GET" class="w-full flex space-x-2 mt-auto">
-                    <input type="text" name="tracking_code" placeholder="Masukkan Kode Pelacakan" class="grow border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
-                    <button type="submit" class="bg-secondary-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-secondary-600 transition shadow-sm shadow-secondary-200">Lacak</button>
+
+                <form action="{{ route('lacak') }}" method="GET" class="w-full flex items-center space-x-2 mt-auto">
+                    <!-- Filament Input -->
+                    <x-filament::input.wrapper class="grow">
+                        <x-filament::input
+                            type="text"
+                            name="tracking_code"
+                            placeholder="Masukkan Kode Pelacakan" />
+                    </x-filament::input.wrapper>
+
+                    <!-- Standard Button (Keeps your exact styling and custom shadows) -->
+                    <x-filament::button type="submit" class="bg-secondary-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-secondary-600 transition shadow-sm shadow-secondary-200">
+                        Lacak
+                    </x-filament::button>
                 </form>
+                <!-- <form action="{{ route('lacak') }}" method="GET" class="w-full flex space-x-2 mt-auto">
+                    <input type="text" name="tracking_code" placeholder="Masukkan Kode Pelacakan" class="px-4 grow border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 focus:ring-primary-500 focus:border-primary-500">
+                    <button type="submit" class="bg-secondary-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-secondary-600 transition shadow-sm shadow-secondary-200">Lacak</button>
+                </form> -->
+
             </div>
         </div>
     </main>
+
+    @vite('resources/js/app.js')
+    @livewireScripts
+    @filamentScripts
+    @stack('scripts')
 </body>
+
 </html>

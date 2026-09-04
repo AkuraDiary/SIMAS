@@ -38,17 +38,156 @@ class ListSurats extends ListRecords
 
 
 
+    public string $newKategoriNama = '';
+    public ?int $editingKategoriId = null;
+    public string $editingKategoriNama = '';
+
     public function getHeaderActions(): array
     {
         return [
             CreateAction::make()->label("Buat Surat Baru")->visible(fn() => $this->scope !== 'arsip'),
+            \Filament\Actions\Action::make('manageKategoriArsip')
+                ->label('Kelola Kategori Arsip')
+                ->icon('heroicon-o-folder')
+                ->color('gray')
+                ->visible(fn() => $this->scope === 'arsip')
+                ->modalHeading('Kelola Kategori Arsip Unit')
+                ->modalDescription('Tambah, ubah nama, atau hapus kategori arsip untuk unit kerja Anda.')
+                ->modalContent(fn() => view('filament.pages.staf-unit.manage-kategori-arsip-modal', [
+                    'editingKategoriId' => $this->editingKategoriId,
+                    'editingKategoriNama' => $this->editingKategoriNama,
+                    'newKategoriNama' => $this->newKategoriNama,
+                    'kategoriList' => $this->kategoriList,
+                ]))
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Tutup'),
         ];
     }
 
+    public function addKategori(): void
+    {
+        $unitId = Auth::user()?->unit_kerja_id;
+        if (!$unitId || blank($this->newKategoriNama)) {
+            return;
+        }
+
+        $nama = trim($this->newKategoriNama);
+
+        $exists = \App\Models\KategoriArsip::where('unit_kerja_id', $unitId)
+            ->where('nama', $nama)
+            ->exists();
+
+        if ($exists) {
+            \Filament\Notifications\Notification::make()
+                ->title('Kategori sudah ada')
+                ->body('Kategori dengan nama tersebut sudah terdaftar di unit Anda.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        \App\Models\KategoriArsip::create([
+            'unit_kerja_id' => $unitId,
+            'nama' => $nama,
+        ]);
+
+        $this->newKategoriNama = '';
+
+        \Filament\Notifications\Notification::make()
+            ->title('Kategori berhasil ditambahkan')
+            ->success()
+            ->send();
+    }
+
+    public function startEditKategori(int $id, string $nama): void
+    {
+        $this->editingKategoriId = $id;
+        $this->editingKategoriNama = $nama;
+    }
+
+    public function cancelEditKategori(): void
+    {
+        $this->editingKategoriId = null;
+        $this->editingKategoriNama = '';
+    }
+
+    public function saveEditKategori(): void
+    {
+        if (!$this->editingKategoriId || blank($this->editingKategoriNama)) {
+            return;
+        }
+
+        $unitId = Auth::user()?->unit_kerja_id;
+        $nama = trim($this->editingKategoriNama);
+
+        $exists = \App\Models\KategoriArsip::where('unit_kerja_id', $unitId)
+            ->where('nama', $nama)
+            ->where('id', '!=', $this->editingKategoriId)
+            ->exists();
+
+        if ($exists) {
+            \Filament\Notifications\Notification::make()
+                ->title('Nama kategori sudah digunakan')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        \App\Models\KategoriArsip::where('id', $this->editingKategoriId)
+            ->where('unit_kerja_id', $unitId)
+            ->update(['nama' => $nama]);
+
+        $this->editingKategoriId = null;
+        $this->editingKategoriNama = '';
+
+        \Filament\Notifications\Notification::make()
+            ->title('Kategori berhasil diperbarui')
+            ->success()
+            ->send();
+    }
+
+    public function deleteKategori(int $id): void
+    {
+        $unitId = Auth::user()?->unit_kerja_id;
+        $kategori = \App\Models\KategoriArsip::where('id', $id)
+            ->where('unit_kerja_id', $unitId)
+            ->withCount('arsipSurats')
+            ->first();
+
+        if (!$kategori) {
+            return;
+        }
+
+        if ($kategori->arsip_surats_count > 0) {
+            \Filament\Notifications\Notification::make()
+                ->title('Kategori tidak dapat dihapus')
+                ->body('Masih terdapat ' . $kategori->arsip_surats_count . ' surat yang menggunakan kategori ini.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $kategori->delete();
+
+        \Filament\Notifications\Notification::make()
+            ->title('Kategori berhasil dihapus')
+            ->success()
+            ->send();
+    }
+
+    public function getKategoriListProperty()
+    {
+        $unitId = Auth::user()?->unit_kerja_id;
+        if (!$unitId) return collect();
+
+        return \App\Models\KategoriArsip::where('unit_kerja_id', $unitId)
+            ->withCount('arsipSurats')
+            ->orderBy('nama')
+            ->get();
+    }
 
     protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder | \Illuminate\Database\Eloquent\Relations\Relation | null
     {
-
         $query = static::getResource()::getEloquentQuery();
         $unitId = \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
 
@@ -80,9 +219,9 @@ class ListSurats extends ListRecords
                     $q->where('unit_kerja_id', $unitId);
                 }),
 
-            'arsip' => $query
-                ->whereHas('arsipSurats', fn($q) => $q->where('unit_kerja_id', $unitId))
-                ->with(['arsipSurats.kategoriArsip']),
+            'arsip' => app(\App\Services\UnitAksesService::class)
+                ->applyArsipFilter($query, \Illuminate\Support\Facades\Auth::user(), (int) $unitId)
+                ->with(['arsipSurats' => fn($q) => $q->where('unit_kerja_id', $unitId), 'arsipSurats.kategoriArsip']),
 
             'pengajuan' => $query
                 ->where('tipe_surat', 'PENGAJUAN')

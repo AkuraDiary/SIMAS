@@ -47,6 +47,40 @@ class UnitAksesService
     }
 
     /**
+     * Apply letter visibility filters for a user viewing Arsip Surat in a specific unit.
+     */
+    public function applyArsipFilter(Builder $query, User $user, int $unitId): Builder
+    {
+        // Must be archived by this unit
+        $query->whereHas('arsipSurats', fn($q) => $q->where('unit_kerja_id', $unitId));
+
+        // If user can view all letters in this unit (Kepala Unit, Admin, or staff granted full access)
+        if ($user->canViewAllSuratMasukUnit($unitId)) {
+            return $query;
+        }
+
+        $activeJabatanId = $user->getActiveJabatan()?->id;
+
+        // Restricted staff: only view archived letters they were authorized to see
+        return $query->where(function (Builder $q) use ($unitId, $user, $activeJabatanId) {
+            $q->where('unit_pengirim_id', $unitId)
+                ->orWhereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId) {
+                    $dq->where('unit_tujuan_id', $unitId)
+                        ->where(function (Builder $sub) use ($user, $activeJabatanId) {
+                            $sub->whereNull('user_pegawai_jabatan_id')
+                                ->orWhere('user_pegawai_jabatan_id', $activeJabatanId)
+                                ->orWhere('user_pembuat_id', $user->id);
+                        });
+                })
+                ->orWhere('user_pembuat_id', $user->id)
+                ->orWhereHas('riwayats', function (Builder $rq) use ($unitId, $user) {
+                    $rq->where('unit_tujuan_id', $unitId)
+                        ->where('user_aktor_id', $user->id);
+                });
+        });
+    }
+
+    /**
      * Check if a specific user has permission to open and view a particular Surat.
      */
     public function canUserAccessSurat(User $user, Surat $surat, int $unitId): bool
@@ -60,6 +94,10 @@ class UnitAksesService
         }
 
         if ($surat->user_pembuat_id === $user->id) {
+            return true;
+        }
+
+        if ($surat->unit_pengirim_id === $unitId) {
             return true;
         }
 

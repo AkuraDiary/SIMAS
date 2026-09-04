@@ -221,7 +221,14 @@ class User extends Authenticatable implements FilamentUser, HasName
             return false;
         }
 
-        $activeJabatan = $this->getActiveJabatan();
+        $jabatan = null;
+        if ($unitId !== null) {
+            $jabatan = $this->pegawai?->jabatanAktif()
+                ->where('unit_kerja_id', $unitId)
+                ->first();
+        }
+
+        $activeJabatan = $jabatan ?? $this->getActiveJabatan();
         if (!$activeJabatan || !$activeJabatan->jabatan) {
             return false;
         }
@@ -242,7 +249,14 @@ class User extends Authenticatable implements FilamentUser, HasName
             return true;
         }
 
-        $activeJabatan = $this->getActiveJabatan();
+        $jabatan = null;
+        if ($unitId !== null) {
+            $jabatan = $this->pegawai?->jabatanAktif()
+                ->where('unit_kerja_id', $unitId)
+                ->first();
+        }
+
+        $activeJabatan = $jabatan ?? $this->getActiveJabatan();
         if (!$activeJabatan) {
             return false;
         }
@@ -257,7 +271,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         }
 
         // Otherwise follow unit policy
-        $unit = $activeJabatan->unitKerja;
+        $unit = $unitId ? UnitKerja::find($unitId) : $activeJabatan->unitKerja;
         if (!$unit) {
             return true;
         }

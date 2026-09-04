@@ -61,6 +61,11 @@ class DetailSurat extends Page implements HasForms
                 '#' => $this->surat->perihal,
                 'Detail',
             ],
+            'arsip' => [
+                SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
+                '#' => $this->surat->perihal,
+                'Detail',
+            ],
             default => [
                 SuratMasuk::getUrl() => 'Surat Masuk',
                 '#' => $this->surat->perihal,
@@ -86,8 +91,8 @@ class DetailSurat extends Page implements HasForms
         $this->userUnitId = Auth::user()->unit_kerja_id;
         $this->scope = request('scope', 'masuk');
 
-        // Verify letter access authorization for incoming letters
-        if (in_array($this->scope, ['masuk', 'persetujuan']) && $this->userUnitId) {
+        // Verify letter access authorization for incoming & archived letters
+        if (in_array($this->scope, ['masuk', 'persetujuan', 'arsip']) && $this->userUnitId) {
             $hasAccess = app(\App\Services\UnitAksesService::class)->canUserAccessSurat(
                 Auth::user(),
                 $surat,
@@ -191,6 +196,7 @@ class DetailSurat extends Page implements HasForms
 
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
+            $secondaryActions[] = $this->getActionArsipInfo();
         }
 
         // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK

@@ -78,30 +78,76 @@ class SuratsTable
                     })
                     ->visible(fn($livewire) => !in_array($livewire->scope ?? request('scope'), ['arsip', 'draft'])),
 
+                TextColumn::make('tipe_surat')
+                    ->label('Tipe')
+                    ->badge()
+                    ->color(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'gray',
+                        'EKSTERNAL' => 'warning',
+                        'PENGAJUAN' => 'info',
+                        'TERBITAN' => 'success',
+                        default => 'gray',
+                    })
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
+
                 TextColumn::make('arsip_kategori')
-                    ->label('Category')
+                    ->label('Kategori Arsip')
                     ->badge()
                     ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        $unitId = Auth::user()->unit_kerja_id;
+                        return $query->whereHas('arsipSurats', function ($q) use ($search, $unitId) {
+                            $q->where('unit_kerja_id', $unitId)
+                                ->whereHas('kategoriArsip', function ($kq) use ($search) {
+                                    $kq->where('nama', 'like', "%{$search}%");
+                                });
+                        });
+                    })
                     ->getStateUsing(function (Surat $record) {
                         $unitId = Auth::user()->unit_kerja_id;
                         $arsip = $record->arsipSurats->firstWhere('unit_kerja_id', $unitId);
                         return $arsip?->kategoriArsip?->nama ?? '-';
                     })
-                    ->color('gray'),
+                    ->color('info'),
+
+                TextColumn::make('tanggal_arsip')
+                    ->label('Tanggal Arsip')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
+                    ->getStateUsing(function (Surat $record) {
+                        $unitId = Auth::user()->unit_kerja_id;
+                        $arsip = $record->arsipSurats->firstWhere('unit_kerja_id', $unitId);
+                        return $arsip?->tanggal_arsip ? \Carbon\Carbon::parse($arsip->tanggal_arsip)->format('d M Y, H:i') : '-';
+                    }),
+
+                TextColumn::make('catatan_arsip')
+                    ->label('Catatan Arsip')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        $unitId = Auth::user()->unit_kerja_id;
+                        return $query->whereHas('arsipSurats', function ($q) use ($search, $unitId) {
+                            $q->where('unit_kerja_id', $unitId)
+                                ->where('catatan', 'like', "%{$search}%");
+                        });
+                    })
+                    ->getStateUsing(function (Surat $record) {
+                        $unitId = Auth::user()->unit_kerja_id;
+                        $arsip = $record->arsipSurats->firstWhere('unit_kerja_id', $unitId);
+                        return $arsip?->catatan ?? '-';
+                    })
+                    ->limit(35)
+                    ->toggleable(isToggledHiddenByDefault: false),
 
                 TextColumn::make('created_at')
                     ->label('Dibuat')
                     ->dateTime('d M Y, H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) !== 'arsip'),
 
                 TextColumn::make('updated_at')
-                    ->label(fn($livewire) => match ($livewire->scope ?? request('scope')) {
-                        'arsip' => 'Diarsipkan',
-                        default => 'Terakhir Update'
-                    })
+                    ->label('Terakhir Update')
                     ->dateTime('d M Y, H:i')
-                    ->sortable(),
-
+                    ->sortable()
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) !== 'arsip'),
 
             ])
             ->filters([
@@ -135,27 +181,65 @@ class SuratsTable
                             ->pluck('nama', 'id');
                     })
                     ->query(function (Builder $query, array $data) {
-
                         $value = $data['value'] ?? null;
-
-
-                        // dd($value);
                         if (blank($value)) {
                             return $query;
                         }
 
-                        return $query->whereHas('arsipSurats', function ($q) use ($value) {
-                            $q->where('kategori_arsip_id', $value);
+                        $unitId = Auth::user()->unit_kerja_id;
+                        return $query->whereHas('arsipSurats', function ($q) use ($value, $unitId) {
+                            $q->where('kategori_arsip_id', $value)->where('unit_kerja_id', $unitId);
                         });
                     })
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
 
-                    ->visible(fn($livewire) => $livewire->scope === 'arsip')
+                SelectFilter::make('tipe_surat')
+                    ->label('Tipe Surat')
+                    ->options([
+                        'INTERNAL' => 'Internal',
+                        'PENGAJUAN' => 'Pengajuan',
+                        'TERBITAN' => 'Terbitan',
+                        'EKSTERNAL' => 'Eksternal',
+                    ])
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
+
+                \Filament\Tables\Filters\Filter::make('tanggal_arsip')
+                    ->label('Rentang Tanggal Arsip')
+                    ->schema([
+                        \Filament\Forms\Components\DatePicker::make('dari_tanggal')->label('Dari Tanggal Arsip'),
+                        \Filament\Forms\Components\DatePicker::make('sampai_tanggal')->label('Sampai Tanggal Arsip'),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        $unitId = Auth::user()->unit_kerja_id;
+                        return $query
+                            ->when(
+                                $data['dari_tanggal'] ?? null,
+                                fn(Builder $q, $date) => $q->whereHas('arsipSurats', fn($aq) => $aq->where('unit_kerja_id', $unitId)->whereDate('tanggal_arsip', '>=', $date))
+                            )
+                            ->when(
+                                $data['sampai_tanggal'] ?? null,
+                                fn(Builder $q, $date) => $q->whereHas('arsipSurats', fn($aq) => $aq->where('unit_kerja_id', $unitId)->whereDate('tanggal_arsip', '<=', $date))
+                            );
+                    })
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
 
 
             ])
             ->recordUrl(function (Surat $record) {
                 if (in_array($record->status_surat, ['DRAFT'])) {
                     return EditSurat::getUrl(['record' => $record]);
+                }
+
+                $scope = request('scope');
+                if ($scope === 'arsip') {
+                    return DetailSurat::getUrl(
+                        parameters: [
+                            'record' => $record,
+                            'surat' => $record,
+                            'scope' => 'arsip',
+                        ],
+                        panel: 'simas'
+                    );
                 }
 
                 $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
@@ -168,7 +252,7 @@ class SuratsTable
                     parameters: [
                         'record' => $record,
                         'surat' => $record,
-                        'scope' => $isPersetujuan ? 'persetujuan' : (request('scope') ?? 'masuk'),
+                        'scope' => $isPersetujuan ? 'persetujuan' : ($scope ?? 'masuk'),
                     ],
                     panel: 'simas'
                 );
