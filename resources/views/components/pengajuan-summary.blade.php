@@ -91,7 +91,7 @@ $unitTujuanName = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
 
                 @if(!$isScratch && isset($data['content']) && is_array($data['content']))
                 @foreach($data['content'] as $key => $val)
-                @if(is_string($val) && !str_ends_with($key, '_draw') && !str_ends_with($key, '_upload') && !str_ends_with($key, '_method') && !str_ends_with($key, '_posisi_x') && !str_ends_with($key, '_posisi_y'))
+                @if(is_string($val) && !str_ends_with($key, '_draw') && !str_ends_with($key, '_upload') && !str_ends_with($key, '_method') && !str_ends_with($key, '_posisi_x') && !str_ends_with($key, '_posisi_y') && !str_ends_with($key, '_width'))
                 <div>
                     <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">{{ str_replace('_', ' ', $key) }}</p>
                     <p class="font-medium text-gray-900">{{ $val }}</p>

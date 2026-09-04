@@ -20,19 +20,57 @@ class DocxTemplateService
             throw new \InvalidArgumentException("File template DOCX tidak ditemukan.");
         }
 
-        $phpWord = IOFactory::load($filePath);
-        $htmlWriter = IOFactory::createWriter($phpWord, 'HTML');
+        $loadPath = $filePath;
+        $tempDocx = null;
 
-        $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
-        $htmlWriter->save($tmpHtmlFile);
-        $html = file_get_contents($tmpHtmlFile);
-        @unlink($tmpHtmlFile);
+        // Preprocess word/document.xml to convert <w:tab/> into non-breaking spaces so indents/tabs are retained
+        try {
+            $tempDocx = tempnam(sys_get_temp_dir(), 'docx_tab_') . '.docx';
+            copy($filePath, $tempDocx);
 
-        if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
-            return $matches[1];
+            $zip = new \ZipArchive();
+            if ($zip->open($tempDocx) === true) {
+                $docXml = $zip->getFromName('word/document.xml');
+                if ($docXml !== false && stripos($docXml, '<w:tab') !== false) {
+                    $docXml = preg_replace('/<w:tab\s*(\/)?>/i', '<w:t xml:space="preserve">&#160;&#160;&#160;&#160;</w:t>', $docXml);
+                    $zip->addFromString('word/document.xml', $docXml);
+                }
+                $zip->close();
+                $loadPath = $tempDocx;
+            }
+        } catch (\Throwable $e) {
+            $loadPath = $filePath;
         }
 
-        return $html;
+        try {
+            $phpWord = IOFactory::load($loadPath);
+            $htmlWriter = IOFactory::createWriter($phpWord, 'HTML');
+
+            $tmpHtmlFile = tempnam(sys_get_temp_dir(), 'html');
+            $htmlWriter->save($tmpHtmlFile);
+            $html = file_get_contents($tmpHtmlFile);
+            @unlink($tmpHtmlFile);
+        } finally {
+            if ($tempDocx && file_exists($tempDocx)) {
+                @unlink($tempDocx);
+            }
+        }
+
+        // Preserve <style> rules from <head> to keep margins, paddings, and font metrics
+        $styleContent = '';
+        if (preg_match('/<style[^>]*>(.*?)<\/style>/is', $html, $styleMatches)) {
+            $cssRules = $styleMatches[1];
+            // Scope generic body and * selectors to .docx-preview-wrapper so they do not leak into outer UI
+            $scopedCss = preg_replace('/\b(body|\*)\b(?=[^{]*\{)/', '.docx-preview-wrapper', $cssRules);
+            $styleContent = '<style>' . $scopedCss . '</style>';
+        }
+
+        $bodyContent = $html;
+        if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $matches)) {
+            $bodyContent = $matches[1];
+        }
+
+        return $styleContent . $bodyContent;
     }
 
 

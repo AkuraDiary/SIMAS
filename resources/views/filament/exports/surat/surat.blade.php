@@ -39,12 +39,32 @@
             display: inline-block;
             font-size: 10px;
         }
+
+        .signature-resize-handle {
+            display: none !important;
+        }
+
+        .signature-ghost {
+            display: none !important;
+        }
+
+        .draggable-signature {
+            display: inline-block;
+            border: none !important;
+            outline: none !important;
+        }
+
+        .surat-content {
+            position: relative;
+        }
+
+        .docx-preview-wrapper {
+            position: relative;
+        }
     </style>
 </head>
 
 <body>
-
-
 
     @if($isArsip)
     <div class="arsip">
@@ -52,14 +72,9 @@
     </div>
     @endif
 
-
-    <!-- <div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
-        <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5"> -->
-    <div class="prose max-w-none prose-sm sm:prose-base dark:prose-invert">
+    <div class="surat-content">
         {!! $renderedHtml !!}
     </div>
-    <!-- </div>
-    </div> -->
 
 
 </body>

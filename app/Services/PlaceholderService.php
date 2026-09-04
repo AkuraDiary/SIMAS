@@ -80,25 +80,30 @@ class PlaceholderService
                 if ($ttd->placeholder_key) {
                     $qrImg = '';
                     if ($ttd->qr_code_path) {
-                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px;" pointer-events="none" /><br>';
+                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" pointer-events="none" /><br>';
                     }
 
                     $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
                     
-                    // Merge coordinate data if available from current Livewire edit state
-                    $x = $data[$ttd->placeholder_key . '_posisi_x'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_x'] ?? $ttd->posisi_x);
-                    $y = $data[$ttd->placeholder_key . '_posisi_y'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_y'] ?? $ttd->posisi_y);
-                    
-                    $style = "text-align: left; display: inline-block; cursor: grab;";
-                    if ($x !== null && $y !== null) {
-                        $style .= " position: absolute; left: {$x}px; top: {$y}px;";
-                    }
+                    // Merge coordinate and width data if available from current Livewire edit state
+                    $x = (int) ($data[$ttd->placeholder_key . '_posisi_x'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_x'] ?? $ttd->posisi_x ?? 0));
+                    $y = (int) ($data[$ttd->placeholder_key . '_posisi_y'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_y'] ?? $ttd->posisi_y ?? 0));
+                    // Guard against legacy page-absolute values
+                    if (abs($x) > 300) $x = 0;
+                    if (abs($y) > 400) $y = 0;
 
-                    // Render Visual TTD with draggable wrapper
+                    $width = $data[$ttd->placeholder_key . '_width'] ?? ($surat->content[$ttd->placeholder_key . '_width'] ?? null);
+                    $widthVal = $width ? (int) $width : 160;
+                    
+                    $style = "text-align: left; display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+                    $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+
+                    // Render Visual TTD with draggable wrapper (relative offset preserves document flow)
                     $ttdVisual = '<div class="draggable-signature" data-key="' . $ttd->placeholder_key . '" style="' . $style . '">' .
                         $qrImg .
                         '<b><u>' . $namaTerang . '</u></b><br>' .
                         '<span style="font-size: 10pt;">' . $ttd->jabatan_saat_ttd . '</span>' .
+                        $resizeHandle .
                         '</div>';
 
                     $data[$ttd->placeholder_key] = $ttdVisual;
@@ -164,28 +169,53 @@ class PlaceholderService
 
             $method = $data[$key . '_method'] ?? 'draw';
             $val = '';
+            $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
+            $widthVal = $width ? (int) $width : 160;
+
             if ($method === 'draw') {
                 $val = $data[$key . '_draw'] ?? '';
                 if ($val) {
-                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px; pointer-events: none;" />';
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
                 }
             } elseif ($method === 'upload') {
-                $val = $data[$key . '_upload'] ?? '';
-                if ($val) {
-                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px; pointer-events: none;" />';
+                $uploadFile = $data[$key . '_upload'] ?? null;
+                if (is_array($uploadFile)) {
+                    $uploadFile = reset($uploadFile);
+                }
+                if ($uploadFile instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                    try {
+                        $mime = $uploadFile->getMimeType() ?: 'image/png';
+                        $base64 = base64_encode(file_get_contents($uploadFile->getRealPath()));
+                        $val = '<img src="data:' . $mime . ';base64,' . $base64 . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                    } catch (\Exception $e) {
+                        $val = '';
+                    }
+                } elseif (is_string($uploadFile) && !empty($uploadFile)) {
+                    if (str_starts_with($uploadFile, 'data:image/')) {
+                        $val = '<img src="' . htmlspecialchars($uploadFile) . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                    } else {
+                        $filePath = public_path('storage/' . $uploadFile);
+                        if (file_exists($filePath)) {
+                            $mime = mime_content_type($filePath) ?: 'image/png';
+                            $base64 = base64_encode(file_get_contents($filePath));
+                            $val = '<img src="data:' . $mime . ';base64,' . $base64 . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                        } else {
+                            $val = '<img src="/storage/' . htmlspecialchars($uploadFile) . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                        }
+                    }
                 }
             }
 
             if ($val) {
-                $x = $data[$key . '_posisi_x'] ?? null;
-                $y = $data[$key . '_posisi_y'] ?? null;
-                
-                $style = "display: inline-block; cursor: grab;";
-                if ($x !== null && $y !== null) {
-                    $style .= " position: absolute; left: {$x}px; top: {$y}px;";
-                }
-                
-                $wrapper = '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">' . $val . '</div>';
+                $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
+                $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
+                // Guard against legacy page-absolute values
+                if (abs($x) > 300) $x = 0;
+                if (abs($y) > 400) $y = 0;
+
+                $style = "display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+                $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+                $wrapper = '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">' . $val . $resizeHandle . '</div>';
                 $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $wrapper), $html);
             }
         }
@@ -197,15 +227,17 @@ class PlaceholderService
             // If it's a signature placeholder (starts with ttd_)
             if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
                 // Read from live form data, or Surat JSON content
-                $x = $data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null);
-                $y = $data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null);
+                $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
+                $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
+                if (abs($x) > 300) $x = 0;
+                if (abs($y) > 400) $y = 0;
+
+                $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
+                $widthVal = $width ? (int) $width : 140;
                 
-                $style = "color:#ef4444; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #ef4444; padding: 0.25rem; user-select: none;";
-                if ($x !== null && $y !== null) {
-                    $style .= " position: absolute; left: {$x}px; top: {$y}px;";
-                }
-                
-                return '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">[' . $key . ']</div>';
+                $style = "color:#ef4444; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #ef4444; padding: 0.25rem; user-select: none; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+                $resizeHandle = '<div class="signature-resize-handle" style="position: absolute; right: -4px; bottom: -4px; width: 10px; height: 10px; background: #ef4444; border: 1px solid white; border-radius: 50%; cursor: se-resize; z-index: 10;"></div>';
+                return '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">[' . $key . ']' . $resizeHandle . '</div>';
             }
             
             return '<span style="color:#ef4444; font-weight:bold;">[' . $key . ']</span>';
@@ -213,9 +245,11 @@ class PlaceholderService
 
         // Inject basic CSS to ensure tables and lists render properly within Tailwind's reset environment
         $css = '<style>
+            .docx-preview-wrapper { position: relative; }
             .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-            .docx-preview-wrapper th, .docx-preview-wrapper td { border: 1px solid #d1d5db; text-align: left; padding: 0.25rem; }
-            .docx-preview-wrapper th { background-color: #f3f4f6; font-weight: bold; }
+            @media print {
+                .signature-resize-handle { display: none !important; }
+            }
         </style>';
 
         return '<div class="docx-preview-wrapper">' . $css . $html . '</div>';

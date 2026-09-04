@@ -79,7 +79,7 @@
         @endforelse
     </div>
 
-    <div class="flex items-center gap-4 mb-6">
+    <div class="flex items-center gap-4 mb-6 my-6">
         <hr class="flex-grow border-gray-200">
         <span class="text-sm font-semibold text-gray-400 uppercase tracking-wider">ATAU BUAT SURAT DARI AWAL</span>
         <hr class="flex-grow border-gray-200">

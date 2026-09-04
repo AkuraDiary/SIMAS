@@ -120,7 +120,7 @@ class GuestPengajuan extends Component implements HasForms
                                     return \App\Models\UnitKerja::where('parent_id', $fakultasId)
                                         ->whereHas('jenisUnit', function ($query) {
                                             $query->where('nama_jenis', 'like', '%Prodi%')
-                                                  ->orWhere('nama_jenis', 'like', '%Program Studi%');
+                                                ->orWhere('nama_jenis', 'like', '%Program Studi%');
                                         })
                                         ->pluck('nama_unit', 'id');
                                 })
@@ -140,7 +140,7 @@ class GuestPengajuan extends Component implements HasForms
 
                                 Select::make('unit_tujuan')
                                     ->label('Unit Tujuan')
-                                    ->options(function() {
+                                    ->options(function () {
                                         return \App\Models\UnitKerja::pluck('nama_unit', 'id');
                                     })
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
@@ -151,16 +151,20 @@ class GuestPengajuan extends Component implements HasForms
 
                                 TinyEditor::make('content_scratch')
                                     ->label('Isi Surat')
+                                    ->setCustomConfigs([
+                                        'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                                    ])
                                     ->profile('full')
                                     ->placeholder('Tuliskan isi surat secara bebas di sini...')
                                     ->visible(fn(Get $get) => $get('template_id') === 'scratch')
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch')
+
                                     ->columnSpanFull(),
                             ])
-                            ->visible(fn(Get $get) => $get('template_id') === 'scratch'),
+                                ->visible(fn(Get $get) => $get('template_id') === 'scratch'),
 
                             // TEMPLATE MODE
-                            Group::make()->schema(function(Get $get) {
+                            Group::make()->schema(function (Get $get) {
                                 $templateId = $get('template_id');
                                 if (! $templateId || $templateId === 'scratch') return [];
 
@@ -178,7 +182,7 @@ class GuestPengajuan extends Component implements HasForms
                                             <div class="flex items-center gap-2 mb-4">
                                                 <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                                                 <span class="text-sm text-gray-600">Template Terpilih:</span>
-                                                <span class="text-sm font-bold text-primary-600">'. e($template->nama_template) .'</span>
+                                                <span class="text-sm font-bold text-primary-600">' . e($template->nama_template) . '</span>
                                             </div>
                                             <hr class="border-gray-200">
                                         </div>
@@ -203,7 +207,7 @@ class GuestPengajuan extends Component implements HasForms
 
                                 return $components;
                             })
-                            ->visible(fn(Get $get) => $get('template_id') !== 'scratch' && $get('template_id') !== null),
+                                ->visible(fn(Get $get) => $get('template_id') !== 'scratch' && $get('template_id') !== null),
                         ]),
                     // STEP 4: LAMPIRAN
                     Step::make('Lampiran')
@@ -226,7 +230,7 @@ class GuestPengajuan extends Component implements HasForms
                         ->schema([
                             TextEntry::make('summary')
                                 ->hiddenLabel()
-                                ->state(function(Get $get) {
+                                ->state(function (Get $get) {
                                     $isScratch = ($get('template_id') ?? '') === 'scratch';
                                     $renderedHtml = '';
 
@@ -364,13 +368,13 @@ class GuestPengajuan extends Component implements HasForms
             foreach ($state['lampiran'] as $file) {
                 if (is_object($file) && method_exists($file, 'getRealPath')) {
                     $surat->addMedia($file->getRealPath())
-                          ->usingFileName($file->getClientOriginalName())
-                          ->toMediaCollection('lampiran-surat');
+                        ->usingFileName($file->getClientOriginalName())
+                        ->toMediaCollection('lampiran-surat');
                 } elseif (is_string($file)) {
                     $path = storage_path('app/public/' . $file);
                     if (file_exists($path)) {
                         $surat->addMedia($path)
-                              ->toMediaCollection('lampiran-surat');
+                            ->toMediaCollection('lampiran-surat');
                     }
                 }
             }
