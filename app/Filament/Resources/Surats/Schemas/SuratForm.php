@@ -201,9 +201,49 @@ class SuratForm
 
                                 Select::make('terbitan_for_surat_id')
                                     ->label('Merujuk ke Pengajuan')
-                                    ->options(function () {
+                                    ->options(function (?\App\Models\Surat $record) {
+                                        // =========================================================================
+                                        // [PENGATURAN STATUS PENGAJUAN RUJUKAN]
+                                        // Ubah atau tambahkan status di sini jika diperlukan (misal: ['SELESAI', 'DIPROSES']).
+                                        // =========================================================================
+                                        $allowedStatuses = ['SELESAI'];
+
+                                        $activeUnitId = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan()?->unit_kerja_id
+                                            ?? \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
+
+                                        $requestedId = $record?->terbitan_for_surat_id
+                                            ?? request()->query('terbitan_for_surat_id');
+
                                         return \App\Models\Surat::query()
                                             ->where('tipe_surat', 'PENGAJUAN')
+                                            // 1. Filter Status Pengajuan
+                                            ->where(function ($sq) use ($allowedStatuses, $requestedId) {
+                                                $sq->whereIn('status_surat', $allowedStatuses);
+                                                if ($requestedId) {
+                                                    $sq->orWhere('id', $requestedId);
+                                                }
+                                            })
+                                            // 2. Filter Belum Pernah Dibuatkan Terbitan Resmi (Hindari Terbitan Ganda)
+                                            ->where(function ($q) use ($record, $requestedId) {
+                                                $q->whereDoesntHave('terbitans', function ($tq) use ($record) {
+                                                    $tq->whereNotIn('status_surat', ['DIBATALKAN', 'DITOLAK']);
+                                                    if ($record?->id) {
+                                                        $tq->where('id', '!=', $record->id);
+                                                    }
+                                                });
+                                                if ($requestedId) {
+                                                    $q->orWhere('id', $requestedId);
+                                                }
+                                            })
+                                            // 3. Filter Berdasarkan Unit Kerja Aktif Penerima
+                                            ->when($activeUnitId, function ($q) use ($activeUnitId, $requestedId) {
+                                                $q->where(function ($uq) use ($activeUnitId, $requestedId) {
+                                                    $uq->untukUnit($activeUnitId);
+                                                    if ($requestedId) {
+                                                        $uq->orWhere('id', $requestedId);
+                                                    }
+                                                });
+                                            })
                                             ->with([
                                                 'userPegawaiJabatan.pegawai',
                                                 'userPegawaiJabatan.jabatan',
@@ -213,6 +253,7 @@ class SuratForm
                                                 'pembuat.mahasiswa',
                                             ])
                                             ->latest()
+                                            ->limit(50) // Batasi 50 pengajuan terbaru agar dropdown cepat dan rapi
                                             ->get()
                                             ->mapWithKeys(function (\App\Models\Surat $surat) {
                                                 $pengirim = $surat->getIdentitasPengirim();
@@ -223,7 +264,7 @@ class SuratForm
                                     })
                                     ->searchable()
                                     ->nullable()
-                                    ->helperText('Pilih surat pengajuan yang menjadi rujukan. Menampilkan perihal dan pengirim surat.')
+                                    ->helperText('Pilih surat pengajuan yang menjadi rujukan (hanya pengajuan selesai dan belum diterbitkan).')
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'TERBITAN'),
 
                                 TextInput::make('pengirim_eksternal')
@@ -292,7 +333,7 @@ class SuratForm
                                             $unitId = Auth::user()?->unit_kerja_id;
                                             $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
                                             $format = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);
-                                            $formatName = $format ? "[{$format->nama_format}] {$format->format_penomoran}" : 'Format Standar';
+                                            $formatName = $format ? "[{$format->nama_format}] {$format->format_penomoran}" : '-';
 
                                             $customTags = array_merge(
                                                 $get('content.nomor_surat_tags') ?? [],
