@@ -251,7 +251,7 @@ class GuestPengajuan extends Component implements HasForms
                                         ->required()
                                         ->accepted(),
                                 ])
-                                ->extraAttributes(['class' => 'bg-gray-50 border border-gray-200 shadow-sm'])
+
                                 ->columnSpanFull(),
                         ]),
                 ])
