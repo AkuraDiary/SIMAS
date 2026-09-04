@@ -243,6 +243,10 @@ trait HasDisposisiActions
     protected function canDisposisi(): bool
     {
         $unitId = Auth::user()->unit_kerja_id;
+        if (!Auth::user()->canDisposisiUnit($unitId)) {
+            return false;
+        }
+
         return $this->suratUnit !== null || $this->surat->disposisis->contains('unit_tujuan_id', $unitId);
     }
 

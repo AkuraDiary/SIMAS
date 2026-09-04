@@ -21,6 +21,7 @@ use App\Filament\Pages\SimasDashboard;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
 use App\Filament\Pages\Admin\ManageOrganisasi;
+use App\Filament\Pages\StafUnit\ManageAksesUnit;
 use DiogoGPinto\AuthUIEnhancer\AuthUIEnhancerPlugin;
 use Filament\Actions\Action;
 use Illuminate\Session\Middleware\StartSession;
@@ -90,7 +91,8 @@ class SimasPanelProvider extends PanelProvider
                 SimasDashboard::class,
                 ManageOrganisasi::class,
                 SuratMasuk::class,
-                DetailSurat::class
+                DetailSurat::class,
+                ManageAksesUnit::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([

@@ -206,4 +206,87 @@ class User extends Authenticatable implements FilamentUser, HasName
             $q->where('unit_kerja_id', $unitId)->where('status_jabatan', 'AKTIF');
         });
     }
+
+    /**
+     * Determine whether the user is the Kepala Unit (level_jabatan == 1).
+     * Admin also returns true.
+     */
+    public function isKepalaUnit(?int $unitId = null): bool
+    {
+        if ($this->tipe_entitas === 'ADMIN') {
+            return true;
+        }
+
+        if ($this->tipe_entitas !== 'STAF') {
+            return false;
+        }
+
+        $activeJabatan = $this->getActiveJabatan();
+        if (!$activeJabatan || !$activeJabatan->jabatan) {
+            return false;
+        }
+
+        if ($unitId !== null && (int) $activeJabatan->unit_kerja_id !== (int) $unitId) {
+            return false;
+        }
+
+        return (int) $activeJabatan->jabatan->level_jabatan === 1;
+    }
+
+    /**
+     * Determine whether the user can view all surat masuk in their unit.
+     */
+    public function canViewAllSuratMasukUnit(?int $unitId = null): bool
+    {
+        if ($this->isKepalaUnit($unitId)) {
+            return true;
+        }
+
+        $activeJabatan = $this->getActiveJabatan();
+        if (!$activeJabatan) {
+            return false;
+        }
+
+        // Check staff specific override
+        if ($activeJabatan->akses_surat_masuk === 'SEMUA') {
+            return true;
+        }
+
+        if ($activeJabatan->akses_surat_masuk === 'HANYA_DISPOSISI') {
+            return false;
+        }
+
+        // Otherwise follow unit policy
+        $unit = $activeJabatan->unitKerja;
+        if (!$unit) {
+            return true;
+        }
+
+        $kebijakan = $unit->getKebijakanSuratMasuk();
+        if ($kebijakan === 'TERBUKA') {
+            return true;
+        }
+
+        if ($kebijakan === 'LEVEL_JABATAN') {
+            $threshold = $unit->getMinLevelJabatan();
+            $myLevel = (int) ($activeJabatan->jabatan?->level_jabatan ?? 99);
+            return $myLevel <= $threshold;
+        }
+
+        // TERBATAS_DISPOSISI
+        return false;
+    }
+
+    /**
+     * Determine whether the user is allowed to make disposisi in their unit.
+     */
+    public function canDisposisiUnit(?int $unitId = null): bool
+    {
+        if ($this->isKepalaUnit($unitId)) {
+            return true;
+        }
+
+        $activeJabatan = $this->getActiveJabatan();
+        return $activeJabatan?->can_disposisi === true;
+    }
 }

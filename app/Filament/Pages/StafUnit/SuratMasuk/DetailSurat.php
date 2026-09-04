@@ -86,6 +86,19 @@ class DetailSurat extends Page implements HasForms
         $this->userUnitId = Auth::user()->unit_kerja_id;
         $this->scope = request('scope', 'masuk');
 
+        // Verify letter access authorization for incoming letters
+        if (in_array($this->scope, ['masuk', 'persetujuan']) && $this->userUnitId) {
+            $hasAccess = app(\App\Services\UnitAksesService::class)->canUserAccessSurat(
+                Auth::user(),
+                $surat,
+                $this->userUnitId
+            );
+
+            if (!$hasAccess) {
+                abort(403, 'Anda tidak memiliki hak akses untuk melihat surat ini sesuai kebijakan unit.');
+            }
+        }
+
         $this->surat = $surat->load([
             'template',
             'unitPengirim',

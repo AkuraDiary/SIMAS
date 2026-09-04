@@ -20,13 +20,34 @@ class UnitKerja extends Model
         'nama_unit',
         'singkatan',
         'is_active',
+        'pengaturan_akses',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'pengaturan_akses' => 'array',
         ];
+    }
+
+    public function getKebijakanSuratMasuk(): string
+    {
+        return $this->pengaturan_akses['kebijakan_surat_masuk'] ?? 'TERBUKA';
+    }
+
+    public function getMinLevelJabatan(): int
+    {
+        return (int) ($this->pengaturan_akses['min_level_jabatan'] ?? 1);
+    }
+
+    public function getKepalaUnit(): ?UserPegawaiJabatan
+    {
+        return $this->pegawaiJabatans()
+            ->where('status_jabatan', 'AKTIF')
+            ->whereHas('jabatan', fn($q) => $q->where('level_jabatan', 1))
+            ->with(['pegawai.user', 'jabatan'])
+            ->first();
     }
 
     public function getRouteKeyName(): string

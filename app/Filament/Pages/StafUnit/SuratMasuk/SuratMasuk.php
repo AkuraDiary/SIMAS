@@ -47,8 +47,8 @@ class SuratMasuk extends Page implements HasTable
     {
         $unitId = Auth::user()->unit_kerja_id;
 
-        return Surat::query()
-            ->untukUnit($unitId)
+        return app(\App\Services\UnitAksesService::class)
+            ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                 $q->where('unit_kerja_id', $unitId);
             })
@@ -88,11 +88,10 @@ class SuratMasuk extends Page implements HasTable
 
     protected function getTableQuery(): Builder
     {
-
         $unitId = Auth::user()->unit_kerja_id;
 
-        return Surat::query()
-            ->untukUnit($unitId)
+        return app(\App\Services\UnitAksesService::class)
+            ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                 $q->where('unit_kerja_id', $unitId);
             })
