@@ -134,9 +134,9 @@ class GuestPengajuan extends Component implements HasForms
                         ->schema([
                             // SCRATCH MODE
                             Group::make()->schema([
-                                \Filament\Forms\Components\Placeholder::make('detail_surat_title')
+                                TextEntry::make('detail_surat_title')
                                     ->hiddenLabel()
-                                    ->content(new \Illuminate\Support\HtmlString('<h2 class="text-xl font-bold text-gray-900 mb-2">Detail Surat</h2>')),
+                                    ->state(new \Illuminate\Support\HtmlString('<h2 class="text-xl font-bold text-gray-900 mb-2">Detail Surat</h2>')),
 
                                 Select::make('unit_tujuan')
                                     ->label('Unit Tujuan')

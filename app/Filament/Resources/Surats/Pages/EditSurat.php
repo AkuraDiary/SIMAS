@@ -47,6 +47,13 @@ class EditSurat extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // Simpan custom_nomor_tags ke content jika ada
+        if (!empty($data['custom_nomor_tags']) && is_array($data['custom_nomor_tags'])) {
+            $content = $data['content'] ?? [];
+            $content['nomor_surat_tags'] = array_merge($content['nomor_surat_tags'] ?? [], $data['custom_nomor_tags']);
+            $data['content'] = $content;
+        }
+
         // Jika form menyembunyikan template_id (karena mode 'scratch'),
         // pastikan nilainya di-set ke null agar menimpa ID lama di database.
         if (!array_key_exists('template_id', $data)) {
@@ -82,6 +89,10 @@ class EditSurat extends EditRecord
                 $isManual = (bool) ($this->data['is_manual_sisipan'] ?? false);
                 $incrementCounter = $isManual ? (bool) ($this->data['increment_counter_input'] ?? false) : true;
                 $tglSurat = !empty($this->data['tanggal_surat_input']) ? \Carbon\Carbon::parse($this->data['tanggal_surat_input']) : now();
+                $customTags = array_merge(
+                    $surat->content['nomor_surat_tags'] ?? [],
+                    $this->data['custom_nomor_tags'] ?? []
+                );
 
                 app(\App\Services\NomorSuratService::class)->assignNomorSurat($surat, $format, [
                     'tanggal_surat' => $tglSurat,
@@ -89,6 +100,7 @@ class EditSurat extends EditRecord
                     'is_manual' => $isManual,
                     'increment_counter' => $incrementCounter,
                     'alasan_backdate' => $this->data['alasan_backdate_input'] ?? null,
+                    'custom_tags' => $customTags,
                     'user_id' => auth()->id(),
                 ]);
             }

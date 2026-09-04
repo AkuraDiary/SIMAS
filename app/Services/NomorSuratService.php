@@ -109,6 +109,25 @@ class NomorSuratService
         })->toArray();
     }
 
+    public const STANDARD_TAGS = ['NOMOR', 'KODE_UNIT', 'BULAN_ROMAWI', 'BULAN_ANGKA', 'TAHUN', 'TIPE'];
+
+    /**
+     * Ekstrak tag kustom dari pola format penomoran yang bukan merupakan STANDARD_TAGS.
+     * Contoh: "{NOMOR}/{KODE_KLASIFIKASI}/{KODE_UNIT}/{TAHUN}" -> ['KODE_KLASIFIKASI']
+     */
+    public function extractCustomTags(string $formatPattern): array
+    {
+        preg_match_all('/\{([A-Za-z0-9_]+)\}/', $formatPattern, $matches);
+        if (empty($matches[1])) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            $matches[1],
+            fn ($tag) => !in_array($tag, self::STANDARD_TAGS, true)
+        )));
+    }
+
     /**
      * Mengubah angka bulan ke bentuk Romawi
      */
@@ -173,12 +192,26 @@ class NomorSuratService
         $result = str_replace('{TAHUN}', $tahun, $result);
         $result = str_replace('{TIPE}', $tipeCode, $result);
 
-        // Replace any remaining {TAG} from customTags
-        preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $result, $matches);
+        // Flatten custom tags (support nested 'nomor_surat_tags' or root-level tags, case-insensitive)
+        $flatTags = [];
+        if (isset($customTags['nomor_surat_tags']) && is_array($customTags['nomor_surat_tags'])) {
+            foreach ($customTags['nomor_surat_tags'] as $k => $v) {
+                $flatTags[strtoupper($k)] = $v;
+            }
+        }
+        foreach ($customTags as $k => $v) {
+            if (is_scalar($v)) {
+                $flatTags[strtoupper($k)] = (string) $v;
+            }
+        }
+
+        // Replace any remaining {TAG} from flatTags
+        preg_match_all('/\{([A-Za-z0-9_]+)\}/', $result, $matches);
         if (!empty($matches[1])) {
             foreach ($matches[1] as $customTag) {
-                if (array_key_exists($customTag, $customTags)) {
-                    $result = str_replace('{' . $customTag . '}', $customTags[$customTag], $result);
+                $upperTag = strtoupper($customTag);
+                if (array_key_exists($upperTag, $flatTags) && $flatTags[$upperTag] !== '') {
+                    $result = str_replace('{' . $customTag . '}', $flatTags[$upperTag], $result);
                 }
             }
         }
@@ -247,6 +280,14 @@ class NomorSuratService
 
             // Update surat
             $surat->nomor_surat = $nomorLengkap;
+            if (!empty($params['custom_tags']) && is_array($params['custom_tags'])) {
+                $content = $surat->content ?? [];
+                if (!is_array($content)) {
+                    $content = json_decode($content, true) ?? [];
+                }
+                $content['nomor_surat_tags'] = array_merge($content['nomor_surat_tags'] ?? [], $params['custom_tags']);
+                $surat->content = $content;
+            }
             if (!$surat->tanggal_kirim) {
                 $surat->tanggal_kirim = $tglSurat;
             }

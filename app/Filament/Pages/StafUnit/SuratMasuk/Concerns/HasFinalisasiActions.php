@@ -17,6 +17,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Group;
 use Illuminate\Support\Facades\Auth;
 
 trait HasFinalisasiActions
@@ -83,6 +84,33 @@ trait HasFinalisasiActions
                             $this->updateNomorPreview($set, $get);
                         }),
 
+                    // Dynamic Custom Tags Inputs
+                    Group::make()->schema(function (Get $get) {
+                        $formatId = $get('format_id');
+                        if (!$formatId) return [];
+
+                        $format = FormatNomorSurat::find($formatId);
+                        if (!$format) return [];
+
+                        $customTags = app(NomorSuratService::class)->extractCustomTags($format->format_penomoran);
+                        if (empty($customTags)) return [];
+
+                        $inputs = [];
+                        foreach ($customTags as $tag) {
+                            $cleanLabel = ucwords(str_replace('_', ' ', strtolower($tag)));
+                            $inputs[] = TextInput::make("custom_tags.{$tag}")
+                                ->label("Atribut Format: {$cleanLabel}")
+                                ->placeholder("Nilai untuk {{$tag}}")
+                                ->helperText("Menggantikan token {{$tag}} pada format: {$format->format_penomoran}")
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Set $set, Get $get) {
+                                    $this->updateNomorPreview($set, $get);
+                                });
+                        }
+
+                        return $inputs;
+                    }),
+
                     Toggle::make('is_manual')
                         ->label('Kustomisasi Nomor / Sisipan Manual')
                         ->live()
@@ -124,6 +152,7 @@ trait HasFinalisasiActions
                     $service = app(NomorSuratService::class);
                     $format = $service->resolveFormat($unitId, $this->surat->tipe_surat);
                     $initialPreview = '';
+                    $savedTags = $this->surat->content['nomor_surat_tags'] ?? [];
 
                     if ($format) {
                         $initialPreview = $service->previewNomor(
@@ -132,7 +161,10 @@ trait HasFinalisasiActions
                             null,
                             $this->surat->unitPengirim ?? Auth::user()->unitKerja,
                             $this->surat->tipe_surat,
-                            $this->surat->content ?? []
+                            array_merge(
+                                $savedTags,
+                                $this->surat->content ?? []
+                            )
                         );
                     }
 
@@ -141,6 +173,7 @@ trait HasFinalisasiActions
                         'format_id' => $format?->id,
                         'is_manual' => false,
                         'increment_counter' => false,
+                        'custom_tags' => $savedTags,
                         'nomor_surat_preview' => $initialPreview,
                     ]);
                 })
@@ -160,6 +193,7 @@ trait HasFinalisasiActions
                             ? (bool) ($data['increment_counter'] ?? false)
                             : true,
                         'alasan_backdate' => $data['alasan_backdate'] ?? null,
+                        'custom_tags' => $data['custom_tags'] ?? [],
                         'user_id' => Auth::id(),
                     ]);
 
@@ -210,13 +244,19 @@ trait HasFinalisasiActions
         $isManual = (bool) $get('is_manual');
         $customPart = $isManual ? $get('nomor_part') : null;
 
+        $customTags = array_merge(
+            $this->surat->content['nomor_surat_tags'] ?? [],
+            $this->surat->content ?? [],
+            $get('custom_tags') ?? []
+        );
+
         $preview = $service->previewNomor(
             $format,
             $tgl,
             $customPart,
             $this->surat->unitPengirim ?? Auth::user()->unitKerja,
             $this->surat->tipe_surat,
-            $this->surat->content ?? []
+            $customTags
         );
 
         $set('nomor_surat_preview', $preview);

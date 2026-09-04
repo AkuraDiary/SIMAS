@@ -272,7 +272,13 @@ class SuratForm
                                             $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
                                             $format = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);
                                             $formatName = $format ? "[{$format->nama_format}] {$format->format_penomoran}" : 'Format Standar';
-                                            $nextEstimate = $format ? app(\App\Services\NomorSuratService::class)->previewNomor($format, now(), null, Auth::user()?->unitKerja, $tipeSurat) : '-';
+
+                                            $customTags = array_merge(
+                                                $get('content.nomor_surat_tags') ?? [],
+                                                $get('custom_nomor_tags') ?? [],
+                                                $get('content') ?? []
+                                            );
+                                            $nextEstimate = $format ? app(\App\Services\NomorSuratService::class)->previewNomor($format, now(), null, Auth::user()?->unitKerja, $tipeSurat, $customTags) : '-';
 
                                             return new \Illuminate\Support\HtmlString("
                                                 <div class='flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-900 dark:text-blue-200'>
@@ -344,6 +350,48 @@ class SuratForm
                                             ->visible(fn(Get $get) => (bool) $get('is_manual_sisipan')),
                                     ])->visible(fn(Get $get) => $get('mode_penomoran') === 'manual'),
 
+                                    // Dynamic Custom Tags Inputs
+                                    Group::make()
+                                        ->schema(function (Get $get) {
+                                            $unitId = Auth::user()?->unit_kerja_id;
+                                            $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
+                                            $formatId = $get('format_id_input');
+
+                                            $format = $formatId
+                                                ? \App\Models\FormatNomorSurat::find($formatId)
+                                                : app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);
+
+                                            if (!$format) return [];
+
+                                            $customTags = app(\App\Services\NomorSuratService::class)->extractCustomTags($format->format_penomoran);
+                                            if (empty($customTags)) return [];
+
+                                            $inputs = [];
+                                            foreach ($customTags as $tag) {
+                                                $cleanLabel = ucwords(str_replace('_', ' ', strtolower($tag)));
+                                                $inputs[] = TextInput::make("custom_nomor_tags.{$tag}")
+                                                    ->label("Atribut Format: {$cleanLabel}")
+                                                    ->placeholder("Nilai untuk {{$tag}}")
+                                                    ->helperText("Menggantikan token {{$tag}} pada format penomoran.")
+                                                    ->live(onBlur: true)
+                                                    ->afterStateHydrated(function ($component, ?\Illuminate\Database\Eloquent\Model $record) use ($tag) {
+                                                        if ($record && isset($record->content['nomor_surat_tags'][$tag])) {
+                                                            $component->state($record->content['nomor_surat_tags'][$tag]);
+                                                        }
+                                                    })
+                                                    ->afterStateUpdated(function (Get $get, Set $set) {
+                                                        static::updateFormNomorPreview($set, $get);
+                                                    });
+                                            }
+
+                                            return [
+                                                Grid::make(count($customTags) > 1 ? 2 : 1)
+                                                    ->schema($inputs)
+                                                    ->columnSpanFull(),
+                                            ];
+                                        })
+                                        ->columnSpanFull(),
+
                                     TextInput::make('nomor_surat')
                                         ->label('Nomor Surat Final')
                                         ->placeholder('Nomor surat akan terisi otomatis...')
@@ -391,29 +439,7 @@ class SuratForm
                                 $template = Template::find($templateId);
                                 $fieldVariables = $template ? ($template->field_variables ?? []) : [];
 
-                                // Intercept FormatNomorSurat for custom tags
-                                $unitId = Auth::user()?->unit_kerja_id;
-                                $formatNomor = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $get('tipe_surat') ?? 'INTERNAL');
-                                $customFormatVars = [];
-                                if ($formatNomor && $formatNomor->format_penomoran) {
-                                    preg_match_all('/\{([A-Z_a-z0-9]+)\}/', $formatNomor->format_penomoran, $matches);
-                                    if (!empty($matches[1])) {
-                                        $standardTags = ['NOMOR', 'KODE_UNIT', 'BULAN_ROMAWI', 'BULAN_ANGKA', 'TAHUN', 'TIPE'];
-                                        foreach ($matches[1] as $tag) {
-                                            if (!in_array($tag, $standardTags)) {
-                                                $customFormatVars[] = [
-                                                    'key' => $tag,
-                                                    'label' => 'Atribut Penomoran: ' . str_replace('_', ' ', $tag),
-                                                    'type' => 'text',
-                                                ];
-                                            }
-                                        }
-                                    }
-                                }
-
-                                $allVariables = array_merge($customFormatVars, $fieldVariables);
-
-                                if (empty($allVariables)) {
+                                if (empty($fieldVariables)) {
                                     return [
                                         TextEntry::make('info')
                                             ->label('')
@@ -422,18 +448,19 @@ class SuratForm
                                 }
 
                                 $service = app(FormSchemaService::class);
-                                $schema = $service->generateFilamentSchema($allVariables);
+                                $schema = $service->generateFilamentSchema($fieldVariables);
 
                                 $schema[] = TextEntry::make('preview')
                                     ->label('Pratinjau Surat')
-                                    ->state(function (Get $get) use ($template, $service, $allVariables) {
+                                    ->state(function (Get $get) use ($template, $service, $fieldVariables) {
                                         $data = $get('content') ?? [];
 
                                         // Force dependency tracking for all nested content keys & numbering
                                         $get('nomor_surat');
                                         $get('tanggal_surat_input');
+                                        $get('custom_nomor_tags');
 
-                                        foreach ($allVariables as $field) {
+                                        foreach ($fieldVariables as $field) {
                                             if (!empty($field['key'])) {
                                                 if ($field['type'] === 'repeater') {
                                                     $get('content.' . $field['key']);
@@ -455,7 +482,36 @@ class SuratForm
                                         $previewData = $data;
                                         if (!empty($get('nomor_surat'))) {
                                             $previewData['nomor_surat'] = $get('nomor_surat');
+                                        } else {
+                                            $unitId = Auth::user()?->unit_kerja_id;
+                                            $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
+                                            $fmt = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);
+                                            if ($fmt) {
+                                                $customTags = array_merge(
+                                                    $get('content.nomor_surat_tags') ?? [],
+                                                    $get('custom_nomor_tags') ?? [],
+                                                    $get('content') ?? []
+                                                );
+                                                $previewData['nomor_surat'] = app(\App\Services\NomorSuratService::class)->previewNomor(
+                                                    $fmt,
+                                                    now(),
+                                                    null,
+                                                    Auth::user()?->unitKerja,
+                                                    $tipeSurat,
+                                                    $customTags
+                                                );
+                                            }
                                         }
+
+                                        $customTags = $get('custom_nomor_tags') ?? [];
+                                        if (!empty($customTags)) {
+                                            $previewData['nomor_surat_tags'] = $customTags;
+                                            foreach ($customTags as $k => $v) {
+                                                $previewData[$k] = $v;
+                                                $previewData[strtolower($k)] = $v;
+                                            }
+                                        }
+
                                         if (!empty($get('tanggal_surat_input'))) {
                                             $previewData['tanggal_surat'] = \Carbon\Carbon::parse($get('tanggal_surat_input'))->translatedFormat('d F Y');
                                             $previewData['tanggal_terbit'] = $previewData['tanggal_surat'];
@@ -590,13 +646,19 @@ class SuratForm
         $isManual = (bool) $get('is_manual_sisipan');
         $customPart = $isManual ? $get('nomor_sisipan_input') : null;
 
+        $customTags = array_merge(
+            $get('content.nomor_surat_tags') ?? [],
+            $get('custom_nomor_tags') ?? [],
+            $get('content') ?? []
+        );
+
         $preview = $service->previewNomor(
             $format,
             $tgl,
             $customPart,
             Auth::user()?->unitKerja,
             $tipeSurat,
-            $get('content') ?? []
+            $customTags
         );
 
         $set('nomor_surat', $preview);

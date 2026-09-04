@@ -122,17 +122,31 @@ class DocxTemplateService
     {
         $template = $surat->template;
         $media = $template?->getFirstMedia('template_file');
+        $data = $surat->content ?? [];
+
+        if (!empty($surat->nomor_surat)) {
+            $data['nomor_surat'] = $surat->nomor_surat;
+        }
+        if (!empty($surat->tanggal_kirim)) {
+            $data['tanggal_surat'] = \Carbon\Carbon::parse($surat->tanggal_kirim)->translatedFormat('d F Y');
+            $data['tanggal_terbit'] = $data['tanggal_surat'];
+        }
+        if (isset($data['nomor_surat_tags']) && is_array($data['nomor_surat_tags'])) {
+            foreach ($data['nomor_surat_tags'] as $k => $v) {
+                $data[$k] = $v;
+                $data[strtolower($k)] = $v;
+            }
+        }
 
         if ($media && file_exists($media->getPath())) {
             // Skenario B.1: Template berasal dari Upload .docx
             $processor = new TemplateProcessor($media->getPath());
-            $data = $surat->content ?? [];
 
             // Ganti tag {{ nama }} atau ${ nama } di dalam DOCX
             foreach ($data as $key => $value) {
                 if (is_scalar($value)) {
                     // PhpWord TemplateProcessor by default mencari ${key}
-                    $processor->setValue($key, $value);
+                    $processor->setValue($key, (string) $value);
                 }
             }
 
@@ -146,7 +160,7 @@ class DocxTemplateService
         $section = $phpWord->addSection();
 
         // Render HTML yang sudah berisi data user menggunakan layanan yang sudah ada
-        $renderedHtml = app(\App\Services\PlaceholderService::class)->renderHtml($template, $surat->content ?? []);
+        $renderedHtml = app(\App\Services\PlaceholderService::class)->renderHtml($template, $data, $surat);
 
         // Konversi HTML yang sudah terisi ke Word
         Html::addHtml($section, $renderedHtml, false, false);
