@@ -227,6 +227,24 @@ class GuestPengajuan extends Component implements HasForms
                             \Filament\Forms\Components\Placeholder::make('summary')
                                 ->hiddenLabel()
                                 ->content(function(Get $get) {
+                                    $isScratch = ($get('template_id') ?? '') === 'scratch';
+                                    $renderedHtml = '';
+
+                                    if ($isScratch) {
+                                        $renderedHtml = $get('content_scratch') ?? '';
+                                        $service = app(\App\Services\PlaceholderService::class);
+                                        $fakeTemplate = new \App\Models\Template();
+                                        $fakeTemplate->content_html = $renderedHtml;
+                                        $renderedHtml = $service->renderHtml($fakeTemplate, $get('content') ?? []);
+                                    } else {
+                                        $templateId = $get('template_id');
+                                        if ($templateId) {
+                                            $template = \App\Models\Template::find($templateId);
+                                            $service = app(\App\Services\PlaceholderService::class);
+                                            $renderedHtml = $service->renderHtml($template, $get('content') ?? []);
+                                        }
+                                    }
+
                                     return view('components.pengajuan-summary', [
                                         'data' => [
                                             'template_id' => $get('template_id'),
@@ -242,7 +260,8 @@ class GuestPengajuan extends Component implements HasForms
                                             'content' => $get('content'),
                                             'lampiran' => $get('lampiran'),
                                             'lampiran_names' => $get('lampiran_names'),
-                                        ]
+                                        ],
+                                        'renderedHtml' => $renderedHtml
                                     ]);
                                 })
                                 ->columnSpanFull(),
@@ -313,7 +332,9 @@ class GuestPengajuan extends Component implements HasForms
         if ($isScratch) {
             $surat->template_id = null;
             $surat->perihal = $state['perihal'] ?? 'Pengajuan Guest';
-            $surat->content = ['html' => $state['content_scratch'] ?? ''];
+            $scratchContent = $state['content'] ?? [];
+            $scratchContent['html'] = $state['content_scratch'] ?? '';
+            $surat->content = $scratchContent;
         } else {
             $surat->template_id = $state['template_id'];
             $template = \App\Models\Template::find($state['template_id']);

@@ -1,4 +1,5 @@
 <div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50"
+    wire:ignore
     x-data="{
         isDragging: false,
         dragEl: null,

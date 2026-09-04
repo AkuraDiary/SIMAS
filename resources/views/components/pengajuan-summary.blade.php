@@ -91,7 +91,7 @@ $unitTujuanName = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
 
                 @if(!$isScratch && isset($data['content']) && is_array($data['content']))
                 @foreach($data['content'] as $key => $val)
-                @if(is_string($val))
+                @if(is_string($val) && !str_ends_with($key, '_draw') && !str_ends_with($key, '_upload') && !str_ends_with($key, '_method') && !str_ends_with($key, '_posisi_x') && !str_ends_with($key, '_posisi_y'))
                 <div>
                     <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">{{ str_replace('_', ' ', $key) }}</p>
                     <p class="font-medium text-gray-900">{{ $val }}</p>
@@ -177,5 +177,7 @@ $unitTujuanName = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
             </button>
         </div>
     </div>
+
+    @include('filament.forms.components.template-preview', ['html' => $renderedHtml ?? ''])
 
 </div>

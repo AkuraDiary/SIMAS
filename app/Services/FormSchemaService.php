@@ -248,21 +248,18 @@ class FormSchemaService
                 case 'long_text':
                     $schema[] = \Filament\Forms\Components\Textarea::make($contentKey)
                         ->label($label)
-                        ->required()
-                        ->live(debounce: 500);
+                        ->required();
                     break;
                 case 'number':
                     $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
                         ->label($label)
                         ->numeric()
-                        ->required()
-                        ->live(debounce: 500);
+                        ->required();
                     break;
                 case 'date':
                     $schema[] = \Filament\Forms\Components\DatePicker::make($contentKey)
                         ->label($label)
-                        ->required()
-                        ->live(debounce: 500);
+                        ->required();
                     break;
                 case 'repeater':
                     $subSchema = [];
@@ -273,16 +270,14 @@ class FormSchemaService
                         if ($subKey) {
                             $subSchema[] = \Filament\Forms\Components\TextInput::make($subKey)
                                 ->label($subLabel)
-                                ->required()
-                                ->live(debounce: 500);
+                                ->required();
                         }
                     }
                     $schema[] = \Filament\Forms\Components\Repeater::make($contentKey)
                         ->label($label)
                         ->schema($subSchema)
                         ->defaultItems(1)
-                        ->addActionLabel('Tambah ' . $label)
-                        ->live(debounce: 500);
+                        ->addActionLabel('Tambah ' . $label);
                     break;
                 case 'signature':
                     $isOptional = $field['is_optional_signature'] ?? false;
@@ -320,8 +315,7 @@ class FormSchemaService
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
                                 ->required(!$isOptional)
                                 ->default(null)
-                                ->columnSpanFull()
-                                ->live(debounce: 500),
+                                ->columnSpanFull(),
                             FileUpload::make($contentKey . '_upload')
                                 ->label('Upload Tanda Tangan')
                                 ->image()
@@ -330,16 +324,14 @@ class FormSchemaService
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
                                 ->required(!$isOptional)
                                 ->default(null)
-                                ->columnSpanFull()
-                                ->live(debounce: 500),
+                                ->columnSpanFull(),
                         ]);
                     break;
                 case 'text':
                 default:
                     $schema[] = TextInput::make($contentKey)
                         ->label($label)
-                        ->required()
-                        ->live(debounce: 500);
+                        ->required();
                     break;
             }
         }

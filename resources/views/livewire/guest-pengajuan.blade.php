@@ -176,8 +176,8 @@
 
     <!-- Filament Form Render -->
     <!-- Notice we removed the extra white bg and borders here, letting Filament's Wizard card shine natively -->
-    <div class="w-full">
-        <form wire:submit="submit">
+    <div class="w-full" id="guest-pengajuan-wrapper" wire:key="guest-pengajuan-wrapper">
+        <form wire:submit.prevent="submit" id="guest-pengajuan-form">
             {{ $this->form }}
         </form>
     </div>
