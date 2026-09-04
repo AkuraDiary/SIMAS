@@ -356,6 +356,7 @@ class TemplateResource extends Resource
                                             $placeholderService = app(\App\Services\FormSchemaService::class);
 
                                             $html = $docxService->convertToHtml($path);
+                                            // dd($html);
                                             $fields = $placeholderService->extractPlaceholders($html);
 
                                             $set('content_html', $html);

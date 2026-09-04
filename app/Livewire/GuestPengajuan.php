@@ -12,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -187,14 +188,14 @@ class GuestPengajuan extends Component implements HasForms
                                 $fieldVariables = $template->field_variables ?? [];
 
                                 if (empty($fieldVariables)) {
-                                    $components[] = \Filament\Forms\Components\Placeholder::make('no_vars')
+                                    $components[] = TextEntry::make('no_vars')
                                         ->hiddenLabel()
-                                        ->content('Template ini tidak membutuhkan isian variabel tambahan.');
+                                        ->state('Template ini tidak membutuhkan isian variabel tambahan.');
                                 } else {
                                     $service = app(\App\Services\FormSchemaService::class);
                                     $dynamicSchema = $service->generateFilamentSchema($fieldVariables);
 
-                                    $components[] = \Filament\Forms\Components\Section::make('VARIABEL TEMPLATE')
+                                    $components[] = Section::make('VARIABEL TEMPLATE')
                                         ->schema($dynamicSchema)
                                         ->icon('heroicon-o-list-bullet')
                                         ->collapsible(false);
@@ -214,6 +215,7 @@ class GuestPengajuan extends Component implements HasForms
                                 ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                 ->maxSize(5120)
                                 ->multiple() // Allows multiple files as per your design
+                                ->storeFileNamesIn('lampiran_names')
                                 ->panelLayout('grid')
                                 ->downloadable()
                                 ->columnSpanFull(),
@@ -239,6 +241,7 @@ class GuestPengajuan extends Component implements HasForms
                                             'perihal' => $get('perihal'),
                                             'content' => $get('content'),
                                             'lampiran' => $get('lampiran'),
+                                            'lampiran_names' => $get('lampiran_names'),
                                         ]
                                     ]);
                                 })
@@ -354,6 +357,72 @@ class GuestPengajuan extends Component implements HasForms
         // Show the success screen with the tracking code
         $this->trackingCode = $surat->tracking_code;
         $this->submitted = true;
+    }
+
+    public function downloadDraft()
+    {
+        $state = $this->form->getState();
+
+        $isScratch = ($state['template_id'] ?? '') === 'scratch';
+
+        $pengirim = $state['pengirim_nama'] ?? 'Guest';
+        $tujuan = '-';
+        $perihal = $state['perihal'] ?? '-';
+        $renderedHtml = '';
+
+        if ($isScratch) {
+            $unitId = $state['unit_tujuan'] ?? null;
+            if ($unitId) {
+                $tujuan = \App\Models\UnitKerja::find($unitId)?->nama_unit ?? '-';
+            }
+            $renderedHtml = $state['content_scratch'] ?? '';
+        } else {
+            $templateId = $state['template_id'] ?? null;
+            if ($templateId) {
+                $template = \App\Models\Template::with('entryPointUnit')->find($templateId);
+                $perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+                $tujuan = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
+
+                $service = app(\App\Services\PlaceholderService::class);
+                $renderedHtml = $service->renderHtml($template, $state['content'] ?? []);
+            }
+        }
+
+        // Setup mock Surat for the surat view to prevent relation null errors
+        $mockSurat = new \App\Models\Surat([
+            'nomor_surat' => 'DRAF',
+            'nomor_agenda' => '-',
+            'perihal' => $perihal,
+            'tanggal_kirim' => now(),
+        ]);
+
+        $mockUnit = new \App\Models\UnitKerja(['nama_unit' => $tujuan]);
+        $mockPembuat = new \App\Models\User(['nama_lengkap' => $pengirim]);
+
+        $mockSurat->setRelation('unitPengirim', $mockUnit);
+        $mockSurat->setRelation('pembuat', $mockPembuat);
+
+        // Generate the HTML for the main letter (reusing the clean, watermark-free view)
+        $suratHtml = view('filament.exports.surat.surat', [
+            'surat' => $mockSurat,
+            'isArsip' => false,
+            'renderedHtml' => $renderedHtml
+        ])->render();
+
+        // Generate the separate metadata page
+        $metadataHtml = view('filament.exports.surat.metadata', [
+            'state' => $state,
+            'tujuan' => $tujuan,
+        ])->render();
+
+        // Inject metadata at the end of the surat HTML with a page break
+        $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
     }
 
     public function render(): View

@@ -44,10 +44,7 @@
 
 <body>
 
-    <div class="header">
-        <strong>{{ $surat->unitPengirim->nama_unit }}</strong><br>
-        <span>SURAT</span>
-    </div>
+
 
     @if($isArsip)
     <div class="arsip">
@@ -55,40 +52,15 @@
     </div>
     @endif
 
-    <table class="meta">
-        <tr>
-            <td>Nomor Surat</td>
-            <td>: {{ $surat->nomor_surat }}</td>
-        </tr>
-        <tr>
-            <td>Nomor Agenda</td>
-            <td>: {{ $surat->nomor_agenda }}</td>
-        </tr>
-        <tr>
-            <td>Perihal</td>
-            <td>: {{ $surat->perihal }}</td>
-        </tr>
-        <tr>
-            <td>Tanggal</td>
-            <td>: {{ \Carbon\Carbon::parse($surat->tanggal_kirim)->format('d M Y') }}</td>
-        </tr>
-    </table>
 
-    <div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
-        <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5">
-            <div class="prose max-w-none prose-sm sm:prose-base dark:prose-invert">
-                {!! $renderedHtml !!}
-            </div>
-        </div>
+    <!-- <div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
+        <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5"> -->
+    <div class="prose max-w-none prose-sm sm:prose-base dark:prose-invert">
+        {!! $renderedHtml !!}
     </div>
+    <!-- </div>
+    </div> -->
 
-    <div class="footer">
-        <div>
-            Dibuat oleh:<br>
-            {{ $surat->pembuat->nama_lengkap ?? '-' }}<br>
-            {{ $surat->unitPengirim->nama_unit }}
-        </div>
-    </div>
 
 </body>
 
