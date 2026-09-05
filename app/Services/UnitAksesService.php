@@ -23,7 +23,7 @@ class UnitAksesService
         $activeJabatanId = $user->getActiveJabatan()?->id;
 
         // Restricted Mode (Disposisi Only):
-        // User can only see letters where there is a disposisi for this unit or letter created by/assigned to user
+        // User can only see letters where there is a disposisi for this unit or letter assigned to user in this unit
         return $query
             ->where('status_surat', '<>', 'DRAFT')
             ->where(function (Builder $q) use ($unitId, $user, $activeJabatanId) {
@@ -36,9 +36,7 @@ class UnitAksesService
                                 ->orWhere('user_pembuat_id', $user->id);
                         });
                 })
-                // 2. Letters created by this user
-                ->orWhere('user_pembuat_id', $user->id)
-                // 3. Letters in workflow where this user is the actor
+                // 2. Letters in workflow where this user is the actor in this unit
                 ->orWhereHas('riwayats', function (Builder $rq) use ($unitId, $user) {
                     $rq->where('unit_tujuan_id', $unitId)
                         ->where('user_aktor_id', $user->id);
@@ -72,7 +70,10 @@ class UnitAksesService
                                 ->orWhere('user_pembuat_id', $user->id);
                         });
                 })
-                ->orWhere('user_pembuat_id', $user->id)
+                ->orWhere(function (Builder $sq) use ($unitId, $user) {
+                    $sq->where('unit_pengirim_id', $unitId)
+                        ->where('user_pembuat_id', $user->id);
+                })
                 ->orWhereHas('riwayats', function (Builder $rq) use ($unitId, $user) {
                     $rq->where('unit_tujuan_id', $unitId)
                         ->where('user_aktor_id', $user->id);
@@ -93,10 +94,7 @@ class UnitAksesService
             return true;
         }
 
-        if ($surat->user_pembuat_id === $user->id) {
-            return true;
-        }
-
+        // If this unit is the sender unit, staff of this unit can access
         if ($surat->unit_pengirim_id === $unitId) {
             return true;
         }

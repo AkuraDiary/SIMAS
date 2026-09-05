@@ -83,7 +83,7 @@ class SimasPanelProvider extends PanelProvider
                 ]
             )
 
-            ->databaseNotifications()
+            ->databaseNotifications(livewireComponent: \App\Filament\Livewire\DatabaseNotifications::class)
             ->databaseNotificationsPolling('7s')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

@@ -27,47 +27,12 @@ class SuratMasuk extends Page implements HasTable
     use InteractsWithTable, HasTabs;
 
 
-    public int $lastCount = 0;
-
     public function content(Schema $schema): Schema
     {
         return $schema->components([
             $this->getTabsContentComponent(),
             EmbeddedTable::make(),
         ]);
-    }
-
-    public function mount(): void
-    {
-        // for initials data
-        $this->lastCount = $this->getSuratMasukCount();
-    }
-
-    protected function getSuratMasukCount(): int
-    {
-        $unitId = Auth::user()->unit_kerja_id;
-
-        return app(\App\Services\UnitAksesService::class)
-            ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
-            ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                $q->where('unit_kerja_id', $unitId);
-            })
-            ->count();
-    }
-
-
-    public function hydrate(): void
-    {
-        $currentCount = $this->getSuratMasukCount();
-
-        if ($this->lastCount !== 0 && $currentCount > $this->lastCount) {
-            \Filament\Notifications\Notification::make()
-                ->title('Surat baru masuk')
-                ->info()
-                ->send();
-        }
-
-        $this->lastCount = $currentCount;
     }
 
 
