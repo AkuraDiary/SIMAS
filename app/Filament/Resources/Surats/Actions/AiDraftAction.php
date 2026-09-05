@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Surats\Actions;
 
 use App\Services\OllamaService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -65,9 +66,13 @@ class AiDraftAction
                     'ai_isi_surat' => '',
                     'ai_penjelasan' => '',
                     'ai_revisi_prompt' => '',
+                    'ai_history' => '[]',
                 ];
             })
             ->form([
+                Hidden::make('ai_history')
+                    ->default('[]'),
+
                 Section::make('Kebutuhan & Poin-Poin Surat')
                     ->schema([
                         Grid::make(2)->schema([
@@ -131,6 +136,9 @@ class AiDraftAction
                                         $senderName = $jabatan?->unitKerja?->nama_unit ?? auth()->user()->unitKerja?->nama_unit ?? '';
                                     }
 
+                                    // Reset memory on new request via top form
+                                    $set('ai_history', '[]');
+
                                     try {
                                         $service = app(OllamaService::class);
                                         $result = $service->generateDraft($prompt, [
@@ -143,6 +151,7 @@ class AiDraftAction
                                         $set('ai_perihal', $result['perihal']);
                                         $set('ai_isi_surat', $result['isi_surat']);
                                         $set('ai_penjelasan', $result['penjelasan']);
+                                        $set('ai_history', json_encode($result['history'] ?? []));
 
                                         Notification::make()
                                             ->title('Draft AI Berhasil Dibuat')
@@ -152,7 +161,7 @@ class AiDraftAction
                                     } catch (\Throwable $e) {
                                         Notification::make()
                                             ->title('Layanan AI Mengalami Kendala')
-                                            ->body($e->getMessage() . "\n\nAnda juga dapat menggunakan tombol 'Gunakan Standar Kedinasan Cepat' jika layanan AI sedang offline.")
+                                            ->body($e->getMessage()) //. "\n\nAnda juga dapat menggunakan tombol 'Gunakan Standar Kedinasan Cepat' jika layanan AI sedang offline.")
                                             ->danger()
                                             ->persistent()
                                             ->send();
@@ -165,6 +174,7 @@ class AiDraftAction
                                 ->color('gray')
                                 ->outlined()
                                 ->action(function (Set $set, Get $get) {
+                                    $set('ai_history', '[]');
                                     $prompt = trim((string) ($get('ai_prompt') ?? 'Kegiatan Kedinasan Unit'));
                                     $kategori = $get('ai_kategori') ?? 'Undangan Rapat / Kegiatan';
 
@@ -241,17 +251,21 @@ class AiDraftAction
                                         return;
                                     }
 
+                                    $historyJson = (string) ($get('ai_history') ?? '[]');
+                                    $history = json_decode($historyJson, true) ?: [];
+
                                     try {
                                         $service = app(OllamaService::class);
                                         $result = $service->refineDraft($currentDraft, $revisi, [
                                             'kategori' => $get('ai_kategori'),
                                             'perihal_saat_ini' => $get('ai_perihal'),
-                                        ]);
+                                        ], $history);
 
                                         $set('ai_perihal', $result['perihal']);
                                         $set('ai_isi_surat', $result['isi_surat']);
                                         $set('ai_penjelasan', $result['penjelasan']);
                                         $set('ai_revisi_prompt', '');
+                                        $set('ai_history', json_encode($result['history'] ?? []));
 
                                         Notification::make()
                                             ->title('Draft Berhasil Diperbarui')

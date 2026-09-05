@@ -208,32 +208,69 @@ class OllamaService
 
         $rawResponse = $this->chat($messages);
 
-        return $this->parseDraftResponse($rawResponse, $context['perihal_saat_ini'] ?? '');
+        $result = $this->parseDraftResponse($rawResponse, $context['perihal_saat_ini'] ?? '');
+        $result['history'] = [
+            ['role' => 'user', 'content' => $userContent],
+            ['role' => 'assistant', 'content' => $rawResponse],
+        ];
+
+        return $result;
     }
 
     /**
-     * Refine an existing draft based on follow-up user feedback.
+     * Refine an existing draft based on follow-up user feedback and conversation history.
      *
      * @param string $currentDraft
      * @param string $feedback
      * @param array $context
-     * @return array{perihal: string, isi_surat: string, penjelasan: string, raw: string}
+     * @param array $history
+     * @return array{perihal: string, isi_surat: string, penjelasan: string, raw: string, history: array}
      */
-    public function refineDraft(string $currentDraft, string $feedback, array $context = []): array
+    public function refineDraft(string $currentDraft, string $feedback, array $context = [], array $history = []): array
     {
         $systemPrompt = $this->buildSystemPrompt($context);
 
         $messages = [
             ['role' => 'system', 'content' => $systemPrompt],
-            [
-                'role' => 'user',
-                'content' => "Berikut draft surat yang telah dibuat sebelumnya:\n{$currentDraft}\n\nInstruksi Perbaikan / Revisi Tambahan:\n{$feedback}\n\nMohon perbaiki draft di atas dan berikan output lengkap sesuai format pembatas yang ditentukan."
-            ],
         ];
+
+        $userFeedbackPrompt = "Instruksi Perbaikan / Revisi Tambahan:\n{$feedback}\n\nMohon perbaiki draft surat di atas dan berikan output lengkap sesuai format pembatas yang ditentukan.";
+
+        if (!empty($history)) {
+            foreach ($history as $msg) {
+                if (!empty($msg['role']) && !empty($msg['content'])) {
+                    $messages[] = [
+                        'role' => $msg['role'] === 'assistant' ? 'assistant' : 'user',
+                        'content' => $msg['content'],
+                    ];
+                }
+            }
+            $messages[] = [
+                'role' => 'user',
+                'content' => $userFeedbackPrompt,
+            ];
+        } else {
+            $userFeedbackPrompt = "Berikut draft surat yang telah dibuat sebelumnya:\n{$currentDraft}\n\nInstruksi Perbaikan / Revisi Tambahan:\n{$feedback}\n\nMohon perbaiki draft di atas dan berikan output lengkap sesuai format pembatas yang ditentukan.";
+            $messages[] = [
+                'role' => 'user',
+                'content' => $userFeedbackPrompt,
+            ];
+        }
 
         $rawResponse = $this->chat($messages);
 
-        return $this->parseDraftResponse($rawResponse, $context['perihal_saat_ini'] ?? '');
+        $result = $this->parseDraftResponse($rawResponse, $context['perihal_saat_ini'] ?? '');
+
+        $newHistory = $history;
+        if (empty($newHistory) && !empty($currentDraft)) {
+            $newHistory[] = ['role' => 'assistant', 'content' => "---ISI_SURAT---\n{$currentDraft}"];
+        }
+        $newHistory[] = ['role' => 'user', 'content' => $userFeedbackPrompt];
+        $newHistory[] = ['role' => 'assistant', 'content' => $rawResponse];
+
+        $result['history'] = $newHistory;
+
+        return $result;
     }
 
     /**
