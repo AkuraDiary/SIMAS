@@ -21,6 +21,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Carbon\Carbon;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -29,6 +30,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
+use App\Filament\Resources\Surats\Actions\AiDraftAction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
 use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
@@ -481,9 +483,17 @@ class SuratForm
                             Group::make()->schema(function (Get $get) {
                                 if ($get('metode_pembuatan') === 'scratch') {
                                     return [
+                                        // Actions::make([
+                                        //     AiDraftAction::makeForFormComponent('ai_form_assistant')
+                                        //         ->outlined(),
+                                        // ])
+                                        //     ->visible(fn () => AiDraftAction::isAccessible())
+                                        //     ->columnSpanFull(),
+
                                         TinyEditor::make('content.isi_surat')
                                             ->profile('full')
                                             ->label('Isi Surat')
+                                            ->hintAction(AiDraftAction::makeForFormComponent('ai_hint_assistant')->outlined())
                                             ->setCustomConfigs([
                                                 'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
                                             ])

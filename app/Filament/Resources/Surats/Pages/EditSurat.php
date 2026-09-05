@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Surats\Pages;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Resources\Surats\Pages\Concerns\HasSuratFormActions;
 use App\Filament\Resources\Surats\SuratResource;
+use App\Filament\Resources\Surats\Actions\AiDraftAction;
 use App\Models\Template;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -110,6 +111,8 @@ class EditSurat extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            // AiDraftAction::makeForPage(),
+
             ActionGroup::make([
                 // 1. Tombol Unduh Template Kosong
                 // Tombol ini akan muncul jika user sudah memilih template di form
