@@ -117,6 +117,8 @@ trait HasSuratFormActions
                                 'surat_id'      => $surat->id,
                             ])
                             ->sendToDatabase($targetUsers);
+
+                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
                     }
                 }
 

@@ -201,7 +201,7 @@ class SuratRoutingService
                     if ($pengajuan) {
                         $pengajuan->update(['status_surat' => 'SELESAI']);
 
-                        // Opsional: Kirim notifikasi sistem ke pembuat pengajuan awal
+                        // Kirim notifikasi sistem ke pembuat pengajuan awal
                         if ($pengajuan->user_pembuat_id) {
                             $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
                             if ($targetUser) {
@@ -214,8 +214,33 @@ class SuratRoutingService
                                         'surat_id'      => $surat->id,
                                     ])
                                     ->sendToDatabase($targetUser);
+
+                                app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                    $surat,
+                                    $targetUser,
+                                    'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
+                                );
                             }
                         }
+                    }
+                } else {
+                    // Notifikasi ke pembuat surat bahwa surat selesai disetujui
+                    if ($surat->pembuat) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Surat Selesai & Disetujui')
+                            ->body("Surat '{$surat->perihal}' telah selesai disetujui.")
+                            ->success()
+                            ->viewData([
+                                'unit_kerja_id' => (int) $surat->unit_pengirim_id,
+                                'surat_id'      => $surat->id,
+                            ])
+                            ->sendToDatabase($surat->pembuat);
+
+                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                            $surat,
+                            $surat->pembuat,
+                            $catatan
+                        );
                     }
                 }
             } else {
@@ -229,6 +254,22 @@ class SuratRoutingService
                     'catatan'        => 'Diteruskan untuk proses persetujuan (Otomatis).',
                     'actioned_at'    => null,
                 ]);
+
+                // Notifikasi Surat Masuk ke Unit Selanjutnya
+                $nextUnitUsers = \App\Models\User::ofUnitKerja($finalNextUnitId)->get();
+                if ($nextUnitUsers->isNotEmpty()) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Surat Masuk Baru')
+                        ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Unit Sebelumnya') . ": " . $surat->perihal)
+                        ->info()
+                        ->viewData([
+                            'unit_kerja_id' => (int) $finalNextUnitId,
+                            'surat_id'      => $surat->id,
+                        ])
+                        ->sendToDatabase($nextUnitUsers);
+
+                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $nextUnitUsers, $catatan);
+                }
             }
 
             return $surat->fresh();
@@ -257,6 +298,36 @@ class SuratRoutingService
             $surat->update([
                 'status_surat' => $newStatus,
             ]);
+
+            if ($newStatus === 'REVISI') {
+                if ($surat->pembuat) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Surat Perlu Revisi')
+                        ->body("Surat '{$surat->perihal}' dikembalikan untuk direvisi: {$catatan}")
+                        ->warning()
+                        ->viewData([
+                            'unit_kerja_id' => (int) $surat->unit_pengirim_id,
+                            'surat_id'      => $surat->id,
+                        ])
+                        ->sendToDatabase($surat->pembuat);
+
+                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratRevisi($surat, $actor, $catatan);
+                }
+            } elseif ($newStatus === 'DITOLAK') {
+                if ($surat->pembuat) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Surat Ditolak')
+                        ->body("Surat '{$surat->perihal}' telah ditolak: {$catatan}")
+                        ->danger()
+                        ->viewData([
+                            'unit_kerja_id' => (int) $surat->unit_pengirim_id,
+                            'surat_id'      => $surat->id,
+                        ])
+                        ->sendToDatabase($surat->pembuat);
+
+                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratDitolak($surat, $actor, $catatan);
+                }
+            }
 
             return $surat->fresh();
         });
@@ -294,6 +365,22 @@ class SuratRoutingService
                 'actioned_at'    => null,
             ]);
 
+            // Notifikasi Surat Masuk ke Unit Tujuan Selanjutnya
+            $nextUnitUsers = \App\Models\User::ofUnitKerja($nextUnitTujuanId)->get();
+            if ($nextUnitUsers->isNotEmpty()) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Surat Masuk Baru')
+                    ->body("Ada surat diteruskan dari " . ($surat->unitPengirim?->nama_unit ?? 'Unit Sebelumnya') . ": " . $surat->perihal)
+                    ->info()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $nextUnitTujuanId,
+                        'surat_id'      => $surat->id,
+                    ])
+                    ->sendToDatabase($nextUnitUsers);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $nextUnitUsers, $catatan);
+            }
+
             return $surat->fresh();
         });
     }
@@ -327,6 +414,27 @@ class SuratRoutingService
                 'catatan'        => 'Dikembalikan dengan catatan: ' . $catatan,
                 'actioned_at'    => null,
             ]);
+
+            // Notifikasi ke unit sebelumnya bahwa surat dikembalikan
+            $prevUnitUsers = \App\Models\User::ofUnitKerja($currentRiwayat->unit_asal_id)->get();
+            if ($prevUnitUsers->isNotEmpty()) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Surat Dikembalikan')
+                    ->body("Surat '{$surat->perihal}' dikembalikan ke unit Anda dengan catatan: {$catatan}")
+                    ->warning()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $currentRiwayat->unit_asal_id,
+                        'surat_id'      => $surat->id,
+                    ])
+                    ->sendToDatabase($prevUnitUsers);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $prevUnitUsers, "Surat dikembalikan: {$catatan}");
+            }
+
+            // Notifikasi ke pembuat bahwa surat perlu revisi
+            if ($surat->pembuat) {
+                app(\App\Services\WhatsAppNotificationService::class)->notifySuratRevisi($surat, $actor, $catatan);
+            }
 
             // Status surat tetap DIPROSES, karena belum mati/ditolak sepenuhnya
             return $surat->fresh();

@@ -42,4 +42,7 @@ return [
         'timeout'  => (int) env('OLLAMA_TIMEOUT', 60),
     ],
 
+    'fonnte' => [
+        'token' => env('FONNTE_TOKEN'),
+    ],
 ];

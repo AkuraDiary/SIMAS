@@ -180,6 +180,8 @@ trait HasDisposisiActions
                         'surat_id'      => $this->surat->id,
                     ])
                     ->sendToDatabase($targetUsers);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifyDisposisiBaru($disposisi, $targetUsers);
             }
 
             // Lampirkan bukti yang sama ke setiap record disposisi
@@ -240,6 +242,8 @@ trait HasDisposisiActions
                         'surat_id'      => $this->surat->id,
                     ])
                     ->sendToDatabase($pembuat);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifyDisposisiSelesai($disposisi, $data['catatan_respon'] ?? null);
             }
         }
 

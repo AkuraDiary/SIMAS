@@ -53,6 +53,12 @@ trait HasInternalActions
                                 'surat_id'      => $this->surat->id,
                             ])
                             ->sendToDatabase($this->surat->pembuat);
+
+                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                            $this->surat,
+                            $this->surat->pembuat,
+                            "Balasan: " . $data['catatan']
+                        );
                     }
 
                     $this->refreshPage('Berhasil', 'Surat internal berhasil diselesaikan dan dibalas.');

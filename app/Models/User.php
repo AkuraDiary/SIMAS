@@ -399,20 +399,6 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function getFormattedPhoneForWhatsApp(): ?string
     {
-        if (empty($this->phone)) {
-            return null;
-        }
-
-        // Hapus karakter non-numerik (+, -, spasi, dll)
-        $phone = preg_replace('/[^0-9]/', '', $this->phone);
-
-        // Ubah format lokal (08...) ke format internasional (628...)
-        if (str_starts_with($phone, '0')) {
-            $phone = '62' . substr($phone, 1);
-        } elseif (str_starts_with($phone, '8')) {
-            $phone = '62' . $phone;
-        }
-
-        return !empty($phone) ? $phone : null;
+        return \App\Services\PhoneNumberAdapter::normalize($this->phone);
     }
 }
