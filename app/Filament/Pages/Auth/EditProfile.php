@@ -27,10 +27,10 @@ class EditProfile extends BaseEditProfile
         return [
             ...parent::getFormActions(), // Keeps the default "Save" button
 
-            Action::make('home')
-                ->label('Home')
-                ->icon('heroicon-m-home') // Uses Heroicons
-                ->url(fn(): string => url('/internal')),
+            // Action::make('home')
+            //     ->label('Home')
+            //     ->icon('heroicon-m-home') // Uses Heroicons
+            //     ->url(fn(): string => url('/internal')),
         ];
     }
 

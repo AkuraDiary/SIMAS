@@ -126,7 +126,7 @@ class SuratRoutingService
                     $signatureType
                 );
             }
-            
+
             // 3. Advance to next step or mark as final
             $automatedNextUnitId = null;
 
@@ -209,6 +209,10 @@ class SuratRoutingService
                                     ->title('Surat Terbitan Selesai')
                                     ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
                                     ->success()
+                                    ->viewData([
+                                        'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $surat->unit_pengirim_id),
+                                        'surat_id'      => $surat->id,
+                                    ])
                                     ->sendToDatabase($targetUser);
                             }
                         }

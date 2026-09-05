@@ -112,6 +112,10 @@ trait HasSuratFormActions
                             ->title('Surat Masuk Baru')
                             ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal)
                             ->info()
+                            ->viewData([
+                                'unit_kerja_id' => (int) $uId, // Unit yang berhak melihat notifikasi ini
+                                'surat_id'      => $surat->id,
+                            ])
                             ->sendToDatabase($targetUsers);
                     }
                 }

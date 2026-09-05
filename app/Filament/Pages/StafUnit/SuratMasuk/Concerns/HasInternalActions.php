@@ -51,6 +51,10 @@ trait HasInternalActions
                             ->title('Surat Internal Selesai')
                             ->body("Unit Anda telah menyelesaikan surat '{$this->surat->perihal}'. Balasan: {$data['catatan']}")
                             ->success()
+                            ->viewData([
+                                'unit_kerja_id' => (int) $this->surat->unit_pengirim_id,
+                                'surat_id'      => $this->surat->id,
+                            ])
                             ->sendToDatabase($this->surat->pembuat);
                     }
 
@@ -59,7 +63,7 @@ trait HasInternalActions
         ];
     }
 
-        /**
+    /**
      * Get the currently active routing step (Riwayat) for Internal letters.
      */
     protected function getActiveInternalRiwayat()

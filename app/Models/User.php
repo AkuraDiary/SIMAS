@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Notifications\Notifiable;
 
 
@@ -37,6 +38,33 @@ class User extends Authenticatable implements FilamentUser, HasName
         'is_active',
         'settings',
     ];
+
+    public function notifications(): MorphMany
+    {
+        $relation = $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')->latest();
+
+        // Jika user adalah STAF yang sedang memegang jabatan aktif tertentu:
+        if ($this->tipe_entitas === 'STAF') {
+            $activeUnitId = $this->getActiveUnitId(); // Unit dari session / last_active_jabatan_id
+
+            if ($activeUnitId) {
+                $relation->where(function ($query) use ($activeUnitId) {
+                    // 1. Tampilkan notifikasi yang memang ditujukan ke unit kerja jabatan aktif ini
+                    $query->where(function ($uq) use ($activeUnitId) {
+                        $uq->where('data->viewData->unit_kerja_id', $activeUnitId)
+                            ->orWhere('data->viewData->unit_kerja_id', (string) $activeUnitId);
+                    })
+                    // 2. ATAU notifikasi personal/umum akun (bukan notifikasi surat unit lain)
+                    ->orWhere(function ($sub) {
+                        $sub->whereNull('data->viewData->unit_kerja_id')
+                            ->whereNull('data->viewData->surat_id');
+                    });
+                });
+            }
+        }
+
+        return $relation;
+    }
 
     public function getFilamentName(): string
     {

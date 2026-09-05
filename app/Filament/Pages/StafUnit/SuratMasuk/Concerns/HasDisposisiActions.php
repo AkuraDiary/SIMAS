@@ -175,6 +175,10 @@ trait HasDisposisiActions
                     ->title('Disposisi Baru')
                     ->body("Unit " . ($activeJabatan?->unitKerja?->nama_unit ?? 'Anda') . " mengirimkan disposisi surat: " . $this->surat->perihal)
                     ->info()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $unitTujuanId, // Unit yang berhak melihat notifikasi ini
+                        'surat_id'      => $this->surat->id,
+                    ])
                     ->sendToDatabase($targetUsers);
             }
 
@@ -231,6 +235,10 @@ trait HasDisposisiActions
                     ->title('Disposisi Selesai')
                     ->body("Unit " . Auth::user()->unitKerja?->nama_unit . " telah menyelesaikan disposisi pada surat: " . $this->surat->perihal)
                     ->success()
+                    ->viewData([
+                        'unit_kerja_id' => (int) ($disposisi->unit_pembuat_id ?? $this->surat->unit_pengirim_id),
+                        'surat_id'      => $this->surat->id,
+                    ])
                     ->sendToDatabase($pembuat);
             }
         }
