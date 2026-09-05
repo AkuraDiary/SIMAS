@@ -138,6 +138,14 @@
                             {{ $surat->created_at->format('d M Y') }}
                         </p>
                     </div>
+
+
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Nomor Surat</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ $surat->nomor_surat }}
+                        </p>
+                    </div>
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Diterima Via</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">

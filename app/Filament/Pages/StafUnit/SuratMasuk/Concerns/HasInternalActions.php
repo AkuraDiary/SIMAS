@@ -26,9 +26,6 @@ trait HasInternalActions
                 ])
                 ->action(function (array $data): void {
                     $user = Auth::user();
-                    $activeJabatan = $user->pegawai?->jabatanAktif()->first();
-                    $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
-
                     $activeRiwayat = $this->getActiveInternalRiwayat();
 
                     if (!$activeRiwayat) {
@@ -69,7 +66,7 @@ trait HasInternalActions
     protected function getActiveInternalRiwayat()
     {
         $user = \Illuminate\Support\Facades\Auth::user();
-        $unitId = $user->pegawai?->jabatanAktif()->first()?->unit_kerja_id ?? $user->unit_kerja_id;
+        $unitId = $user->getActiveUnitId();
 
         return $this->surat->riwayats()
             ->where('status', 'MENUNGGU')
