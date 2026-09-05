@@ -327,9 +327,9 @@ class SuratForm
                                             }
                                         }),
 
-                                    Placeholder::make('info_auto_nomor')
+                                    TextEntry::make('info_auto_nomor')
                                         ->hiddenLabel()
-                                        ->content(function (Get $get) {
+                                        ->state(function (Get $get) {
                                             $unitId = Auth::user()?->unit_kerja_id;
                                             $tipeSurat = $get('tipe_surat') ?? 'INTERNAL';
                                             $format = app(\App\Services\NomorSuratService::class)->resolveFormat($unitId, $tipeSurat);

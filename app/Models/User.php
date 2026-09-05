@@ -317,4 +317,74 @@ class User extends Authenticatable implements FilamentUser, HasName
         $activeJabatan = $this->getActiveJabatan();
         return $activeJabatan?->can_disposisi === true;
     }
+
+    /**
+     * Cek apakah user ingin menerima notifikasi untuk event tertentu pada channel tertentu.
+     * Event yang didukung:
+     * - 'surat_masuk'  : Surat masuk baru atau disposisi masuk
+     * - 'surat_revisi' : Surat dikembalikan / butuh revisi
+     * - 'surat_selesai': Surat disetujui / selesai (termasuk saat terbitan dibuat)
+     * - 'surat_ditolak': Surat ditolak permanen
+     *
+     * Channel: 'whatsapp', 'email', 'web'
+     */
+    public function wantsNotification(string $event, string $channel = 'whatsapp'): bool
+    {
+        // Admin tidak menerima notifikasi alur persuratan personal
+        if ($this->tipe_entitas === 'ADMIN') {
+            return false;
+        }
+
+        if ($channel === 'whatsapp') {
+            // Master toggle harus aktif dan nomor HP terisi
+            if (empty($this->phone) || !($this->settings['notifikasi_whatsapp'] ?? false)) {
+                return false;
+            }
+
+            // Cek sub-preferensi event (default: true jika master aktif)
+            return (bool) ($this->settings["wa_notif_{$event}"] ?? true);
+        }
+
+        if ($channel === 'email') {
+            // Master toggle email harus aktif dan email terisi
+            if (empty($this->email) || !($this->settings['notifikasi_email'] ?? true)) {
+                return false;
+            }
+
+            return (bool) ($this->settings["email_notif_{$event}"] ?? true);
+        }
+
+        if ($channel === 'popup' || $channel === 'web_popup') {
+            return (bool) ($this->settings['notifikasi_popup'] ?? true);
+        }
+
+        if ($channel === 'web') {
+            // Database notification (riwayat ikon lonceng) selalu aktif secara default
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Format nomor telepon pengguna ke format standar WhatsApp internasional (contoh: 6281234567890).
+     */
+    public function getFormattedPhoneForWhatsApp(): ?string
+    {
+        if (empty($this->phone)) {
+            return null;
+        }
+
+        // Hapus karakter non-numerik (+, -, spasi, dll)
+        $phone = preg_replace('/[^0-9]/', '', $this->phone);
+
+        // Ubah format lokal (08...) ke format internasional (628...)
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        } elseif (str_starts_with($phone, '8')) {
+            $phone = '62' . $phone;
+        }
+
+        return !empty($phone) ? $phone : null;
+    }
 }
