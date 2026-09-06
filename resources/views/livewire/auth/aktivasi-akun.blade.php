@@ -4,7 +4,7 @@
         <!-- Header Banner -->
         <div class="bg-linear-to-r from-primary-500 to-primary-600 px-6 py-8 text-center text-white">
             <h2 class="text-2xl font-bold tracking-tight">SIMAS</h2>
-            <p class="text-blue-200 text-xs mt-1">Portal Layanan & Aktivasi Akun Pengguna</p>
+            <p class="text-white text-xs mt-1">Portal Layanan & Aktivasi Akun Pengguna</p>
         </div>
 
         <div class="p-8">

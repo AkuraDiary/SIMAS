@@ -59,7 +59,7 @@ class AktivasiAkun extends Component
         $this->identifierExpected = $user->username;
 
         // Periksa toggle konfirmasi NIP/NIM dari konfigurasi
-        $this->requireNipNim = (bool) config('simas.activation.require_nip_nim_confirmation', true);
+        $this->requireNipNim = (bool) config('services.activation.require_nip_nim_confirmation', true);
 
         // Jika toggle mati (false), aktivasi langsung secara instan
         if (! $this->requireNipNim) {

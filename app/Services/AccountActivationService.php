@@ -78,7 +78,7 @@ class AccountActivationService
 
         $message = "Halo Bapak/Ibu/Saudara *{$nama}* ({$identifier}),\n\n"
             . "Akun SIMAS Anda telah dibuat. Silakan lakukan aktivasi akun Anda melalui tautan berikut:\n\n"
-            . "👉 {$url}\n\n"
+            . "{$url}\n\n"
             . "Tautan aktivasi ini berlaku selama 3 hari. Jangan bagikan tautan ini kepada siapapun demi keamanan akun Anda.\n\n"
             . "Salam hangat,\n*SIMAS - Sistem Informasi Manajemen Arsip & Surat*";
 

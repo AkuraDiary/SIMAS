@@ -106,12 +106,22 @@ class EditUserMahasiswa extends EditRecord
                                 ->same('new_password')
                                 ->visible(fn($get) => filled($get('new_password'))),
 
+                            Select::make('kirim_ulang_aktivasi')
+                                ->label("Kirim Ulang Link Aktivasi")
+                                ->options([
+                                    ''         => 'Tidak Kirim (Hanya Simpan Perubahan)',
+                                    'whatsapp' => 'Kirim Link via WhatsApp',
+                                    'email'    => 'Kirim Link via Email',
+                                ])
+                                ->helperText("Kirim tautan aktivasi melalui salah email atau whatsapp.")
+                                ->preload(),
                             Select::make('is_active')
                                 ->label("Aktivasi Akun Manual")
-                                ->options([
-                                    '1' => 'Aktif',
-                                    '0' => 'Non Aktif',
-                                ])
+                                // ->options([
+                                //     '1' => 'Aktif',
+                                //     '0' => 'Non Aktif',
+                                // ])
+                                ->boolean('Aktif', 'Non Aktif')
                                 ->helperText("Peringatan: Mengubah status akan langsung mempengaruhi hak akses login pengguna.")
                                 ->default(fn() => $this->record->user?->is_active)
                                 ->preload(),
@@ -140,6 +150,22 @@ class EditUserMahasiswa extends EditRecord
                         $updates['password'] = Hash::make($data['new_password']);
                     }
 
+                    if (! empty($data['kirim_ulang_aktivasi'])) {
+                        $service = app(\App\Services\AccountActivationService::class);
+                        $result = $service->sendActivationLink($user, $data['kirim_ulang_aktivasi']);
+
+                        if ($result['status'] ?? false) {
+                            Notification::make()
+                                ->title("Tautan aktivasi berhasil dikirim via " . strtoupper($data['kirim_ulang_aktivasi']))
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title("Gagal mengirim tautan: " . ($result['reason'] ?? 'Terjadi kesalahan'))
+                                ->danger()
+                                ->send();
+                        }
+                    }
                     $user->update($updates);
 
                     Notification::make()
