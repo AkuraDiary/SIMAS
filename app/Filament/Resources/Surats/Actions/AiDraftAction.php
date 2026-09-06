@@ -39,7 +39,7 @@ class AiDraftAction
             ->label('Bantuan AI (Draft Surat)')
             ->icon('heroicon-o-sparkles')
             ->color('primary')
-            ->visible(fn () => static::isAccessible())
+            ->visible(fn() => static::isAccessible())
             ->modalHeading('Asisten AI - Pembuat Draft Surat')
             ->modalDescription('Gunakan AI untuk membuat atau menyempurnakan draft isi surat resmi sesuai kaidah Tata Naskah Dinas.')
             ->modalIcon('heroicon-o-sparkles')
@@ -69,7 +69,7 @@ class AiDraftAction
                     'ai_history' => '[]',
                 ];
             })
-            ->form([
+            ->schema([
                 Hidden::make('ai_history')
                     ->default('[]'),
 
@@ -106,8 +106,7 @@ class AiDraftAction
                             ->label('Instruksi / Catatan Kunci Surat')
                             ->placeholder("Tuliskan poin-poin yang ingin dituangkan dalam surat.\nContoh: Undangan rapat koordinasi kurikulum MBKM pada hari Kamis, 15 Oktober 2026 pukul 09.00 WIB di Ruang Rapat Dekanat. Agenda evaluasi semester ganjil dan penyusunan silabus baru.")
                             ->rows(3)
-                            ->helperText('Sebutkan rincian seperti hari/tanggal, waktu, tempat, agenda, atau latar belakang permohonan.')
-                            ->live(),
+                            ->helperText('Sebutkan rincian seperti hari/tanggal, waktu, tempat, agenda, atau latar belakang permohonan.'),
 
                         Actions::make([
                             Action::make('generate_ai_btn')
@@ -219,19 +218,18 @@ class AiDraftAction
                                 }
                                 return new HtmlString(
                                     '<div class="p-4 bg-white dark:bg-gray-900 border rounded-lg shadow-sm text-sm text-gray-800 dark:text-gray-200 leading-relaxed font-serif prose dark:prose-invert max-w-none">' .
-                                    $html .
-                                    '</div>'
+                                        $html .
+                                        '</div>'
                                 );
                             }),
                     ])
-                    ->visible(fn (Get $get) => !empty($get('ai_isi_surat'))),
+                    ->visible(fn(Get $get) => !empty($get('ai_isi_surat'))),
 
                 Section::make('Revisi Percakapan Lanjut (Chat Refinement)')
                     ->schema([
                         TextInput::make('ai_revisi_prompt')
                             ->label('Instruksi Perbaikan / Tambahan')
-                            ->placeholder('Contoh: Tolong tambahkan poin agar peserta membawa laptop dan berpakaian batik.')
-                            ->live(),
+                            ->placeholder('Contoh: Tolong tambahkan poin agar peserta membawa laptop dan berpakaian batik.'),
 
                         Actions::make([
                             Action::make('refine_ai_btn')
@@ -283,9 +281,9 @@ class AiDraftAction
                                 }),
                         ]),
                     ])
-                    ->visible(fn (Get $get) => !empty($get('ai_isi_surat'))),
+                    ->visible(fn(Get $get) => !empty($get('ai_isi_surat'))),
             ])
-            ->action(function (array $data, Set $set, Get $get, $livewire) {
+            ->action(function (array $data, Set $set, Get $get, $livewire, $component = null) {
                 $generatedContent = $data['ai_isi_surat'] ?? null;
                 $generatedPerihal = $data['ai_perihal'] ?? null;
 
@@ -298,43 +296,73 @@ class AiDraftAction
                     return;
                 }
 
-                // 1. Update via Livewire component data if available (e.g. CreateSurat or EditSurat)
-                if ($livewire instanceof CreateRecord || $livewire instanceof EditRecord || isset($livewire->data)) {
-                    $formData = $livewire->data ?? [];
-                    $formData['metode_pembuatan'] = 'scratch';
-
-                    $content = $formData['content'] ?? [];
-                    if (!is_array($content)) {
-                        $content = [];
-                    }
-                    $content['isi_surat'] = $generatedContent;
-                    $formData['content'] = $content;
-
-                    if (empty($formData['perihal']) && !empty($generatedPerihal)) {
-                        $formData['perihal'] = $generatedPerihal;
-                    }
-
-                    $livewire->data = $formData;
-
-                    if (method_exists($livewire, 'form') && $livewire->form) {
-                        try {
-                            $livewire->form->fill($formData);
-                        } catch (\Throwable $e) {
-                            // Silently continue
-                        }
+                if (method_exists($livewire, 'set')) {
+                    $livewire->set('data.metode_pembuatan', 'scratch');
+                    $livewire->set('data.content.isi_surat', $generatedContent);
+                    if (empty($livewire->data['perihal'] ?? '') && !empty($generatedPerihal)) {
+                        $livewire->set('data.perihal', $generatedPerihal);
                     }
                 }
 
-                // 2. Also update via form Set utility
+                // 2. Jika dipanggil dari hintAction pada TinyEditor, update state komponennya
+                if ($component && method_exists($component, 'state')) {
+                    $component->state($generatedContent);
+                }
+                // 3. Fallback form fill & form set jika dibutuhkan
                 try {
                     $set('metode_pembuatan', 'scratch');
                     $set('content.isi_surat', $generatedContent);
-                    if (empty($get('perihal')) && !empty($generatedPerihal)) {
-                        $set('perihal', $generatedPerihal);
-                    }
                 } catch (\Throwable $e) {
-                    // Silently continue
+                    // Abaikan jika scope berbeda
                 }
+                // 4. Update langsung iframe TinyMCE di browser via JavaScript Livewire (Instant Render)
+                if (method_exists($livewire, 'js')) {
+                    $encodedHtml = json_encode($generatedContent);
+                    $livewire->js("
+                    if (window.filamentTinyEditors && window.filamentTinyEditors['data.content.isi_surat']) {
+                    tinymce.get(window.filamentTinyEditors['data.content.isi_surat'])?.setContent({$encodedHtml});
+                    } else if (tinymce.activeEditor) {
+                     tinymce.activeEditor.setContent({$encodedHtml});
+                    }
+                    ");
+                }
+                // 1. Update via Livewire component data if available (e.g. CreateSurat or EditSurat)
+                // if ($livewire instanceof CreateRecord || $livewire instanceof EditRecord || isset($livewire->data)) {
+                //     $formData = $livewire->data ?? [];
+                //     $formData['metode_pembuatan'] = 'scratch';
+
+                //     $content = $formData['content'] ?? [];
+                //     if (!is_array($content)) {
+                //         $content = [];
+                //     }
+                //     $content['isi_surat'] = $generatedContent;
+                //     $formData['content'] = $content;
+
+                //     if (empty($formData['perihal']) && !empty($generatedPerihal)) {
+                //         $formData['perihal'] = $generatedPerihal;
+                //     }
+
+                //     $livewire->data = $formData;
+
+                //     if (method_exists($livewire, 'form') && $livewire->form) {
+                //         try {
+                //             $livewire->form->fill($formData);
+                //         } catch (\Throwable $e) {
+                //             // Silently continue
+                //         }
+                //     }
+                // }
+
+                // // 2. Also update via form Set utility
+                // try {
+                //     $set('metode_pembuatan', 'scratch');
+                //     $set('content.isi_surat', $generatedContent);
+                //     if (empty($get('perihal')) && !empty($generatedPerihal)) {
+                //         $set('perihal', $generatedPerihal);
+                //     }
+                // } catch (\Throwable $e) {
+                //     // Silently continue
+                // }
 
                 Notification::make()
                     ->title('Draft AI Berhasil Diterapkan')
