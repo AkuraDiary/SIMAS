@@ -353,13 +353,13 @@ class GuestPengajuan extends Component implements HasForms
             $surat->unitTujuan()->attach($state['unit_tujuan'], [
                 'jenis_tujuan' => 'UTAMA',
                 'tanggal_terima' => now(),
-                'status_baca' => false,
+                'status_baca' => 'BELUM',
             ]);
         } elseif (!$isScratch && isset($template) && $template->entry_point_unit_id) {
             $surat->unitTujuan()->attach($template->entry_point_unit_id, [
                 'jenis_tujuan' => 'UTAMA',
                 'tanggal_terima' => now(),
-                'status_baca' => false,
+                'status_baca' => 'BELUM',
             ]);
         }
 

@@ -1,13 +1,13 @@
 <div class="max-w-[85%] mx-auto py-10 px-2 sm:px-6 lg:px-4">
     @if($submitted)
     <!-- Success State -->
-    <div class="bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
+    <div class="max-w-[60%] bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
         <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
             <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
         </div>
-        <h2 class="text-3xl font-extrabold text-gray-900 mb-2">Pengajuan Berhasil Dikirim!</h2>
+        <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Surat Berhasil Dikirim!</h2>
         <p class="text-gray-500 text-lg mb-8 max-w-xl mx-auto">Harap simpan kode pelacakan unik di bawah ini dengan aman. Anda akan membutuhkannya untuk mengecek status atau mengunduh surat terbitan Anda nanti.</p>
 
         <div class="inline-block bg-gray-50 border-2 border-dashed border-primary-200 rounded-xl px-10 py-6 mb-8">
