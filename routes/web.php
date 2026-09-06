@@ -18,6 +18,8 @@ Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
 
 Route::get('/pengajuan', \App\Livewire\GuestPengajuan::class)->name('pengajuan');
 Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
+Route::get('/aktivasi', \App\Livewire\Auth\AktivasiAkun::class)->name('aktivasi');
+
 Route::middleware('auth')->group(function () {
     Route::get('/media/{media}/file', [MediaController::class, 'file'])
         ->name('media.file');
