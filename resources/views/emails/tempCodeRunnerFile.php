@@ -1,3 +1,4 @@
+<?php
 <!DOCTYPE html>
 <html>
 <head>
@@ -12,7 +13,7 @@
                 <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                     <!-- Header -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #cb7127 0%, #f6603b 100%); padding: 32px 40px; text-align: center;">
+                        <td style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 32px 40px; text-align: center;">
                             <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">SIMAS</h1>
                             <p style="color: #dbeafe; margin: 6px 0 0 0; font-size: 14px;">Sistem Informasi Manajemen Arsip & Surat</p>
                         </td>
@@ -28,7 +29,7 @@
                                 Untuk mulai mengakses dan menggunakan akun Anda, silakan klik tombol aktivasi berikut ini:
                             </p>
                             <div style="text-align: center; margin: 32px 0;">
-                                <a href="{{ $activationUrl }}" style="background-color: #eb5d25; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">Aktivasi Akun Sekarang</a>
+                                <a href="{{ $activationUrl }}" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">Aktivasi Akun Sekarang</a>
                             </div>
                             <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 24px 0 0 0;">
                                 <em>Tautan ini berlaku selama 3 hari. Jangan bagikan tautan ini kepada orang lain demi keamanan data Anda.</em>
@@ -36,7 +37,7 @@
                             <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 32px 0 20px 0;">
                             <p style="color: #9ca3af; font-size: 12px; margin: 0;">
                                 Jika Anda kesulitan mengklik tombol di atas, salin dan tempel URL berikut ke peramban web Anda:<br>
-                                <a href="{{ $activationUrl }}" style="color: #eb8525; word-break: break-all;">{{ $activationUrl }}</a>
+                                <a href="{{ $activationUrl }}" style="color: #2563eb; word-break: break-all;">{{ $activationUrl }}</a>
                             </p>
                         </td>
                     </tr>
