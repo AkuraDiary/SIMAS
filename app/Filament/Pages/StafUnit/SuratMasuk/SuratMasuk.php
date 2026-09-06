@@ -93,11 +93,20 @@ class SuratMasuk extends Page implements HasTable
                     })
                     ->weight('bold')
                     ->wrap()
+
                     ->description(function (Surat $record) {
                         $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
+
+                        if ($record->tipe_surat === 'PENGAJUAN' || filled($record->pengirim_nama)) {
+                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
+                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
+                            return $nomor . ($record->pengirim_nama ?? 'Guest') . $nim . $instansi;
+                        }
+
                         $pengirim = $record->tipe_surat === 'EKSTERNAL'
                             ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
                             : ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '-') . ' - ' . ($record->unitPengirim?->nama_unit ?? '-');
+
                         return $nomor . $pengirim;
                     }),
 

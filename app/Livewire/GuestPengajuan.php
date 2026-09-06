@@ -22,6 +22,7 @@ use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Vinkla\Hashids\Facades\Hashids;
 
 
 #[Layout('components.layouts.app', ['showHeader' => true])]
@@ -317,8 +318,8 @@ class GuestPengajuan extends Component implements HasForms
         $surat->pengirim_email = $state['pengirim_email'] ?? null;
         $surat->tanggal_kirim = now();
 
-        // Generate random tracking code
-        $surat->tracking_code = strtoupper(\Illuminate\Support\Str::random(10));
+
+
 
         $metadata = [
             'tipe_pengirim' => $state['tipe_pengirim'] ?? 'guest',
@@ -347,6 +348,14 @@ class GuestPengajuan extends Component implements HasForms
             $surat->content = $state['content'] ?? [];
         }
 
+        $surat->save();
+
+
+        // Generate random tracking code
+        // Buat hash 6 karakter dari ID + APP_KEY agar tidak mudah ditebak urutan ID-nya
+        $surat->tracking_code = 'REQ-' . strtoupper(Hashids::encode($surat->id));
+        // Format: REQ-{ID}-{HASH}, contoh: REQ-1042-8F2A1C
+        // $surat->tracking_code = "REQ-{$surat->id}-{$hash}";
         $surat->save();
 
         // Attach unit tujuan
