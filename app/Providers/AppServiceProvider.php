@@ -54,7 +54,7 @@ class AppServiceProvider extends ServiceProvider
 
 
                 // Changed from <div> to <a> and added hover effects so it feels like a real button!
-                return '<a href="' . ( Auth::user()->tipe_entitas === 'ADMIN' ? '#' :  $switchUrl ). '" class="flex items-center px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors rounded-lg border border-primary-100 dark:border-primary-900 mr-4 cursor-pointer">
+                return '<a href="' . ( Auth::user()->tipe_entitas === 'ADMIN' ? '#' :  $switchUrl ). '" class="flex items-center px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 transition-colors rounded-lg border dark:text-primary-500 border-primary-100 dark:bg-primary-700  dark:border-primary-900 mr-4 cursor-pointer">
                             <span class="mr-2">  ' . $unit . '</span>' . '
                         </a>';
             }

@@ -312,7 +312,7 @@ class GuestPengajuan extends Component implements HasForms
 
         $surat = new \App\Models\Surat();
         $surat->tipe_surat = 'PENGAJUAN';
-        $surat->status_surat = 'PENDING';
+        $surat->status_surat = 'TERKIRIM';
         $surat->pengirim_nama = $state['pengirim_nama'] ?? null;
         $surat->pengirim_email = $state['pengirim_email'] ?? null;
 
