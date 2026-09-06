@@ -27,9 +27,10 @@ class UnitKerjasTableSeeder extends Seeder
                 'nama_unit' => 'Rektorat',
                 'singkatan' => 'REK',
                 'is_active' => 1,
+                'pengaturan_akses' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-12 08:17:21',
-                'updated_at' => '2026-08-12 08:17:21',
+                'updated_at' => '2026-09-04 17:13:05',
             ),
             1 => 
             array (
@@ -39,9 +40,10 @@ class UnitKerjasTableSeeder extends Seeder
                 'nama_unit' => 'Logistik',
                 'singkatan' => 'Log',
                 'is_active' => 1,
+                'pengaturan_akses' => '{"kebijakan_surat_masuk": "TERBATAS_DISPOSISI"}',
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-13 08:28:15',
-                'updated_at' => '2026-08-13 08:28:23',
+                'updated_at' => '2026-09-05 08:44:38',
             ),
             2 => 
             array (
@@ -51,6 +53,7 @@ class UnitKerjasTableSeeder extends Seeder
                 'nama_unit' => 'Kemahasiswaan',
                 'singkatan' => 'KEMA',
                 'is_active' => 1,
+                'pengaturan_akses' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-13 08:28:54',
                 'updated_at' => '2026-08-13 08:28:54',
@@ -59,13 +62,14 @@ class UnitKerjasTableSeeder extends Seeder
             array (
                 'id' => 4,
                 'parent_id' => 3,
-                'jenis_unit_id' => 3,
+                'jenis_unit_id' => 5,
                 'nama_unit' => 'Fakultas Teknik',
                 'singkatan' => 'FT',
                 'is_active' => 1,
+                'pengaturan_akses' => '{"kebijakan_surat_masuk": "TERBATAS_DISPOSISI"}',
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-13 08:29:10',
-                'updated_at' => '2026-08-13 08:29:10',
+                'updated_at' => '2026-09-05 08:44:14',
             ),
             4 => 
             array (
@@ -75,6 +79,7 @@ class UnitKerjasTableSeeder extends Seeder
                 'nama_unit' => 'RPL',
                 'singkatan' => 'RPL',
                 'is_active' => 1,
+                'pengaturan_akses' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-18 20:26:41',
                 'updated_at' => '2026-08-19 17:05:02',
@@ -87,6 +92,7 @@ class UnitKerjasTableSeeder extends Seeder
                 'nama_unit' => 'Teknik Elektro',
                 'singkatan' => 'ELKTR',
                 'is_active' => 1,
+                'pengaturan_akses' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-24 21:15:58',
                 'updated_at' => '2026-08-24 21:15:58',

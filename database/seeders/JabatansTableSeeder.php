@@ -67,6 +67,22 @@ class JabatansTableSeeder extends Seeder
                 'level_jabatan' => 1,
                 'deleted_at' => NULL,
             ),
+            6 => 
+            array (
+                'id' => 8,
+                'unit_kerja_id' => 4,
+                'nama_jabatan' => 'Sekretaris FT',
+                'level_jabatan' => 2,
+                'deleted_at' => NULL,
+            ),
+            7 => 
+            array (
+                'id' => 9,
+                'unit_kerja_id' => 4,
+                'nama_jabatan' => 'Staf Fakultas',
+                'level_jabatan' => 3,
+                'deleted_at' => NULL,
+            ),
         ));
         
         
