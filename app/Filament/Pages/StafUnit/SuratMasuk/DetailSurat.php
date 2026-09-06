@@ -128,12 +128,20 @@ class DetailSurat extends Page implements HasForms
         }
 
         // Jika surat masih berstatus TERKIRIM, upgrade menjadi DIPROSES
-        if ($this->surat->status_surat === 'TERKIRIM') {
+        // Hanya ubah status ke DIPROSES jika dibuka oleh pihak PENERIMA (bukan pengirim/pembuat surat)
+        $isSender = ($this->userUnitId && (int) $this->userUnitId === (int) $this->surat->unit_pengirim_id) ||
+            ((int) $this->surat->user_pembuat_id === (int) Auth::id()) ||
+            ($this->scope === 'keluar');
+        if ($this->surat->status_surat === 'TERKIRIM' && ! $isSender) {
             $this->surat->update(['status_surat' => 'DIPROSES']);
-
-            // Update properti di Livewire agar tombol Setuju/Tolak langsung muncul!
             $this->surat->status_surat = 'DIPROSES';
         }
+        // if ($this->surat->status_surat === 'TERKIRIM') {
+        //     $this->surat->update(['status_surat' => 'DIPROSES']);
+
+        //     // Update properti di Livewire agar tombol Setuju/Tolak langsung muncul!
+        //     $this->surat->status_surat = 'DIPROSES';
+        // }
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
 
