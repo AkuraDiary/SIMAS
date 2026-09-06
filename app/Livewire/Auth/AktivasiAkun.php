@@ -98,6 +98,6 @@ class AktivasiAkun extends Component
     public function render()
     {
         return view('livewire.auth.aktivasi-akun')
-            ->layout('components.layouts.app', ['title' => 'Aktivasi Akun - SIMAS']);
+            ->layout('components.layouts.app', ['title' => 'Aktivasi Akun - SIMAS', 'showHeader' => false]);
     }
 }

@@ -24,7 +24,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 
-#[Layout('components.layouts.app')]
+#[Layout('components.layouts.app', ['showHeader' => true])]
 class GuestPengajuan extends Component implements HasForms
 {
     use InteractsWithForms;
