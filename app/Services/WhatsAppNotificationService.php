@@ -36,7 +36,7 @@ class WhatsAppNotificationService
             $nama = $recipient->nama_lengkap ?? $recipient->username;
             $phone = $recipient->getFormattedPhoneForWhatsApp();
 
-            $message = "📩 *SIMAS: Surat Masuk Baru*\n"
+            $message = "*SIMAS: Surat Masuk Baru*\n"
                 . "Halo, *{$nama}*!\n\n"
                 . "Unit Anda telah menerima surat masuk baru pada sistem SIMAS:\n"
                 . "• *Nomor Surat*: {$nomorSurat}\n"
@@ -48,8 +48,8 @@ class WhatsAppNotificationService
                 $message .= "• *Catatan*: {$catatan}\n";
             }
 
-            $message .= "\nSilakan buka SIMAS untuk meninjau dan mendisposisikan surat:\n"
-                . "🔗 {$appUrl}/staf-unit/surat-masuk-unit\n\n"
+            $message .= "\nSilahkan buka SIMAS untuk meninjau dan menindaklanjuti surat:\n"
+                // . "🔗 {$appUrl}/staf-unit/surat-masuk-unit\n\n"
                 . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
 
             $this->fonnte->send($phone, $message);
@@ -78,7 +78,7 @@ class WhatsAppNotificationService
             $nama = $recipient->nama_lengkap ?? $recipient->username;
             $phone = $recipient->getFormattedPhoneForWhatsApp();
 
-            $message = "📋 *SIMAS: Disposisi Baru*\n"
+            $message = "*SIMAS: Disposisi Baru*\n"
                 . "Halo, *{$nama}*!\n\n"
                 . "Unit Anda menerima instruksi lembar disposisi baru:\n"
                 . "• *Perihal Surat*: {$surat?->perihal}\n"
@@ -86,7 +86,7 @@ class WhatsAppNotificationService
                 . "• *Sifat*: *{$sifat}*\n"
                 . "• *Instruksi/Catatan*: {$instruksi}\n\n"
                 . "Silakan buka SIMAS untuk melihat lembar disposisi dan menindaklanjuti:\n"
-                . "🔗 {$appUrl}/staf-unit/surat-masuk-unit\n\n"
+                // . "🔗 {$appUrl}/staf-unit/surat-masuk-unit\n\n"
                 . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
 
             $this->fonnte->send($phone, $message);
@@ -115,7 +115,7 @@ class WhatsAppNotificationService
         $nomorSurat = $surat->nomor_surat ?? '(Draft Pengajuan)';
         $catatanRevisi = filled($catatan) ? $catatan : 'Silakan tinjau kembali kelengkapan draf surat.';
 
-        $message = "⚠️ *SIMAS: Permintaan Revisi Surat*\n"
+        $message = "*SIMAS: Permintaan Revisi Surat*\n"
             . "Halo, *{$namaPembuat}*!\n\n"
             . "Surat yang Anda ajukan memerlukan perbaikan / revisi:\n"
             . "• *Nomor Surat*: {$nomorSurat}\n"
@@ -123,7 +123,7 @@ class WhatsAppNotificationService
             . "• *Ditinjau Oleh*: {$namaAktor}\n"
             . "• *Catatan Revisi*: {$catatanRevisi}\n\n"
             . "Silakan masuk ke aplikasi SIMAS untuk memperbarui draf dokumen:\n"
-            . "🔗 {$appUrl}/surats\n\n"
+            // . "🔗 {$appUrl}/surats\n\n"
             . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
 
         $this->fonnte->send($phone, $message);
@@ -149,7 +149,7 @@ class WhatsAppNotificationService
         $nama = $targetUser->nama_lengkap ?? $targetUser->username;
         $nomorSurat = $surat->nomor_surat ?? '(Dokumen Final)';
 
-        $message = "✅ *SIMAS: Surat Selesai & Disetujui*\n"
+        $message = "*SIMAS: Surat Selesai & Disetujui*\n"
             . "Halo, *{$nama}*!\n\n"
             . "Kabar baik! Surat Anda telah selesai diproses dan disetujui:\n"
             . "• *Nomor Surat*: {$nomorSurat}\n"
@@ -161,7 +161,7 @@ class WhatsAppNotificationService
         }
 
         $message .= "\nDokumen resmi dapat diunduh melalui aplikasi SIMAS:\n"
-            . "🔗 {$appUrl}/surats\n\n"
+            // . "🔗 {$appUrl}/surats\n\n"
             . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
 
         $this->fonnte->send($phone, $message);
@@ -189,14 +189,14 @@ class WhatsAppNotificationService
         $unitPelaksana = auth()->user()?->unitKerja?->nama_unit ?? 'Unit Penerima';
         $laporan = filled($catatanRespon) ? $catatanRespon : 'Instruksi disposisi telah dilaksanakan dengan baik.';
 
-        $message = "✅ *SIMAS: Disposisi Telah Selesai*\n"
+        $message = "*SIMAS: Disposisi Telah Selesai*\n"
             . "Halo, *{$nama}*!\n\n"
             . "Disposisi yang Anda instruksikan telah selesai ditindaklanjuti:\n"
             . "• *Perihal Surat*: {$surat?->perihal}\n"
             . "• *Diselesaikan Oleh*: {$unitPelaksana}\n"
             . "• *Laporan Tindak Lanjut*: {$laporan}\n\n"
             . "Silakan periksa perkembangan surat pada aplikasi SIMAS:\n"
-            . "🔗 {$appUrl}/staf-unit/surat-masuk-unit\n\n"
+            // . "🔗 {$appUrl}/staf-unit/surat-masuk-unit\n\n"
             . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
 
         $this->fonnte->send($phone, $message);
@@ -223,14 +223,14 @@ class WhatsAppNotificationService
         $namaAktor = $actor?->nama_lengkap ?? $actor?->username ?? 'Pihak Berwenang';
         $alasan = filled($catatan) ? $catatan : 'Permohonan tidak memenuhi kriteria yang disyaratkan.';
 
-        $message = "❌ *SIMAS: Surat Pengajuan Ditolak*\n"
+        $message = "*SIMAS: Surat Pengajuan Ditolak*\n"
             . "Halo, *{$namaPembuat}*!\n\n"
             . "Surat pengajuan Anda telah ditolak secara permanen:\n"
             . "• *Perihal*: {$surat->perihal}\n"
             . "• *Ditolak Oleh*: {$namaAktor}\n"
             . "• *Alasan Penolakan*: {$alasan}\n\n"
             . "Untuk informasi lebih rinci, silakan kunjungi aplikasi SIMAS:\n"
-            . "🔗 {$appUrl}/surats\n\n"
+            // . "🔗 {$appUrl}/surats\n\n"
             . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
 
         $this->fonnte->send($phone, $message);
