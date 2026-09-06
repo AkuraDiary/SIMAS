@@ -315,6 +315,7 @@ class GuestPengajuan extends Component implements HasForms
         $surat->status_surat = 'TERKIRIM';
         $surat->pengirim_nama = $state['pengirim_nama'] ?? null;
         $surat->pengirim_email = $state['pengirim_email'] ?? null;
+        $surat->tanggal_kirim = now();
 
         // Generate random tracking code
         $surat->tracking_code = strtoupper(\Illuminate\Support\Str::random(10));
