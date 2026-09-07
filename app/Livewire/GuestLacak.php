@@ -37,6 +37,6 @@ class GuestLacak extends Component
 
     public function render()
     {
-        return view('livewire.guest-lacak')->layout('components.layouts.app');
+        return view('livewire.guest-lacak')->layout('components.layouts.app', ['showHeader' => true]);
     }
 }

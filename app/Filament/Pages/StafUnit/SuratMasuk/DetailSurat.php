@@ -61,6 +61,11 @@ class DetailSurat extends Page implements HasForms
                 '#' => $this->surat->perihal,
                 'Detail',
             ],
+            'arsip' => [
+                SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
+                '#' => $this->surat->perihal,
+                'Detail',
+            ],
             default => [
                 SuratMasuk::getUrl() => 'Surat Masuk',
                 '#' => $this->surat->perihal,
@@ -86,6 +91,19 @@ class DetailSurat extends Page implements HasForms
         $this->userUnitId = Auth::user()->unit_kerja_id;
         $this->scope = request('scope', 'masuk');
 
+        // Verify letter access authorization for incoming & archived letters
+        if (in_array($this->scope, ['masuk', 'persetujuan', 'arsip']) && $this->userUnitId) {
+            $hasAccess = app(\App\Services\UnitAksesService::class)->canUserAccessSurat(
+                Auth::user(),
+                $surat,
+                $this->userUnitId
+            );
+
+            if (!$hasAccess) {
+                abort(403, 'Anda tidak memiliki hak akses untuk melihat surat ini sesuai kebijakan unit.');
+            }
+        }
+
         $this->surat = $surat->load([
             'template',
             'unitPengirim',
@@ -110,10 +128,12 @@ class DetailSurat extends Page implements HasForms
         }
 
         // Jika surat masih berstatus TERKIRIM, upgrade menjadi DIPROSES
-        if ($this->surat->status_surat === 'TERKIRIM') {
+        // Hanya ubah status ke DIPROSES jika dibuka oleh pihak PENERIMA (bukan pengirim/pembuat surat)
+        $isSender = ($this->userUnitId && (int) $this->userUnitId === (int) $this->surat->unit_pengirim_id) ||
+            ((int) $this->surat->user_pembuat_id === (int) Auth::id()) ||
+            ($this->scope === 'keluar');
+        if ($this->surat->status_surat === 'TERKIRIM' && ! $isSender) {
             $this->surat->update(['status_surat' => 'DIPROSES']);
-
-            // Update properti di Livewire agar tombol Setuju/Tolak langsung muncul!
             $this->surat->status_surat = 'DIPROSES';
         }
 
@@ -178,6 +198,7 @@ class DetailSurat extends Page implements HasForms
 
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
+            $secondaryActions[] = $this->getActionArsipInfo();
         }
 
         // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK

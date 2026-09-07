@@ -43,6 +43,12 @@ class JenisUnitsTableSeeder extends Seeder
                 'nama_jenis' => 'Prodi',
                 'deskripsi' => NULL,
             ),
+            4 => 
+            array (
+                'id' => 5,
+                'nama_jenis' => 'Fakultas',
+                'deskripsi' => NULL,
+            ),
         ));
         
         

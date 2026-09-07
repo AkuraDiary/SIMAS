@@ -118,10 +118,29 @@
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Informasi Pengirim</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            @if ($surat->tipe_surat === 'EKSTERNAL')
-                            Eksternal melalui {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
-                            @else
-                            @if ($surat->userPegawaiJabatan)
+                            @if ($surat->tipe_surat === 'PENGAJUAN' || filled($surat->pengirim_nama))
+                            {{ $surat->pengirim_nama }}<br>
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                @if($surat->pengirim_nim)
+                                NIM: {{ $surat->pengirim_nim }}
+                                @elseif(!empty($surat->pengirim_metadata['instansi']))
+                                {{ $surat->pengirim_metadata['instansi'] }}
+                                @else
+                                Pemohon Luar (Guest)
+                                @endif
+                                @if($surat->pengirim_email)
+                                {{ $surat->pengirim_email }}
+                                @endif
+                                @if(!empty($surat->pengirim_metadata['telp']))
+                                {{ $surat->pengirim_metadata['telp'] }}
+                                @endif
+                            </span>
+                            @elseif ($surat->tipe_surat === 'EKSTERNAL')
+                            {{ $surat->pengirim_nama ?? 'Eksternal' }}<br>
+                            <span class="text-xs text-gray-500 font-normal">
+                                via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
+                            </span>
+                            @elseif ($surat->userPegawaiJabatan)
                             {{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}<br>
                             <span class="text-xs text-gray-500 font-normal">
                                 {{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? '' }}
@@ -129,13 +148,20 @@
                             @else
                             {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
                             @endif
-                            @endif
                         </p>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Surat</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
                             {{ $surat->created_at->format('d M Y') }}
+                        </p>
+                    </div>
+
+
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Nomor Surat</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ $surat->nomor_surat }}
                         </p>
                     </div>
                     <div>

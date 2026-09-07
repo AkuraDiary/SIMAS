@@ -30,8 +30,11 @@ class Surat extends Model implements HasMedia
         'user_pembuat_id',
         'pengirim_nim',
         'pengirim_nama',
+        'pengirim_eksternal',
         'pengirim_email',
         'pengirim_metadata',
+        'nomor_surat',
+        'nomor_surat_eksternal',
         'perihal',
         'tipe_surat',
         'status_surat',
@@ -151,10 +154,59 @@ class Surat extends Model implements HasMedia
         return $this->hasMany(NomorSuratLog::class);
     }
 
+    public function nomorSuratLogTerakhir()
+    {
+        return $this->hasOne(NomorSuratLog::class)->latestOfMany();
+    }
+
+    public function isBackdate(): bool
+    {
+        return $this->nomorSuratLogs()->where('is_backdate', true)->exists();
+    }
+
     // User pembuat surat (NULL jika Guest tanpa login)
     public function pembuat(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_pembuat_id');
+    }
+
+    public function getPengirimEksternalAttribute(): ?string
+    {
+        return $this->pengirim_nama;
+    }
+
+    public function setPengirimEksternalAttribute(?string $value): void
+    {
+        $this->attributes['pengirim_nama'] = $value;
+    }
+
+    /**
+     * Dapatkan identitas / nama pengirim surat yang terformat rapi.
+     */
+    public function getIdentitasPengirim(): string
+    {
+        if ($this->tipe_surat === 'EKSTERNAL' && !empty($this->pengirim_nama)) {
+            return $this->pengirim_nama;
+        }
+
+        if (!empty($this->pengirim_nama)) {
+            $nim = !empty($this->pengirim_nim) ? " ({$this->pengirim_nim})" : '';
+            return $this->pengirim_nama . $nim;
+        }
+
+        if ($this->userPegawaiJabatan) {
+            $nama = $this->userPegawaiJabatan->pegawai?->nama_lengkap ?? 'Pegawai';
+            $jabatan = $this->userPegawaiJabatan->jabatan?->nama_jabatan;
+            $unit = $this->userPegawaiJabatan->unitKerja?->nama_unit;
+            $jabatanInfo = ($jabatan && $unit) ? " ({$jabatan} - {$unit})" : ($jabatan ? " ({$jabatan})" : '');
+            return $nama . $jabatanInfo;
+        }
+
+        if ($this->pembuat && $this->pembuat->nama_lengkap) {
+            return $this->pembuat->nama_lengkap;
+        }
+
+        return $this->unitPengirim?->nama_unit ?? 'Pengirim Tidak Diketahui';
     }
 
     public function registerMediaConversions(?Media $media = null): void

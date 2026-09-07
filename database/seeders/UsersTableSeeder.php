@@ -76,8 +76,8 @@ class UsersTableSeeder extends Seeder
                 'remember_token' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-13 08:35:28',
-                'updated_at' => '2026-08-24 09:56:15',
-                'settings' => NULL,
+                'updated_at' => '2026-09-05 07:59:05',
+                'settings' => '{"notifikasi_web": false, "notifikasi_email": false, "notifikasi_popup": true, "notifikasi_whatsapp": false, "wa_notif_surat_masuk": false, "wa_notif_surat_revisi": false, "last_active_jabatan_id": 2, "wa_notif_surat_ditolak": false, "wa_notif_surat_selesai": false}',
             ),
             4 => 
             array (
@@ -106,8 +106,8 @@ class UsersTableSeeder extends Seeder
                 'remember_token' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-13 08:35:29',
-                'updated_at' => '2026-08-24 09:57:27',
-                'settings' => NULL,
+                'updated_at' => '2026-09-05 08:44:49',
+                'settings' => '{"notifikasi_popup": true, "last_active_jabatan_id": 4}',
             ),
             6 => 
             array (
@@ -121,8 +121,8 @@ class UsersTableSeeder extends Seeder
                 'remember_token' => NULL,
                 'deleted_at' => NULL,
                 'created_at' => '2026-08-19 17:08:25',
-                'updated_at' => '2026-08-24 09:56:56',
-                'settings' => '{"notifikasi_whatsapp": false}',
+                'updated_at' => '2026-09-05 08:04:28',
+                'settings' => '{"notifikasi_whatsapp": false, "last_active_jabatan_id": 10}',
             ),
         ));
         

@@ -18,4 +18,9 @@ class KategoriArsip extends Model
     {
         return $this->belongsTo(UnitKerja::class);
     }
+
+    public function arsipSurats()
+    {
+        return $this->hasMany(ArsipSurat::class);
+    }
 }

@@ -175,7 +175,13 @@ trait HasDisposisiActions
                     ->title('Disposisi Baru')
                     ->body("Unit " . ($activeJabatan?->unitKerja?->nama_unit ?? 'Anda') . " mengirimkan disposisi surat: " . $this->surat->perihal)
                     ->info()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $unitTujuanId, // Unit yang berhak melihat notifikasi ini
+                        'surat_id'      => $this->surat->id,
+                    ])
                     ->sendToDatabase($targetUsers);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifyDisposisiBaru($disposisi, $targetUsers);
             }
 
             // Lampirkan bukti yang sama ke setiap record disposisi
@@ -231,7 +237,13 @@ trait HasDisposisiActions
                     ->title('Disposisi Selesai')
                     ->body("Unit " . Auth::user()->unitKerja?->nama_unit . " telah menyelesaikan disposisi pada surat: " . $this->surat->perihal)
                     ->success()
+                    ->viewData([
+                        'unit_kerja_id' => (int) ($disposisi->unit_pembuat_id ?? $this->surat->unit_pengirim_id),
+                        'surat_id'      => $this->surat->id,
+                    ])
                     ->sendToDatabase($pembuat);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifyDisposisiSelesai($disposisi, $data['catatan_respon'] ?? null);
             }
         }
 
@@ -243,6 +255,10 @@ trait HasDisposisiActions
     protected function canDisposisi(): bool
     {
         $unitId = Auth::user()->unit_kerja_id;
+        if (!Auth::user()->canDisposisiUnit($unitId)) {
+            return false;
+        }
+
         return $this->suratUnit !== null || $this->surat->disposisis->contains('unit_tujuan_id', $unitId);
     }
 

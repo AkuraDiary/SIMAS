@@ -24,7 +24,12 @@ class FormatNomorSuratResource extends Resource
 
     public static function canAccess(): bool
     {
-        return in_array(Auth::user()?->tipe_entitas, ['ADMIN', 'STAF']);
+        $user =Auth::user();
+        $isAdmin = $user?->tipe_entitas === 'ADMIN';
+        if($isAdmin){
+            return $isAdmin;
+        }
+        return ($user?->tipe_entitas === 'STAF') && $user->isKepalaUnit();
     }
 
     public static function getEloquentQuery(): Builder

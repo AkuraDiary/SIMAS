@@ -27,47 +27,12 @@ class SuratMasuk extends Page implements HasTable
     use InteractsWithTable, HasTabs;
 
 
-    public int $lastCount = 0;
-
     public function content(Schema $schema): Schema
     {
         return $schema->components([
             $this->getTabsContentComponent(),
             EmbeddedTable::make(),
         ]);
-    }
-
-    public function mount(): void
-    {
-        // for initials data
-        $this->lastCount = $this->getSuratMasukCount();
-    }
-
-    protected function getSuratMasukCount(): int
-    {
-        $unitId = Auth::user()->unit_kerja_id;
-
-        return Surat::query()
-            ->untukUnit($unitId)
-            ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                $q->where('unit_kerja_id', $unitId);
-            })
-            ->count();
-    }
-
-
-    public function hydrate(): void
-    {
-        $currentCount = $this->getSuratMasukCount();
-
-        if ($this->lastCount !== 0 && $currentCount > $this->lastCount) {
-            \Filament\Notifications\Notification::make()
-                ->title('Surat baru masuk')
-                ->info()
-                ->send();
-        }
-
-        $this->lastCount = $currentCount;
     }
 
 
@@ -88,11 +53,10 @@ class SuratMasuk extends Page implements HasTable
 
     protected function getTableQuery(): Builder
     {
-
         $unitId = Auth::user()->unit_kerja_id;
 
-        return Surat::query()
-            ->untukUnit($unitId)
+        return app(\App\Services\UnitAksesService::class)
+            ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                 $q->where('unit_kerja_id', $unitId);
             })
@@ -129,11 +93,20 @@ class SuratMasuk extends Page implements HasTable
                     })
                     ->weight('bold')
                     ->wrap()
+
                     ->description(function (Surat $record) {
                         $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
+
+                        if ($record->tipe_surat === 'PENGAJUAN' || filled($record->pengirim_nama)) {
+                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
+                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
+                            return $nomor . ($record->pengirim_nama ?? 'Guest') . $nim . $instansi;
+                        }
+
                         $pengirim = $record->tipe_surat === 'EKSTERNAL'
                             ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
                             : ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '-') . ' - ' . ($record->unitPengirim?->nama_unit ?? '-');
+
                         return $nomor . $pengirim;
                     }),
 

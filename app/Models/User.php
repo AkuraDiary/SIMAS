@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Notifications\Notifiable;
 
 
@@ -35,7 +36,35 @@ class User extends Authenticatable implements FilamentUser, HasName
         'phone',
         'tipe_entitas',
         'is_active',
+        'settings',
     ];
+
+    public function notifications(): MorphMany
+    {
+        $relation = $this->morphMany(\Illuminate\Notifications\DatabaseNotification::class, 'notifiable')->latest();
+
+        // Jika user adalah STAF yang sedang memegang jabatan aktif tertentu:
+        if ($this->tipe_entitas === 'STAF') {
+            $activeUnitId = $this->getActiveUnitId(); // Unit dari session / last_active_jabatan_id
+
+            if ($activeUnitId) {
+                $relation->where(function ($query) use ($activeUnitId) {
+                    // 1. Tampilkan notifikasi yang memang ditujukan ke unit kerja jabatan aktif ini
+                    $query->where(function ($uq) use ($activeUnitId) {
+                        $uq->where('data->viewData->unit_kerja_id', $activeUnitId)
+                            ->orWhere('data->viewData->unit_kerja_id', (string) $activeUnitId);
+                    })
+                    // 2. ATAU notifikasi personal/umum akun (bukan notifikasi surat unit lain)
+                    ->orWhere(function ($sub) {
+                        $sub->whereNull('data->viewData->unit_kerja_id')
+                            ->whereNull('data->viewData->surat_id');
+                    });
+                });
+            }
+        }
+
+        return $relation;
+    }
 
     public function getFilamentName(): string
     {
@@ -90,17 +119,30 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * Dapatkan UserPegawaiJabatan yang sedang aktif berdasarkan Session.
+     * Dapatkan UserPegawaiJabatan yang sedang aktif berdasarkan Session atau Database Settings.
      */
     public function getActiveJabatan()
     {
         $sessionJabatanId = session('active_jabatan_id');
 
         if ($sessionJabatanId) {
-            return UserPegawaiJabatan::find($sessionJabatanId);
+            $upj = UserPegawaiJabatan::find($sessionJabatanId);
+            if ($upj && $upj->status_jabatan === 'AKTIF' && $upj->user_pegawai_id === $this->pegawai?->id) {
+                return $upj;
+            }
         }
 
-        // Jika belum ada di session, ambil jabatan pertama dari relasi yang sudah ada
+        // Cek riwayat peran terakhir dari kolom settings user (tanpa migrasi baru)
+        $lastJabatanId = $this->settings['last_active_jabatan_id'] ?? null;
+        if ($lastJabatanId) {
+            $upj = UserPegawaiJabatan::find($lastJabatanId);
+            if ($upj && $upj->status_jabatan === 'AKTIF' && $upj->user_pegawai_id === $this->pegawai?->id) {
+                session(['active_jabatan_id' => $upj->id]);
+                return $upj;
+            }
+        }
+
+        // Fallback: ambil jabatan pertama dari relasi yang sudah ada
         $firstJabatan = $this->jabatanAktif;
 
         if ($firstJabatan) {
@@ -205,5 +247,158 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $query->whereHas('pegawai.jabatans', function ($q) use ($unitId) {
             $q->where('unit_kerja_id', $unitId)->where('status_jabatan', 'AKTIF');
         });
+    }
+
+    /**
+     * Determine whether the user is the Kepala Unit (level_jabatan == 1).
+     * Admin also returns true.
+     */
+    public function isKepalaUnit(?int $unitId = null): bool
+    {
+        if ($this->tipe_entitas === 'ADMIN') {
+            return true;
+        }
+
+        if ($this->tipe_entitas !== 'STAF') {
+            return false;
+        }
+
+        $jabatan = null;
+        if ($unitId !== null) {
+            $jabatan = $this->pegawai?->jabatanAktif()
+                ->where('unit_kerja_id', $unitId)
+                ->first();
+        }
+
+        $activeJabatan = $jabatan ?? $this->getActiveJabatan();
+        if (!$activeJabatan || !$activeJabatan->jabatan) {
+            return false;
+        }
+
+        if ($unitId !== null && (int) $activeJabatan->unit_kerja_id !== (int) $unitId) {
+            return false;
+        }
+
+        return (int) $activeJabatan->jabatan->level_jabatan === 1;
+    }
+
+    /**
+     * Determine whether the user can view all surat masuk in their unit.
+     */
+    public function canViewAllSuratMasukUnit(?int $unitId = null): bool
+    {
+        if ($this->isKepalaUnit($unitId)) {
+            return true;
+        }
+
+        $jabatan = null;
+        if ($unitId !== null) {
+            $jabatan = $this->pegawai?->jabatanAktif()
+                ->where('unit_kerja_id', $unitId)
+                ->first();
+        }
+
+        $activeJabatan = $jabatan ?? $this->getActiveJabatan();
+        if (!$activeJabatan) {
+            return false;
+        }
+
+        // Check staff specific override
+        if ($activeJabatan->akses_surat_masuk === 'SEMUA') {
+            return true;
+        }
+
+        if ($activeJabatan->akses_surat_masuk === 'HANYA_DISPOSISI') {
+            return false;
+        }
+
+        // Otherwise follow unit policy
+        $unit = $unitId ? UnitKerja::find($unitId) : $activeJabatan->unitKerja;
+        if (!$unit) {
+            return true;
+        }
+
+        $kebijakan = $unit->getKebijakanSuratMasuk();
+        if ($kebijakan === 'TERBUKA') {
+            return true;
+        }
+
+        if ($kebijakan === 'LEVEL_JABATAN') {
+            $threshold = $unit->getMinLevelJabatan();
+            $myLevel = (int) ($activeJabatan->jabatan?->level_jabatan ?? 99);
+            return $myLevel <= $threshold;
+        }
+
+        // TERBATAS_DISPOSISI
+        return false;
+    }
+
+    /**
+     * Determine whether the user is allowed to make disposisi in their unit.
+     */
+    public function canDisposisiUnit(?int $unitId = null): bool
+    {
+        if ($this->isKepalaUnit($unitId)) {
+            return true;
+        }
+
+        $activeJabatan = $this->getActiveJabatan();
+        return $activeJabatan?->can_disposisi === true;
+    }
+
+    /**
+     * Cek apakah user ingin menerima notifikasi untuk event tertentu pada channel tertentu.
+     * Event yang didukung:
+     * - 'surat_masuk'  : Surat masuk baru atau disposisi masuk
+     * - 'surat_revisi' : Surat dikembalikan / butuh revisi
+     * - 'surat_selesai': Surat disetujui / selesai (termasuk saat terbitan dibuat)
+     * - 'surat_ditolak': Surat ditolak permanen
+     *
+     * Channel: 'whatsapp', 'email', 'web'
+     */
+    public function wantsNotification(string $event, string $channel = 'whatsapp'): bool
+    {
+        // Admin tidak menerima notifikasi alur persuratan personal
+        if ($this->tipe_entitas === 'ADMIN') {
+            return false;
+        }
+
+        if ($channel === 'whatsapp') {
+            // Master toggle harus aktif dan nomor HP terisi
+            if (empty($this->phone) || !($this->settings['notifikasi_whatsapp'] ?? false)) {
+                return false;
+            }
+
+            // Cek sub-preferensi event (default: true jika master aktif)
+            return (bool) ($this->settings["wa_notif_{$event}"] ?? true);
+        }
+
+        if ($channel === 'email') {
+            // Master toggle email harus aktif dan email terisi
+            if (empty($this->email) || !($this->settings['notifikasi_email'] ?? true)) {
+                return false;
+            }
+
+            return (bool) ($this->settings["email_notif_{$event}"] ?? true);
+        }
+
+        if ($channel === 'popup' || $channel === 'web_popup') {
+            return (bool) ($this->settings['notifikasi_popup'] ?? true);
+        }
+
+        if ($channel === 'web') {
+            // Database notification (riwayat ikon lonceng) selalu aktif secara default
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Format nomor telepon pengguna ke format standar WhatsApp internasional (contoh: 6281234567890).
+     */
+    public function getFormattedPhoneForWhatsApp(): ?string
+    {
+        return \App\Services\PhoneNumberAdapter::normalize($this->phone);
     }
 }

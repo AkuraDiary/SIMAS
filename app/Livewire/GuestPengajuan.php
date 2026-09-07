@@ -12,7 +12,9 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
@@ -20,9 +22,10 @@ use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Vinkla\Hashids\Facades\Hashids;
 
 
-#[Layout('components.layouts.app')]
+#[Layout('components.layouts.app', ['showHeader' => true])]
 class GuestPengajuan extends Component implements HasForms
 {
     use InteractsWithForms;
@@ -57,61 +60,155 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Data Pengirim')
                         ->description('Informasi pemohon')
                         ->schema([
+                            ViewField::make('tipe_pengirim')
+                                ->view('components.tipe-pengirim-selector')
+                                ->default('guest')
+                                ->columnSpanFull(),
+
                             TextInput::make('pengirim_nama')
                                 ->label('Nama Lengkap')
-                                ->required(),
+                                ->placeholder('Masukkan nama lengkap sesuai identitas')
+                                ->required()
+                                ->columnSpan(fn(Get $get) => $get('tipe_pengirim') === 'guest' ? 'full' : 1),
+
                             TextInput::make('pengirim_nim')
-                                ->label('NIM / NIDN')
-                                ->required(),
-                            TextInput::make('pengirim_fakultas')
-                                ->label('Fakultas / Unit')
-                                ->required(),
+                                ->label('NIM')
+                                ->placeholder('Masukkan NIM anda')
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
+
                             TextInput::make('pengirim_email')
-                                ->label('Email Institusi')
+                                ->label('Alamat Email')
+                                ->placeholder('contoh@email.com')
                                 ->email()
                                 ->required(),
-                        ])->columns(2), // Makes it a 2-column grid!
-                    // STEP 3: ISI SURAT
+
+                            TextInput::make('pengirim_telp')
+                                ->label('Nomor Telepon / WhatsApp')
+                                ->placeholder('08xxxxxxxxxx')
+                                ->required(),
+
+                            TextInput::make('pengirim_instansi')
+                                ->label('Instansi / Asal Identitas')
+                                ->placeholder('Nama Universitas, Perusahaan, atau Instansi Asal')
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'guest')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'guest')
+                                ->columnSpanFull(),
+
+                            Select::make('pengirim_fakultas')
+                                ->label('Fakultas')
+                                ->placeholder('Pilih Fakultas')
+                                ->options(function () {
+                                    return \App\Models\UnitKerja::whereHas('jenisUnit', function ($query) {
+                                        $query->where('nama_jenis', 'like', '%Fakultas%');
+                                    })->pluck('nama_unit', 'id');
+                                })
+                                ->live()
+                                ->afterStateUpdated(fn(\Filament\Schemas\Components\Utilities\Set $set) => $set('pengirim_prodi', null))
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
+
+                            Select::make('pengirim_prodi')
+                                ->label('Prodi')
+                                ->placeholder(fn(Get $get) => $get('pengirim_fakultas') ? 'Pilih Prodi' : 'Pilih Fakultas terlebih dahulu')
+                                ->options(function (Get $get) {
+                                    $fakultasId = $get('pengirim_fakultas');
+
+                                    if (! $fakultasId) {
+                                        return [];
+                                    }
+
+                                    return \App\Models\UnitKerja::where('parent_id', $fakultasId)
+                                        ->whereHas('jenisUnit', function ($query) {
+                                            $query->where('nama_jenis', 'like', '%Prodi%')
+                                                ->orWhere('nama_jenis', 'like', '%Program Studi%');
+                                        })
+                                        ->pluck('nama_unit', 'id');
+                                })
+                                ->disabled(fn(Get $get) => ! $get('pengirim_fakultas'))
+                                ->visible(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa')
+                                ->required(fn(Get $get) => $get('tipe_pengirim') === 'mahasiswa'),
+                        ])->columns(2),
                     // STEP 3: ISI SURAT
                     Step::make('Isi Surat')
                         ->description('Lengkapi detail surat')
                         ->schema([
-                            Select::make('unit_tujuan')
-                                ->label('Unit Tujuan')
-                                ->options([
-                                    '1' => 'Sekretariat Rektorat',
-                                    '2' => 'Biro Administrasi Akademik',
-                                    '3' => 'Biro Kemahasiswaan',
-                                ])
-                                ->required(),
-
-                            TextInput::make('perihal')
-                                ->label('Subjek / Judul')
-                                ->required(),
-                            // DYNAMIC FIELDS BASED ON TEMPLATE
-                            // If Template 1 (Surat Keterangan Aktif Kuliah) is selected
+                            // SCRATCH MODE
                             Group::make()->schema([
-                                TextInput::make('keperluan')
-                                    ->label('Keperluan')
-                                    ->placeholder('Contoh: Pengajuan Beasiswa PPA')
-                                    ->required(),
+                                TextEntry::make('detail_surat_title')
+                                    ->hiddenLabel()
+                                    ->state(new \Illuminate\Support\HtmlString('<h2 class="text-xl font-bold text-gray-900 mb-2">Detail Surat</h2>')),
 
-                                Select::make('tahun_akademik')
-                                    ->label('Tahun Akademik')
-                                    ->options(['2023/2024' => '2023/2024', '2024/2025' => '2024/2025'])
-                                    ->required(),
+                                Select::make('unit_tujuan')
+                                    ->label('Unit Tujuan')
+                                    ->options(function () {
+                                        return \App\Models\UnitKerja::pluck('nama_unit', 'id');
+                                    })
+                                    ->required(fn(Get $get) => $get('template_id') === 'scratch'),
 
-                                Select::make('semester')
-                                    ->label('Semester')
-                                    ->options(['Ganjil' => 'Ganjil', 'Genap' => 'Genap'])
-                                    ->required(),
-                            ])->columns(2)
-                                ->visible(fn(Get $get) => $get('template_id') === '1'), // Only visible if Template 1 is selected!
-                            // If another template is selected, show generic content editor
-                            RichEditor::make('content')
-                                ->label('Isi Surat / Keperluan Tambahan')
-                                ->visible(fn(Get $get) => $get('template_id') !== '1')
-                                ->columnSpanFull(),
+                                TextInput::make('perihal')
+                                    ->label('Subjek / Judul')
+                                    ->required(fn(Get $get) => $get('template_id') === 'scratch'),
+
+                                TinyEditor::make('content_scratch')
+                                    ->label('Isi Surat')
+                                    ->setCustomConfigs([
+                                        'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                                    ])
+                                    ->profile('full')
+                                    ->placeholder('Tuliskan isi surat secara bebas di sini...')
+                                    ->visible(fn(Get $get) => $get('template_id') === 'scratch')
+                                    ->required(fn(Get $get) => $get('template_id') === 'scratch')
+
+                                    ->columnSpanFull(),
+                            ])
+                                ->visible(fn(Get $get) => $get('template_id') === 'scratch'),
+
+                            // TEMPLATE MODE
+                            Group::make()->schema(function (Get $get) {
+                                $templateId = $get('template_id');
+                                if (! $templateId || $templateId === 'scratch') return [];
+
+                                $template = \App\Models\Template::find($templateId);
+                                if (! $template) return [];
+
+                                $components = [];
+
+                                // Header info
+                                $components[] = \Filament\Forms\Components\Placeholder::make('template_info')
+                                    ->hiddenLabel()
+                                    ->content(new \Illuminate\Support\HtmlString('
+                                        <div>
+                                            <h2 class="text-xl font-bold text-gray-900 mb-4">Detail Surat</h2>
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                                <span class="text-sm text-gray-600">Template Terpilih:</span>
+                                                <span class="text-sm font-bold text-primary-600">' . e($template->nama_template) . '</span>
+                                            </div>
+                                            <hr class="border-gray-200">
+                                        </div>
+                                    '))->columnSpanFull();
+
+                                // Variabel Template Section
+                                $fieldVariables = $template->field_variables ?? [];
+
+                                if (empty($fieldVariables)) {
+                                    $components[] = TextEntry::make('no_vars')
+                                        ->hiddenLabel()
+                                        ->state('Template ini tidak membutuhkan isian variabel tambahan.');
+                                } else {
+                                    $service = app(\App\Services\FormSchemaService::class);
+                                    $dynamicSchema = $service->generateFilamentSchema($fieldVariables);
+
+                                    $components[] = Section::make('VARIABEL TEMPLATE')
+                                        ->schema($dynamicSchema)
+                                        ->icon('heroicon-o-list-bullet')
+                                        ->collapsible(false);
+                                }
+
+                                return $components;
+                            })
+                                ->visible(fn(Get $get) => $get('template_id') !== 'scratch' && $get('template_id') !== null),
                         ]),
                     // STEP 4: LAMPIRAN
                     Step::make('Lampiran')
@@ -123,6 +220,7 @@ class GuestPengajuan extends Component implements HasForms
                                 ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
                                 ->maxSize(5120)
                                 ->multiple() // Allows multiple files as per your design
+                                ->storeFileNamesIn('lampiran_names')
                                 ->panelLayout('grid')
                                 ->downloadable()
                                 ->columnSpanFull(),
@@ -131,25 +229,72 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Pratinjau')
                         ->description('Tinjau kembali pengajuan Anda')
                         ->schema([
-                            // We will use a ViewField later to render the read-only summary
-                            // exactly like your Image 4 design! For now, just the checkbox:
-                            Checkbox::make('konfirmasi')
-                                ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
-                                ->required()
-                                ->accepted()
+                            TextEntry::make('summary')
+                                ->hiddenLabel()
+                                ->state(function (Get $get) {
+                                    $isScratch = ($get('template_id') ?? '') === 'scratch';
+                                    $renderedHtml = '';
+
+                                    if ($isScratch) {
+                                        $renderedHtml = $get('content_scratch') ?? '';
+                                        $service = app(\App\Services\PlaceholderService::class);
+                                        $fakeTemplate = new \App\Models\Template();
+                                        $fakeTemplate->content_html = $renderedHtml;
+                                        $renderedHtml = $service->renderHtml($fakeTemplate, $get('content') ?? []);
+                                    } else {
+                                        $templateId = $get('template_id');
+                                        if ($templateId) {
+                                            $template = \App\Models\Template::find($templateId);
+                                            $service = app(\App\Services\PlaceholderService::class);
+                                            $renderedHtml = $service->renderHtml($template, $get('content') ?? []);
+                                        }
+                                    }
+
+                                    return view('components.pengajuan-summary', [
+                                        'data' => [
+                                            'template_id' => $get('template_id'),
+                                            'tipe_pengirim' => $get('tipe_pengirim'),
+                                            'pengirim_nama' => $get('pengirim_nama'),
+                                            'pengirim_nim' => $get('pengirim_nim'),
+                                            'pengirim_fakultas' => $get('pengirim_fakultas'),
+                                            'pengirim_instansi' => $get('pengirim_instansi'),
+                                            'pengirim_email' => $get('pengirim_email'),
+                                            'pengirim_telp' => $get('pengirim_telp'),
+                                            'unit_tujuan' => $get('unit_tujuan'),
+                                            'perihal' => $get('perihal'),
+                                            'content' => $get('content'),
+                                            'lampiran' => $get('lampiran'),
+                                            'lampiran_names' => $get('lampiran_names'),
+                                        ],
+                                        'renderedHtml' => $renderedHtml
+                                    ]);
+                                })
+                                ->columnSpanFull(),
+
+                            Section::make()
+                                ->schema([
+                                    Checkbox::make('konfirmasi')
+                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
+                                        ->required()
+                                        ->accepted(),
+                                ])
+
                                 ->columnSpanFull(),
                         ]),
                 ])
 
+                    ->previousAction(
+                        fn(Action $action) => $action
+                            ->label('Kembali')
+                    )
                     ->nextAction(
                         fn(Action $action) => $action
                             ->label('Lanjutkan')
                             ->extraAttributes([
-                                'style' => ' background-color: var(--color-primary-600)',
+                                'style' => ' background-color: var(--color-primary-600);',
                                 // Injects your specific RGB definitions directly into the inline utility
                                 'class' => '!text-white'
                             ])
-                            ->icon('heroicon-m-arrow-right')
                     )
                     ->persistStepInQueryString()
                     ->contained(false)
@@ -163,14 +308,178 @@ class GuestPengajuan extends Component implements HasForms
     public function submit()
     {
         $state = $this->form->getState();
-        // Here we will handle saving the Pengajuan to the database!
 
-        dd($state); // For now, just dump the data to see it working
+        $isScratch = $state['template_id'] === 'scratch';
+
+        $surat = new \App\Models\Surat();
+        $surat->tipe_surat = 'PENGAJUAN';
+        $surat->status_surat = 'TERKIRIM';
+        $surat->pengirim_nama = $state['pengirim_nama'] ?? null;
+        $surat->pengirim_email = $state['pengirim_email'] ?? null;
+        $surat->tanggal_kirim = now();
+
+
+
+
+        $metadata = [
+            'tipe_pengirim' => $state['tipe_pengirim'] ?? 'guest',
+            'telp' => $state['pengirim_telp'] ?? null,
+        ];
+
+        if ($state['tipe_pengirim'] === 'mahasiswa') {
+            $surat->pengirim_nim = $state['pengirim_nim'] ?? null;
+            $metadata['fakultas_id'] = $state['pengirim_fakultas'] ?? null;
+            $metadata['prodi_id'] = $state['pengirim_prodi'] ?? null;
+        } else {
+            $metadata['instansi'] = $state['pengirim_instansi'] ?? null;
+        }
+        $surat->pengirim_metadata = $metadata;
+
+        if ($isScratch) {
+            $surat->template_id = null;
+            $surat->perihal = $state['perihal'] ?? 'Pengajuan Guest';
+            $scratchContent = $state['content'] ?? [];
+            $scratchContent['html'] = $state['content_scratch'] ?? '';
+            $surat->content = $scratchContent;
+        } else {
+            $surat->template_id = $state['template_id'];
+            $template = \App\Models\Template::find($state['template_id']);
+            $surat->perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+            $surat->content = $state['content'] ?? [];
+        }
+
+        $surat->save();
+
+
+        // Generate random tracking code
+        // Buat hash 6 karakter dari ID + APP_KEY agar tidak mudah ditebak urutan ID-nya
+        $surat->tracking_code = 'REQ-' . strtoupper(Hashids::encode($surat->id));
+        // Format: REQ-{ID}-{HASH}, contoh: REQ-1042-8F2A1C
+        // $surat->tracking_code = "REQ-{$surat->id}-{$hash}";
+        $surat->save();
+
+        // Attach unit tujuan
+        if ($isScratch && !empty($state['unit_tujuan'])) {
+            $surat->unitTujuan()->attach($state['unit_tujuan'], [
+                'jenis_tujuan' => 'UTAMA',
+                'tanggal_terima' => now(),
+                'status_baca' => 'BELUM',
+            ]);
+        } elseif (!$isScratch && isset($template) && $template->entry_point_unit_id) {
+            $surat->unitTujuan()->attach($template->entry_point_unit_id, [
+                'jenis_tujuan' => 'UTAMA',
+                'tanggal_terima' => now(),
+                'status_baca' => 'BELUM',
+            ]);
+        }
+
+        // Process file uploads (Spatie Media Library)
+        if (!empty($state['lampiran'])) {
+            foreach ($state['lampiran'] as $file) {
+                if (is_object($file) && method_exists($file, 'getRealPath')) {
+                    $surat->addMedia($file->getRealPath())
+                        ->usingFileName($file->getClientOriginalName())
+                        ->toMediaCollection('lampiran-surat');
+                } elseif (is_string($file)) {
+                    $path = storage_path('app/public/' . $file);
+                    if (file_exists($path)) {
+                        $surat->addMedia($path)
+                            ->toMediaCollection('lampiran-surat');
+                    }
+                }
+            }
+        }
+
+        // Clear the form data
+        $this->data = [];
+
+        // Show the success screen with the tracking code
+        $this->trackingCode = $surat->tracking_code;
+        $this->submitted = true;
+    }
+
+    public function downloadDraft()
+    {
+        $state = $this->form->getRawState();
+
+        // Extract lampiran names from TemporaryUploadedFile or file array if lampiran_names is missing
+        if (empty($state['lampiran_names']) && !empty($state['lampiran'])) {
+            $lampiranNames = [];
+            foreach ($state['lampiran'] as $file) {
+                if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
+                    $lampiranNames[] = $file->getClientOriginalName();
+                } elseif (is_string($file)) {
+                    $lampiranNames[] = basename($file);
+                }
+            }
+            $state['lampiran_names'] = $lampiranNames;
+        }
+
+        $isScratch = ($state['template_id'] ?? '') === 'scratch';
+
+        $pengirim = $state['pengirim_nama'] ?? 'Guest';
+        $tujuan = '-';
+        $perihal = $state['perihal'] ?? '-';
+        $renderedHtml = '';
+
+        if ($isScratch) {
+            $unitId = $state['unit_tujuan'] ?? null;
+            if ($unitId) {
+                $tujuan = \App\Models\UnitKerja::find($unitId)?->nama_unit ?? '-';
+            }
+            $renderedHtml = $state['content_scratch'] ?? '';
+        } else {
+            $templateId = $state['template_id'] ?? null;
+            if ($templateId) {
+                $template = \App\Models\Template::with('entryPointUnit')->find($templateId);
+                $perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+                $tujuan = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
+
+                $service = app(\App\Services\PlaceholderService::class);
+                $renderedHtml = $service->renderHtml($template, $state['content'] ?? []);
+            }
+        }
+
+        // Setup mock Surat for the surat view to prevent relation null errors
+        $mockSurat = new \App\Models\Surat([
+            'nomor_surat' => 'DRAF',
+            'nomor_agenda' => '-',
+            'perihal' => $perihal,
+            'tanggal_kirim' => now(),
+        ]);
+
+        $mockUnit = new \App\Models\UnitKerja(['nama_unit' => $tujuan]);
+        $mockPembuat = new \App\Models\User(['nama_lengkap' => $pengirim]);
+
+        $mockSurat->setRelation('unitPengirim', $mockUnit);
+        $mockSurat->setRelation('pembuat', $mockPembuat);
+
+        // Generate the HTML for the main letter (reusing the clean, watermark-free view)
+        $suratHtml = view('filament.exports.surat.surat', [
+            'surat' => $mockSurat,
+            'isArsip' => false,
+            'renderedHtml' => $renderedHtml
+        ])->render();
+
+        // Generate the separate metadata page
+        $metadataHtml = view('filament.exports.surat.metadata', [
+            'state' => $state,
+            'tujuan' => $tujuan,
+
+        ])->render();
+
+        // Inject metadata at the end of the surat HTML with a page break
+        $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
     }
 
     public function render(): View
     {
-        // Notice we are rendering a normal blade file for this component
         return view('livewire.guest-pengajuan');
     }
 }

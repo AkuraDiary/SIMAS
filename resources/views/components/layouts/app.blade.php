@@ -28,15 +28,18 @@
 
 <body class="font-sans antialiased text-gray-900 bg-gray-50 min-h-screen flex flex-col">
 
+
+    @if($showHeader)
     <!-- Simple Header -->
     <x-portal-navbar />
-
+    @endif
     <!-- Main Content -->
     <main class="w-full flex-grow">
         {{ $slot }}
     </main>
 
     <!-- Livewire & Filament Scripts -->
+      @vite('resources/js/app.js')
     @livewireScripts
     @filamentScripts
     @stack('scripts')

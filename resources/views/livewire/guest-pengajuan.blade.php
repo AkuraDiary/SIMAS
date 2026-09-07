@@ -1,13 +1,13 @@
 <div class="max-w-[85%] mx-auto py-10 px-2 sm:px-6 lg:px-4">
     @if($submitted)
     <!-- Success State -->
-    <div class="bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
+    <div class="max-w-[60%] bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
         <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
             <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
         </div>
-        <h2 class="text-3xl font-extrabold text-gray-900 mb-2">Pengajuan Berhasil Dikirim!</h2>
+        <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Surat Berhasil Dikirim!</h2>
         <p class="text-gray-500 text-lg mb-8 max-w-xl mx-auto">Harap simpan kode pelacakan unik di bawah ini dengan aman. Anda akan membutuhkannya untuk mengecek status atau mengunduh surat terbitan Anda nanti.</p>
 
         <div class="inline-block bg-gray-50 border-2 border-dashed border-primary-200 rounded-xl px-10 py-6 mb-8">
@@ -170,16 +170,69 @@
             display: flex;
             justify-self: center !important;
             justify-content: center !important;
+        }
 
+        /* Prevent step height collapse during Livewire morphs */
+        .fi-sc-wizard-step.fi-active {
+            min-height: 400px;
+        }
+        #guest-pengajuan-wrapper {
+            min-height: 500px;
         }
     </style>
 
     <!-- Filament Form Render -->
     <!-- Notice we removed the extra white bg and borders here, letting Filament's Wizard card shine natively -->
-    <div class="w-full">
-        <form wire:submit="submit">
+    <div class="w-full" id="guest-pengajuan-wrapper" wire:key="guest-pengajuan-wrapper">
+        <form wire:submit.prevent="submit" id="guest-pengajuan-form">
             {{ $this->form }}
         </form>
     </div>
     @endif
+
+    <script>
+        document.addEventListener('livewire:init', () => {
+            let savedScrollY = null;
+            let isNavigatingWizard = false;
+
+            // Detect when user clicks step navigation ("Lanjutkan", "Kembali", or wizard step headers)
+            document.addEventListener('click', (e) => {
+                const stepBtn = e.target.closest('.fi-sc-wizard-header-step-btn');
+                const footerNav = e.target.closest('.fi-sc-wizard-footer');
+                if (stepBtn || footerNav) {
+                    isNavigatingWizard = true;
+                }
+            }, true);
+
+            // Intercept Livewire commits on guest-pengajuan to lock scroll position during intra-step updates
+            Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+                const formEl = document.getElementById('guest-pengajuan-form');
+                if (formEl && (!isNavigatingWizard)) {
+                    savedScrollY = window.scrollY;
+                }
+
+                succeed(() => {
+                    if (!isNavigatingWizard && savedScrollY !== null && savedScrollY > 0) {
+                        const targetScroll = savedScrollY;
+                        requestAnimationFrame(() => {
+                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                        });
+                        setTimeout(() => {
+                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                        }, 50);
+                        setTimeout(() => {
+                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                        }, 150);
+                    }
+                    isNavigatingWizard = false;
+                    savedScrollY = null;
+                });
+
+                fail(() => {
+                    isNavigatingWizard = false;
+                    savedScrollY = null;
+                });
+            });
+        });
+    </script>
 </div>

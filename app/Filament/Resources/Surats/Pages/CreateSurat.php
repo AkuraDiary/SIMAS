@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Surats\Pages;
 use App\Filament\Resources\Surats\Pages\Concerns\HasSuratFormActions;
 use App\Filament\Resources\Surats\SuratResource;
 use App\Models\Template;
+use App\Filament\Resources\Surats\Actions\AiDraftAction;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Resources\Pages\CreateRecord;
@@ -22,6 +23,13 @@ class CreateSurat extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Simpan custom_nomor_tags ke content jika ada
+        if (!empty($data['custom_nomor_tags']) && is_array($data['custom_nomor_tags'])) {
+            $content = $data['content'] ?? [];
+            $content['nomor_surat_tags'] = array_merge($content['nomor_surat_tags'] ?? [], $data['custom_nomor_tags']);
+            $data['content'] = $content;
+        }
+
         // Jika pakai template dan Path Builder manual kosong, copy dari Template!
         if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
             if (empty($data['approval_path'])) {
@@ -46,6 +54,8 @@ class CreateSurat extends CreateRecord
     protected function getHeaderActions(): array
     {
         return [
+            // AiDraftAction::makeForPage(),
+
             ActionGroup::make([
                 // 1. Tombol Unduh Template Kosong
                 // Tombol ini akan muncul jika user sudah memilih template di form
@@ -83,8 +93,12 @@ class CreateSurat extends CreateRecord
     {
         parent::mount();
 
+        $activeJabatan = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan();
+
         if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
             $this->form->fill([
+                'user_pegawai_jabatan_id' => $activeJabatan?->id,
+                'unit_pengirim_id' => $activeJabatan?->unit_kerja_id,
                 'tipe_surat' => Request::query('tipe_surat', 'INTERNAL'),
                 'terbitan_for_surat_id' => Request::query('terbitan_for_surat_id'),
                 'status_surat' => 'DRAFT',
@@ -102,6 +116,38 @@ class CreateSurat extends CreateRecord
                 'jenis_tujuan' => $index === 0 ? 'UTAMA' : 'TEMBUSAN',
                 'status_baca' => 'BELUM',
             ]);
+        }
+
+        // Penanganan jika nomor_surat ditetapkan saat pembuatan
+        if (!empty($surat->nomor_surat) && $surat->nomorSuratLogs()->doesntExist()) {
+            $formatId = $this->data['format_id_input'] ?? null;
+            $format = $formatId ? \App\Models\FormatNomorSurat::find($formatId) : null;
+            if (!$format) {
+                $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
+                    $surat->unit_pengirim_id,
+                    $surat->tipe_surat
+                );
+            }
+
+            if ($format) {
+                $isManual = (bool) ($this->data['is_manual_sisipan'] ?? false);
+                $incrementCounter = $isManual ? (bool) ($this->data['increment_counter_input'] ?? false) : true;
+                $tglSurat = !empty($this->data['tanggal_surat_input']) ? \Carbon\Carbon::parse($this->data['tanggal_surat_input']) : now();
+                $customTags = array_merge(
+                    $surat->content['nomor_surat_tags'] ?? [],
+                    $this->data['custom_nomor_tags'] ?? []
+                );
+
+                app(\App\Services\NomorSuratService::class)->assignNomorSurat($surat, $format, [
+                    'tanggal_surat' => $tglSurat,
+                    'nomor_surat_preview' => $surat->nomor_surat,
+                    'is_manual' => $isManual,
+                    'increment_counter' => $incrementCounter,
+                    'alasan_backdate' => $this->data['alasan_backdate_input'] ?? null,
+                    'custom_tags' => $customTags,
+                    'user_id' => auth()->id(),
+                ]);
+            }
         }
     }
 }
