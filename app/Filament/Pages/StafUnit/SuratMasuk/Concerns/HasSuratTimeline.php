@@ -8,6 +8,24 @@ trait HasSuratTimeline
 {
     public function getTimelineDataProperty(): array
     {
+
+       // Cegah N+1 Query: Tarik seluruh relasi linimasa sekaligus
+        $this->surat->loadMissing([
+            'unitPengirim',
+            'userPegawaiJabatan.pegawai',
+            'unitTujuan',
+            'riwayats.unitTujuan',
+            'riwayats.unitAsal',
+            'riwayats.aktor',
+            'disposisis.unitTujuan',
+            'disposisis.pembuat',
+            'disposisis.unitPembuat',
+            'komentars.user',
+            'komentars.unitKerja',
+            'arsipSurats.kategoriArsip',
+            'arsipSurats.unitKerja',
+        ]);
+        
         $timeline = [];
 
 
