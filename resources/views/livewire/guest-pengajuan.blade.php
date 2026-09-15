@@ -1,4 +1,4 @@
-<div class="max-w-[85%] mx-auto py-10 px-2 sm:px-6 lg:px-4">
+<div class="max-w-full mx-auto py-10 px-2 sm:px-6 lg:px-4">
     @if($submitted)
     <!-- Success State -->
     <div class="max-w-[60%] bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">

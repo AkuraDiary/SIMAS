@@ -6,10 +6,12 @@ use Illuminate\Support\Facades\Auth;
 
 trait HasSuratTimeline
 {
+
+    protected ?array $memoizedTimeline = null;
     public function getTimelineDataProperty(): array
     {
 
-       // Cegah N+1 Query: Tarik seluruh relasi linimasa sekaligus
+        // Cegah N+1 Query: Tarik seluruh relasi linimasa sekaligus
         $this->surat->loadMissing([
             'unitPengirim',
             'userPegawaiJabatan.pegawai',
@@ -25,7 +27,10 @@ trait HasSuratTimeline
             'arsipSurats.kategoriArsip',
             'arsipSurats.unitKerja',
         ]);
-        
+        if ($this->memoizedTimeline !== null) {
+            return $this->memoizedTimeline;
+        }
+
         $timeline = [];
 
 
@@ -185,7 +190,7 @@ trait HasSuratTimeline
 
         // Sort secara kronologis (dari yang terlama sampai terbaru)
         usort($timeline, fn($a, $b) => $a['date'] <=> $b['date']);
-
-        return $timeline;
+        return $this->memoizedTimeline = $timeline;
+        // return $timeline;
     }
 }
