@@ -22,6 +22,55 @@ trait HasSuratTimeline
             'icon' => 'heroicon-m-document-plus',
         ];
 
+        // 1.B. Surat Dikirim ke Banyak Tujuan (Tujuan Utama & Tembusan)
+        if ($this->surat->unitTujuan->isNotEmpty() && $this->surat->status_surat !== 'DRAFT') {
+            $tujuanUtama = [];
+            $tembusan = [];
+
+            foreach ($this->surat->unitTujuan as $unit) {
+                $isUtama = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'UTAMA';
+                $item = [
+                    'nama' => $unit->nama_unit,
+                    'status_baca' => $unit->pivot->status_baca ?? 'BELUM',
+                    'tanggal_terima' => $unit->pivot->tanggal_terima,
+                ];
+
+                if ($isUtama) {
+                    $tujuanUtama[] = $item;
+                } else {
+                    $tembusan[] = $item;
+                }
+            }
+
+            $totalTujuan = count($tujuanUtama) + count($tembusan);
+            $timeline[] = [
+                'title' => 'Surat Dikirim ke ' . $totalTujuan . ' Unit Penerima',
+                'actor' => $this->surat->userPegawaiJabatan?->pegawai->nama_lengkap ?? $this->surat->pengirim_nama ?? 'Pengirim',
+                'unit' => $this->surat->unitPengirim?->nama_unit ?? 'Eksternal',
+                'catatan' => null,
+                'date' => $this->surat->tanggal_kirim ?? $this->surat->created_at,
+                'color' => 'bg-blue-600 ring-blue-100 dark:ring-blue-900',
+                'icon' => 'heroicon-m-paper-airplane',
+                'tujuan_utama' => $tujuanUtama,
+                'tembusan' => $tembusan,
+            ];
+
+            // 1.C. Milestone Saat Masing-Masing Unit Membuka/Menerima Surat
+            foreach ($this->surat->unitTujuan as $unit) {
+                if ($unit->pivot->status_baca === 'SUDAH' && $unit->pivot->tanggal_terima) {
+                    $jenis = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'TEMBUSAN' ? 'Tembusan' : 'Tujuan Utama';
+                    $timeline[] = [
+                        'title' => "Surat Dibaca & Diterima ({$jenis})",
+                        'actor' => 'Petugas Unit',
+                        'unit' => $unit->nama_unit,
+                        'catatan' => null,
+                        'date' => $unit->pivot->tanggal_terima,
+                        'color' => 'bg-teal-500 ring-teal-100 dark:ring-teal-900',
+                        'icon' => 'heroicon-m-envelope-open',
+                    ];
+                }
+            }
+        }
 
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
         foreach ($this->surat->riwayats as $riwayat) {
