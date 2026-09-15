@@ -110,11 +110,32 @@ class DetailSurat extends Page implements HasForms
             'userPegawaiJabatan.pegawai',
             'userPegawaiJabatan.jabatan',
             'userPegawaiJabatan.unitKerja',
+            'unitTujuan',
             'suratUnits',
-            'disposisis',
+            'media',
+            // 'terbitanForSurat.media',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
+            'disposisis.unitPembuat',
+            'riwayats.unitTujuan',
+            'riwayats.unitAsal',
+            'riwayats.aktor',
+            'komentars.user',
+            'komentars.unitKerja',
+            'arsipSurats.kategoriArsip',
+            'arsipSurats.unitKerja',
         ]);
+        // $this->surat = $surat->load([
+        //     'template',
+        //     'unitPengirim',
+        //     'userPegawaiJabatan.pegawai',
+        //     'userPegawaiJabatan.jabatan',
+        //     'userPegawaiJabatan.unitKerja',
+        //     'suratUnits',
+        //     'disposisis',
+        //     'disposisis.pembuat.jabatanAktif.unitKerja',
+        //     'disposisis.unitTujuan',
+        // ]);
 
         $this->suratUnit = \App\Models\SuratUnit::where('surat_id', $this->surat->id)
             ->where('unit_kerja_id', $this->userUnitId)
@@ -203,15 +224,14 @@ class DetailSurat extends Page implements HasForms
 
         // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK
         if ($this->surat->tipe_surat === 'PENGAJUAN') {
-            $hasPendingPersetujuan = $this->surat->riwayats()
+            $hasPendingPersetujuan = $this->surat->riwayats
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
-                ->exists();
+                ->isNotEmpty();
 
             $persetujuan = $this->getActionPersetujuan();
 
             if ($hasPendingPersetujuan) {
-                // Jangan gunakan isset array key yang rawan error, langsung push object-nya
                 $primaryActions[] = $persetujuan['group_proses'] ?? null;
                 $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
             }
@@ -222,15 +242,44 @@ class DetailSurat extends Page implements HasForms
         }
 
         if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
-            $hasPendingTugas = $this->surat->riwayats()
+            $hasPendingTugas = $this->surat->riwayats
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
-                ->exists();
+                ->isNotEmpty();
             if ($hasPendingTugas) {
                 $internalActions = $this->getActionSelesaiInternal();
                 if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
             }
         }
+        // if ($this->surat->tipe_surat === 'PENGAJUAN') {
+        //     $hasPendingPersetujuan = $this->surat->riwayats()
+        //         ->where('status', 'MENUNGGU')
+        //         ->where('unit_tujuan_id', $unitId)
+        //         ->exists();
+
+        //     $persetujuan = $this->getActionPersetujuan();
+
+        //     if ($hasPendingPersetujuan) {
+        //         // Jangan gunakan isset array key yang rawan error, langsung push object-nya
+        //         $primaryActions[] = $persetujuan['group_proses'] ?? null;
+        //         $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
+        //     }
+
+        //     if (isset($persetujuan['terbitan'])) {
+        //         $primaryActions[] = $persetujuan['terbitan'];
+        //     }
+        // }
+
+        // if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
+        //     $hasPendingTugas = $this->surat->riwayats()
+        //         ->where('status', 'MENUNGGU')
+        //         ->where('unit_tujuan_id', $unitId)
+        //         ->exists();
+        //     if ($hasPendingTugas) {
+        //         $internalActions = $this->getActionSelesaiInternal();
+        //         if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
+        //     }
+        // }
 
         $disposisi = $this->getActionDisposisi();
         if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0];

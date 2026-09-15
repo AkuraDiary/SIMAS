@@ -35,7 +35,7 @@ class SuratsTable
     {
 
         return $table
-            // ->poll('7s')
+            ->poll('120s')
             ->columns([
                 TextColumn::make('perihal')
                     ->label(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft' ? 'Subject' : 'Subject')

@@ -11,6 +11,10 @@ trait HasSuratTimeline
     public function getTimelineDataProperty(): array
     {
 
+        if ($this->memoizedTimeline !== null) {
+            return $this->memoizedTimeline;
+        }
+
         // Cegah N+1 Query: Tarik seluruh relasi linimasa sekaligus
         $this->surat->loadMissing([
             'unitPengirim',
@@ -27,9 +31,7 @@ trait HasSuratTimeline
             'arsipSurats.kategoriArsip',
             'arsipSurats.unitKerja',
         ]);
-        if ($this->memoizedTimeline !== null) {
-            return $this->memoizedTimeline;
-        }
+
 
         $timeline = [];
 

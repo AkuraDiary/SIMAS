@@ -74,7 +74,7 @@ class SuratMasuk extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            // ->poll('7s')
+            ->poll('60s')
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
             ->defaultSort('created_at', 'desc')
