@@ -150,6 +150,13 @@ class GuestPengajuan extends Component implements HasForms
                                     ->label('Subjek / Judul')
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
 
+                                TextInput::make('nomor_surat_eksternal')
+                                    ->label('Nomor Surat Asal / Referensi (Opsional)')
+                                    ->placeholder('Contoh: 045/DIR-PLN/IX/2026')
+                                    ->helperText('Isi jika dokumen yang dikirimkan memiliki nomor surat resmi dari instansi Anda (misal: surat undangan, proposal, kerjasama).')
+                                    ->visible(fn(Get $get) => $get('tipe_pengirim') === 'guest' && $get('template_id') === 'scratch')
+                                    ->columnSpanFull(),
+
                                 TinyEditor::make('content_scratch')
                                     ->label('Isi Surat')
                                     ->setCustomConfigs([
@@ -159,13 +166,13 @@ class GuestPengajuan extends Component implements HasForms
                                     ->placeholder('Tuliskan isi surat secara bebas di sini...')
                                     ->visible(fn(Get $get) => $get('template_id') === 'scratch')
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch')
-
                                     ->columnSpanFull(),
                             ])
                                 ->visible(fn(Get $get) => $get('template_id') === 'scratch'),
 
                             // TEMPLATE MODE
                             Group::make()->schema(function (Get $get) {
+
                                 $templateId = $get('template_id');
                                 if (! $templateId || $templateId === 'scratch') return [];
 
@@ -175,9 +182,9 @@ class GuestPengajuan extends Component implements HasForms
                                 $components = [];
 
                                 // Header info
-                                $components[] = \Filament\Forms\Components\Placeholder::make('template_info')
+                                $components[] = TextEntry::make('template_info')
                                     ->hiddenLabel()
-                                    ->content(new \Illuminate\Support\HtmlString('
+                                    ->state(new \Illuminate\Support\HtmlString('
                                         <div>
                                             <h2 class="text-xl font-bold text-gray-900 mb-4">Detail Surat</h2>
                                             <div class="flex items-center gap-2 mb-4">
@@ -186,11 +193,17 @@ class GuestPengajuan extends Component implements HasForms
                                                 <span class="text-sm font-bold text-primary-600">' . e($template->nama_template) . '</span>
                                             </div>
                                             <hr class="border-gray-200">
+                                            <div class="flex items-center gap-2 mt-4">
+                                                <span class="text-sm font-bold text-primary-600">' . e($template->deskripsi) . '</span>
+                                            </div>
                                         </div>
                                     '))->columnSpanFull();
 
                                 // Variabel Template Section
                                 $fieldVariables = $template->field_variables ?? [];
+
+                                $components[] = TextInput::make('perihal')
+                                    ->label('Subjek / Judul');
 
                                 if (empty($fieldVariables)) {
                                     $components[] = TextEntry::make('no_vars')
@@ -331,9 +344,10 @@ class GuestPengajuan extends Component implements HasForms
             $metadata['instansi'] = $state['pengirim_instansi'] ?? null;
         }
         $surat->pengirim_metadata = $metadata;
+        $surat->nomor_surat_eksternal = $state['nomor_surat_eksternal'] ?? null;
 
         if ($isScratch) {
-            $surat->tipe_surat = 'PENGAJUAN'; // Default surat from external
+            $surat->tipe_surat = !empty($state['nomor_surat_eksternal']) ? 'EKSTERNAL' : 'PENGAJUAN'; // Default surat from external
             $surat->template_id = null;
             $surat->perihal = $state['perihal'] ?? 'Pengajuan Guest';
             $scratchContent = $state['content'] ?? [];
@@ -343,12 +357,13 @@ class GuestPengajuan extends Component implements HasForms
             $surat->template_id = $state['template_id'];
             $template = \App\Models\Template::find($state['template_id']);
 
-            $surat->tipe_surat = $template?->tipe_surat ?: 'PENGAJUAN';
+            $surat->tipe_surat = $template?->tipe_surat ?: (!empty($state['nomor_surat_eksternal']) ? 'EKSTERNAL' : 'PENGAJUAN');
+
             if (!empty($template?->approval_path)) {
                 $surat->approval_path = $template->approval_path;
             }
 
-            $surat->perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+            $surat->perihal = $state['perihal']; //'Pengajuan ' . ($template?->nama_template ?? '');
             $surat->content = $state['content'] ?? [];
         }
 
