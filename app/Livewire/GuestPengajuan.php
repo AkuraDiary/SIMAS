@@ -20,6 +20,7 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Vinkla\Hashids\Facades\Hashids;
@@ -36,8 +37,44 @@ class GuestPengajuan extends Component implements HasForms
     public bool $submitted = false;
     public ?string $trackingCode = null;
 
+    public ?string $revisiCode = null;
+    public ?\App\Models\Surat $revisiSurat = null;
+    public ?string $catatanRevisiTerakhir = null;
+
     public function mount(): void
     {
+
+        $revisiParam = request()->query('revisi');
+        if ($revisiParam) {
+            $surat = \App\Models\Surat::with(['unitTujuan', 'riwayats'])
+                ->where('tracking_code', trim($revisiParam))
+                ->where('status_surat', 'REVISI')
+                ->first();
+            if ($surat) {
+                $this->revisiCode = $surat->tracking_code;
+                $this->revisiSurat = $surat;
+                $this->catatanRevisiTerakhir = $surat->riwayats->where('status', 'REVISI')->last()?->catatan;
+                // Pre-fill form wizard dengan seluruh data lama (baik Scratch maupun Variabel Template)
+                $metadata = $surat->pengirim_metadata ?? [];
+                $this->form->fill([
+                    'template_id'           => $surat->template_id ?: 'scratch',
+                    'tipe_pengirim'         => $metadata['tipe_pengirim'] ?? ($surat->pengirim_nim ? 'mahasiswa' : 'guest'),
+                    'pengirim_nama'         => $surat->pengirim_nama,
+                    'pengirim_email'        => $surat->pengirim_email,
+                    'pengirim_telp'         => $metadata['telp'] ?? null,
+                    'pengirim_nim'          => $surat->pengirim_nim,
+                    'pengirim_fakultas'     => $metadata['fakultas_id'] ?? null,
+                    'pengirim_prodi'        => $metadata['prodi_id'] ?? null,
+                    'pengirim_instansi'     => $metadata['instansi'] ?? null,
+                    'nomor_surat_eksternal' => $surat->nomor_surat_eksternal,
+                    'unit_tujuan'           => $surat->unitTujuan->first()?->id,
+                    'perihal'               => $surat->perihal,
+                    'content_scratch'       => $surat->content['isi_surat'] ?? null,
+                    'content'               => $surat->content ?? [], // 🟢 Mengisi otomatis seluruh variabel template!
+                ]);
+                return;
+            }
+        }
         $this->form->fill();
     }
 
@@ -227,6 +264,60 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Lampiran')
                         ->description('Upload dokumen pendukung')
                         ->schema([
+
+                            TextEntry::make('lampiran_sebelumnya')
+                                ->label('Berkas Lampiran Sebelumnya')
+                                ->visible(fn() => (bool) $this->revisiSurat && $this->revisiSurat->getMedia('lampiran-surat')->isNotEmpty())
+                                ->state(function () {
+                                    $mediaList = $this->revisiSurat ? $this->revisiSurat->getMedia('lampiran-surat') : collect();
+                                    if ($mediaList->isEmpty()) {
+                                        return null;
+                                    }
+                                    $itemsHtml = '';
+                                    foreach ($mediaList as $media) {
+                                        $sizeKb = number_format($media->size / 1024, 1);
+                                        $ext = strtoupper($media->extension ?: 'FILE');
+                                        $itemsHtml .= <<<HTML
+                                        <div class="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                            <div class="flex items-center gap-3 overflow-hidden">
+                                                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0 text-primary-600 font-bold text-xs uppercase">
+                                                    {$ext}
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[180px] sm:max-w-[220px]" title="{$media->file_name}">
+                                                        {$media->file_name}
+                                                    </p>
+                                                    <p class="text-xs text-gray-400">{$sizeKb} KB</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <button type="button" wire:click="downloadExistingMedia({$media->id})" title="Unduh Berkas" class="p-2 text-gray-500 hover:text-primary-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                </button>
+                                                <button type="button" wire:click="deleteExistingMedia({$media->id})" wire:confirm="Yakin ingin menghapus berkas lampiran ini?" title="Hapus Berkas" class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        HTML;
+                                    }
+                                    return new HtmlString(<<<HTML
+                                    <div class="mb-4 rounded-xl shadow-sm border border-gray-200 p-4 bg-white">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                <span class="text-sm font-bold text-gray-900 dark:text-white">Lampiran yang Tersimpan Sebelumnya</span>
+                                            </div>
+                                            <span class="text-xs text-red-500">Hapus jika ingin membuang/menggantinya</span>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {$itemsHtml}
+                                        </div>
+                                    </div>
+                                    HTML);
+                                })
+                                ->columnSpanFull(),
+
                             FileUpload::make('lampiran')
                                 ->label('Unggah Lampiran')
                                 ->helperText('Format yang didukung: PDF, JPG, PNG. Ukuran maksimal 5MB per file.')
@@ -242,6 +333,7 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Pratinjau')
                         ->description('Tinjau kembali pengajuan Anda')
                         ->schema([
+
                             TextEntry::make('summary')
                                 ->hiddenLabel()
                                 ->state(function (Get $get) {
@@ -286,6 +378,16 @@ class GuestPengajuan extends Component implements HasForms
 
                             Section::make()
                                 ->schema([
+
+
+                                    // show only on mode revisi
+                                    \Filament\Forms\Components\Textarea::make('catatan_perbaikan')
+                                        ->label('Penjelasan Perbaikan untuk Petugas')
+                                        ->placeholder('Jelaskan bagian apa saja yang telah Anda perbaiki...')
+                                        ->rows(3)
+                                        ->visible(fn() => (bool) $this->revisiSurat)
+                                        ->required(fn() => (bool) $this->revisiSurat),
+
                                     Checkbox::make('konfirmasi')
                                         ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
                                         ->required()
@@ -295,7 +397,8 @@ class GuestPengajuan extends Component implements HasForms
                                 ->columnSpanFull(),
                         ]),
                 ])
-
+                    ->startOnStep(fn() => $this->revisiSurat ? 2 : 1)
+                    ->skippable(fn() => (bool) $this->revisiSurat)
                     ->previousAction(
                         fn(Action $action) => $action
                             ->label('Kembali')
@@ -312,8 +415,13 @@ class GuestPengajuan extends Component implements HasForms
                     ->persistStepInQueryString()
                     ->contained(false)
 
-
-                    ->submitAction(new \Illuminate\Support\HtmlString('<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">Kirim Sekarang &nearr;</button>'))
+                    ->submitAction(
+                        new \Illuminate\Support\HtmlString(
+                            '<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">' .
+                                ($this->revisiSurat ? 'Kirim Ulang Perbaikan &nearr;' : 'Kirim Sekarang &nearr;') .
+                                '</button>'
+                        )
+                    )
             ])
             ->statePath('data');
     }
@@ -323,6 +431,99 @@ class GuestPengajuan extends Component implements HasForms
         $state = $this->form->getState();
 
         $isScratch = $state['template_id'] === 'scratch';
+
+        if ($this->revisiSurat) {
+            $surat = $this->revisiSurat;
+            // 1. Update data identitas pengirim
+            $surat->pengirim_nama = $state['pengirim_nama'] ?? $surat->pengirim_nama;
+            $surat->pengirim_email = $state['pengirim_email'] ?? $surat->pengirim_email;
+            $surat->nomor_surat_eksternal = $state['nomor_surat_eksternal'] ?? null;
+            $metadata = $surat->pengirim_metadata ?? [];
+            $metadata['telp'] = $state['pengirim_telp'] ?? null;
+            if ($state['tipe_pengirim'] === 'mahasiswa') {
+                $surat->pengirim_nim = $state['pengirim_nim'] ?? null;
+                $metadata['fakultas_id'] = $state['pengirim_fakultas'] ?? null;
+                $metadata['prodi_id'] = $state['pengirim_prodi'] ?? null;
+            } else {
+                $metadata['instansi'] = $state['pengirim_instansi'] ?? null;
+            }
+            $surat->pengirim_metadata = $metadata;
+            // 2. Update konten surat (Scratch vs Template)
+            if ($isScratch) {
+                $surat->perihal = $state['perihal'] ?? $surat->perihal;
+                $scratchContent = $state['content'] ?? [];
+                $scratchContent['isi_surat'] = $state['content_scratch'] ?? '';
+                $surat->content = $scratchContent;
+            } else {
+                $template = \App\Models\Template::find($state['template_id']);
+                $surat->perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+                $surat->content = $state['content'] ?? []; // Menyimpan isian variabel template yang baru dikoreksi
+            }
+            // 3. Simpan lampiran baru (jika pemohon mengunggah berkas baru)
+            if (!empty($state['lampiran'])) {
+                $privateStorage = \Illuminate\Support\Facades\Storage::disk('private');
+                foreach ($state['lampiran'] as $index => $file) {
+                    if (is_object($file) && method_exists($file, 'getRealPath')) {
+                        $surat->addMedia($file->getRealPath())
+                            ->usingFileName($file->getClientOriginalName())
+                            ->toMediaCollection('lampiran-surat');
+                    } elseif (is_string($file)) {
+                        $fullPath = $privateStorage->path($file);
+                        if (file_exists($fullPath)) {
+                            $originalName = $state['lampiran_names'][$file] ?? $state['lampiran_names'][$index] ?? basename($file);
+                            $surat->addMedia($fullPath)
+                                ->usingFileName($originalName)
+                                ->toMediaCollection('lampiran-surat');
+                        }
+                    }
+                }
+            }
+            $surat->save();
+            // 4. Catat riwayat alur persetujuan: DIPERBARUI & MENUNGGU
+            $lastRevisi = $surat->riwayats->where('status', 'REVISI')->last();
+            $targetUnitId = $lastRevisi?->unit_tujuan_id ?? $surat->unitTujuan->first()?->id;
+            $unitAsalId = $surat->unit_pengirim_id ?? $targetUnitId;
+            \App\Models\SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => $lastRevisi?->id,
+                'unit_asal_id'   => $unitAsalId,
+                'unit_tujuan_id' => $targetUnitId,
+                'user_aktor_id'  => null,
+                'status'         => 'DIPERBARUI',
+                'catatan'        => $state['catatan_perbaikan'] ?? 'Pemohon telah memperbarui dokumen permohonan.',
+                'actioned_at'    => now(),
+            ]);
+            \App\Models\SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => null,
+                'unit_asal_id'   => $unitAsalId,
+                'unit_tujuan_id' => $targetUnitId,
+                'user_aktor_id'  => null,
+                'status'         => 'MENUNGGU',
+                'catatan'        => 'Menunggu verifikasi ulang pasca perbaikan berkas oleh pemohon.',
+                'actioned_at'    => null,
+            ]);
+            // 5. Kembalikan status surat ke DIPROSES
+            $surat->update(['status_surat' => 'DIPROSES']);
+            // 6. Notifikasi sistem ke unit pemeriksa
+            if ($targetUnitId) {
+                $targetUsers = \App\Models\User::ofUnitKerja($targetUnitId)->get();
+                if ($targetUsers->isNotEmpty()) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Berkas Pengajuan Telah Diperbaiki')
+                        ->body('Pemohon ' . ($surat->pengirim_nama ?? 'Guest') . ' telah memperbarui berkas untuk surat: ' . $surat->perihal)
+                        ->info()
+                        ->viewData([
+                            'unit_kerja_id' => (int) $targetUnitId,
+                            'surat_id'      => $surat->id,
+                        ])
+                        ->sendToDatabase($targetUsers);
+                }
+            }
+            // Redirect kembali ke halaman pelacakan
+            return redirect()->route('lacak', ['code' => $surat->tracking_code]);
+        }
+
 
         $surat = new \App\Models\Surat();
 
@@ -474,6 +675,33 @@ class GuestPengajuan extends Component implements HasForms
         // Show the success screen with the tracking code
         $this->trackingCode = $surat->tracking_code;
         $this->submitted = true;
+    }
+
+    public function downloadExistingMedia(int $mediaId)
+    {
+        if ($this->revisiSurat) {
+            $media = $this->revisiSurat->media()->where('id', $mediaId)->first();
+            if ($media && file_exists($media->getPath())) {
+                return response()->download($media->getPath(), $media->file_name);
+            }
+        }
+    }
+
+    public function deleteExistingMedia(int $mediaId): void
+    {
+        if ($this->revisiSurat) {
+            $media = $this->revisiSurat->media()->where('id', $mediaId)->first();
+            if ($media) {
+                $media->delete();
+                $this->revisiSurat->load('media');
+
+                \Filament\Notifications\Notification::make()
+                    ->title('Lampiran Dihapus')
+                    ->body('Berkas lampiran lama berhasil dihapus.')
+                    ->success()
+                    ->send();
+            }
+        }
     }
 
     public function downloadDraft()

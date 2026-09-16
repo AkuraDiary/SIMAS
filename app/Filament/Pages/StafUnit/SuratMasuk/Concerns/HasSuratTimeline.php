@@ -108,9 +108,10 @@ trait HasSuratTimeline
                 'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
-                'MENUNGGU' => 'Menunggu tindakan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'MENUNGGU' => 'Menunggu tindakan oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITOLAK' => 'Ditolak permanen oleh: ' . ($riwayat->unitAsal?->nama_unit ?? '-'),
                 'REVISI' => 'Dikembalikan ke pembuat: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DIPERBARUI'   => 'Dokumen Diperbarui oleh Pemohon',
                 default => $riwayat->status,
             };
 
@@ -133,6 +134,15 @@ trait HasSuratTimeline
                 'DIPERBARUI' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
                 default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
             };
+
+            $actor = $riwayat->aktor?->nama_lengkap ?? '';
+            $unit  = $riwayat->unitTujuan?->nama_unit;
+            if ($riwayat->status === 'DIPERBARUI') {
+                $actor = $actor ?: ($this->surat->pengirim_nama ?? 'Pemohon');
+                $unit  = $this->surat->unitPengirim?->nama_unit
+                    ?? ($this->surat->pengirim_metadata['instansi'] ?? null)
+                    ?? ($this->surat->pengirim_nim ? 'Mahasiswa' : 'Eksternal');
+            }
 
             $timeline[] = [
                 'title' =>  $title,

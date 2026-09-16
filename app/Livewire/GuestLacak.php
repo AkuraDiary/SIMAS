@@ -4,17 +4,26 @@ namespace App\Livewire;
 
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasSuratTimeline;
 use App\Models\Surat;
+use App\Models\SuratRiwayat;
+use App\Models\User;
 use App\Services\SuratExportService;
+use Filament\Notifications\Notification;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class GuestLacak extends Component
 {
     use HasSuratTimeline;
+    use WithFileUploads;
 
     public string $trackingCode = '';
     public ?Surat $surat = null;
     public bool $searched = false;
     public string $errorMsg = '';
+
+    public bool $showRevisiModal = false;
+    public string $catatanPerbaikan = '';
+    public $lampiranBaru = [];
 
     protected $rules = [
         'trackingCode' => 'required|string|min:4',
@@ -100,6 +109,88 @@ class GuestLacak extends Component
         } catch (\Throwable $e) {
             $this->errorMsg = 'Gagal mengunduh berkas: ' . $e->getMessage();
         }
+    }
+
+    public function openRevisiModal(): void
+    {
+        $this->catatanPerbaikan = '';
+        $this->lampiranBaru = [];
+        $this->showRevisiModal = true;
+    }
+    public function closeRevisiModal(): void
+    {
+        $this->showRevisiModal = false;
+    }
+
+     public function submitRevisi(): void
+    {
+        if (! $this->surat || $this->surat->status_surat !== 'REVISI') {
+            return;
+        }
+        $this->validate([
+            'catatanPerbaikan' => 'required|string|min:5',
+            'lampiranBaru.*' => 'nullable|file|max:5120|mimes:pdf,jpg,jpeg,png',
+        ], [
+            'catatanPerbaikan.required' => 'Mohon berikan penjelasan mengenai perbaikan yang Anda lakukan.',
+            'catatanPerbaikan.min' => 'Catatan perbaikan minimal 5 karakter.',
+            'lampiranBaru.*.max' => 'Ukuran setiap file maksimal 5MB.',
+        ]);
+        // 1. Simpan lampiran baru (jika ada) ke Media Library
+        if (!empty($this->lampiranBaru)) {
+            foreach ($this->lampiranBaru as $file) {
+                $this->surat->addMedia($file->getRealPath())
+                    ->usingFileName($file->getClientOriginalName())
+                    ->toMediaCollection('lampiran-surat');
+            }
+        }
+        // 2. Ambil riwayat revisi terakhir untuk menentukan unit verifikator
+        $lastRevisi = $this->surat->riwayats->where('status', 'REVISI')->last();
+        $targetUnitId = $lastRevisi?->unit_tujuan_id
+            ?? $this->surat->unitTujuan->first()?->id
+            ?? $this->surat->unit_pengirim_id;
+        $unitAsalId = $this->surat->unit_pengirim_id ?? $targetUnitId;
+        // 3. Catat Riwayat DIPERBARUI oleh pemohon
+        SuratRiwayat::create([
+            'surat_id'       => $this->surat->id,
+            'parent_id'      => $lastRevisi?->id,
+            'unit_asal_id'   => $unitAsalId,
+            'unit_tujuan_id' => $targetUnitId,
+            'user_aktor_id'  => null,
+            'status'         => 'DIPERBARUI',
+            'catatan'        => $this->catatanPerbaikan,
+            'actioned_at'    => now(),
+        ]);
+        // 4. Inisialisasi antrean MENUNGGU kembali ke unit pemeriksa
+        SuratRiwayat::create([
+            'surat_id'       => $this->surat->id,
+            'parent_id'      => null,
+            'unit_asal_id'   => $unitAsalId,
+            'unit_tujuan_id' => $targetUnitId,
+            'user_aktor_id'  => null,
+            'status'         => 'MENUNGGU',
+            'catatan'        => 'Menunggu verifikasi ulang setelah dokumen diperbaiki oleh pemohon.',
+            'actioned_at'    => null,
+        ]);
+        // 5. Kembalikan status surat menjadi DIPROSES
+        $this->surat->update(['status_surat' => 'DIPROSES']);
+        // 6. Kirim notifikasi web ke staf unit pemeriksa
+        if ($targetUnitId) {
+            $targetUsers = User::ofUnitKerja($targetUnitId)->get();
+            if ($targetUsers->isNotEmpty()) {
+                Notification::make()
+                    ->title('Berkas Pengajuan Diperbarui')
+                    ->body('Pemohon ' . ($this->surat->pengirim_nama ?? 'Guest') . ' telah mengirimkan berkas perbaikan untuk surat: ' . $this->surat->perihal)
+                    ->info()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $targetUnitId,
+                        'surat_id'      => $this->surat->id,
+                    ])
+                    ->sendToDatabase($targetUsers);
+            }
+        }
+        // Reset state dan refresh data pelacakan
+        $this->reset(['lampiranBaru', 'catatanPerbaikan', 'showRevisiModal']);
+        $this->search();
     }
 
     public function render()
