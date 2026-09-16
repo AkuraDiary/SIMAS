@@ -20,6 +20,7 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Vinkla\Hashids\Facades\Hashids;
@@ -263,6 +264,60 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Lampiran')
                         ->description('Upload dokumen pendukung')
                         ->schema([
+
+                            TextEntry::make('lampiran_sebelumnya')
+                                ->label('Berkas Lampiran Sebelumnya')
+                                ->visible(fn() => (bool) $this->revisiSurat && $this->revisiSurat->getMedia('lampiran-surat')->isNotEmpty())
+                                ->state(function () {
+                                    $mediaList = $this->revisiSurat ? $this->revisiSurat->getMedia('lampiran-surat') : collect();
+                                    if ($mediaList->isEmpty()) {
+                                        return null;
+                                    }
+                                    $itemsHtml = '';
+                                    foreach ($mediaList as $media) {
+                                        $sizeKb = number_format($media->size / 1024, 1);
+                                        $ext = strtoupper($media->extension ?: 'FILE');
+                                        $itemsHtml .= <<<HTML
+                                        <div class="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                            <div class="flex items-center gap-3 overflow-hidden">
+                                                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0 text-primary-600 font-bold text-xs uppercase">
+                                                    {$ext}
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <p class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[180px] sm:max-w-[220px]" title="{$media->file_name}">
+                                                        {$media->file_name}
+                                                    </p>
+                                                    <p class="text-xs text-gray-400">{$sizeKb} KB</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <button type="button" wire:click="downloadExistingMedia({$media->id})" title="Unduh Berkas" class="p-2 text-gray-500 hover:text-primary-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                </button>
+                                                <button type="button" wire:click="deleteExistingMedia({$media->id})" wire:confirm="Yakin ingin menghapus berkas lampiran ini?" title="Hapus Berkas" class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        HTML;
+                                    }
+                                    return new HtmlString(<<<HTML
+                                    <div class="mb-4 rounded-xl shadow-sm border border-gray-200 p-4 bg-white">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                                                <span class="text-sm font-bold text-gray-900 dark:text-white">Lampiran yang Tersimpan Sebelumnya</span>
+                                            </div>
+                                            <span class="text-xs text-red-500">Hapus jika ingin membuang/menggantinya</span>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {$itemsHtml}
+                                        </div>
+                                    </div>
+                                    HTML);
+                                })
+                                ->columnSpanFull(),
+
                             FileUpload::make('lampiran')
                                 ->label('Unggah Lampiran')
                                 ->helperText('Format yang didukung: PDF, JPG, PNG. Ukuran maksimal 5MB per file.')
@@ -278,22 +333,7 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Pratinjau')
                         ->description('Tinjau kembali pengajuan Anda')
                         ->schema([
-                            Section::make()
-                                ->schema([
-                                    // show only on mode revisi
-                                    \Filament\Forms\Components\Textarea::make('catatan_perbaikan')
-                                        ->label('Penjelasan Perbaikan untuk Petugas')
-                                        ->placeholder('Jelaskan bagian apa saja yang telah Anda perbaiki...')
-                                        ->rows(3)
-                                        ->visible(fn() => (bool) $this->revisiSurat)
-                                        ->required(fn() => (bool) $this->revisiSurat),
 
-                                    Checkbox::make('konfirmasi')
-                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
-                                        ->required()
-                                        ->accepted(),
-                                ])
-                                ->columnSpanFull(),
                             TextEntry::make('summary')
                                 ->hiddenLabel()
                                 ->state(function (Get $get) {
@@ -338,6 +378,16 @@ class GuestPengajuan extends Component implements HasForms
 
                             Section::make()
                                 ->schema([
+
+
+                                    // show only on mode revisi
+                                    \Filament\Forms\Components\Textarea::make('catatan_perbaikan')
+                                        ->label('Penjelasan Perbaikan untuk Petugas')
+                                        ->placeholder('Jelaskan bagian apa saja yang telah Anda perbaiki...')
+                                        ->rows(3)
+                                        ->visible(fn() => (bool) $this->revisiSurat)
+                                        ->required(fn() => (bool) $this->revisiSurat),
+
                                     Checkbox::make('konfirmasi')
                                         ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
                                         ->required()
@@ -347,7 +397,8 @@ class GuestPengajuan extends Component implements HasForms
                                 ->columnSpanFull(),
                         ]),
                 ])
-
+                    ->startOnStep(fn() => $this->revisiSurat ? 2 : 1)
+                    ->skippable(fn() => (bool) $this->revisiSurat)
                     ->previousAction(
                         fn(Action $action) => $action
                             ->label('Kembali')
@@ -363,7 +414,7 @@ class GuestPengajuan extends Component implements HasForms
                     )
                     ->persistStepInQueryString()
                     ->contained(false)
-                    
+
                     ->submitAction(
                         new \Illuminate\Support\HtmlString(
                             '<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">' .
@@ -624,6 +675,33 @@ class GuestPengajuan extends Component implements HasForms
         // Show the success screen with the tracking code
         $this->trackingCode = $surat->tracking_code;
         $this->submitted = true;
+    }
+
+    public function downloadExistingMedia(int $mediaId)
+    {
+        if ($this->revisiSurat) {
+            $media = $this->revisiSurat->media()->where('id', $mediaId)->first();
+            if ($media && file_exists($media->getPath())) {
+                return response()->download($media->getPath(), $media->file_name);
+            }
+        }
+    }
+
+    public function deleteExistingMedia(int $mediaId): void
+    {
+        if ($this->revisiSurat) {
+            $media = $this->revisiSurat->media()->where('id', $mediaId)->first();
+            if ($media) {
+                $media->delete();
+                $this->revisiSurat->load('media');
+
+                \Filament\Notifications\Notification::make()
+                    ->title('Lampiran Dihapus')
+                    ->body('Berkas lampiran lama berhasil dihapus.')
+                    ->success()
+                    ->send();
+            }
+        }
     }
 
     public function downloadDraft()

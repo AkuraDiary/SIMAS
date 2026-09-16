@@ -133,7 +133,7 @@
 
                 <div class="shrink-0 w-full sm:w-auto">
                     <a
-                        href="{{ route('pengajuan', ['revisi' => $surat->tracking_code]) }}"
+                        href="{{ route('pengajuan', ['revisi' => $surat->tracking_code, 'step' => 2]) }}"
                         class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500">
                         <x-filament::icon icon="heroicon-m-pencil-square" class="w-4 h-4" />
                         <span>Perbaiki Pengajuan Sekarang</span>
