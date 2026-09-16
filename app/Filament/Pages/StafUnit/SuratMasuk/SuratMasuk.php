@@ -62,6 +62,7 @@ class SuratMasuk extends Page implements HasTable
             })
             ->with([
                 'unitPengirim',
+                 'userPegawaiJabatan.pegawai',
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
                 'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
@@ -73,7 +74,7 @@ class SuratMasuk extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->poll('7s')
+            ->poll('60s')
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
             ->defaultSort('created_at', 'desc')

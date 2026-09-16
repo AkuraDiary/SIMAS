@@ -58,7 +58,7 @@ trait HasDisposisiActions
                     Select::make('unit_tujuan_id')
                         ->label('Unit Tujuan')
                         ->options(
-                            UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
+                            fn() => UnitKerja::query()->where('id', '<>', Auth::user()->unit_kerja_id)
                                 ->pluck('nama_unit', 'id')
                         )
                         ->searchable()

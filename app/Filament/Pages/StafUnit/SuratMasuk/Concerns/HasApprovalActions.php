@@ -82,7 +82,7 @@ trait HasApprovalActions
                     ->schema([
                         \Filament\Forms\Components\Select::make('next_unit_tujuan_id')
                             ->label('Teruskan Ke Unit')
-                            ->options(\App\Models\UnitKerja::where('id', '!=', Auth::user()->unit_kerja_id)->pluck('nama_unit', 'id'))
+                            ->options(fn() => \App\Models\UnitKerja::where('id', '!=', Auth::user()->unit_kerja_id)->pluck('nama_unit', 'id'))
                             ->searchable()->required(),
                         \Filament\Forms\Components\Toggle::make('tambah_ttd')->label('Tambahkan Tanda Tangan (Tertanda)')->default(false),
                         Textarea::make('catatan')->label('Catatan Penerusan (Opsional)'),
@@ -102,7 +102,7 @@ trait HasApprovalActions
                     ->schema([
                         \Filament\Forms\Components\Select::make('next_unit_tujuan_id')
                             ->label('Teruskan Ke Unit')
-                            ->options(\App\Models\UnitKerja::where('id', '!=', Auth::user()->unit_kerja_id)->pluck('nama_unit', 'id'))
+                            ->options(fn() => \App\Models\UnitKerja::where('id', '!=', Auth::user()->unit_kerja_id)->pluck('nama_unit', 'id'))
                             ->searchable()->required(),
                         Textarea::make('catatan')->label('Catatan (Opsional)'),
                     ])

@@ -319,7 +319,7 @@ class FormSchemaService
                             FileUpload::make($contentKey . '_upload')
                                 ->label('Upload Tanda Tangan')
                                 ->image()
-                                ->disk('public')
+                                ->disk('private')
                                 ->directory('signatures')
                                 ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
                                 ->required(!$isOptional)

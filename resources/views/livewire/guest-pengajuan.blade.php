@@ -1,7 +1,7 @@
 <div class="max-w-[85%] mx-auto py-10 px-2 sm:px-6 lg:px-4">
     @if($submitted)
     <!-- Success State -->
-    <div class="max-w-[60%] bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
+    <div class="max-w-[60%] mx-auto bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
         <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
             <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -9,16 +9,45 @@
         </div>
         <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Surat Berhasil Dikirim!</h2>
         <p class="text-gray-500 text-lg mb-8 max-w-xl mx-auto">Harap simpan kode pelacakan unik di bawah ini dengan aman. Anda akan membutuhkannya untuk mengecek status atau mengunduh surat terbitan Anda nanti.</p>
+        <div x-data="{ copied: false }" class="inline-block bg-gray-50 border-2 border-dashed border-primary-200 rounded-xl px-8 py-6 mb-8 max-w-lg mx-auto">
+            <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">KODE PELACAKAN</p>
 
-        <div class="inline-block bg-gray-50 border-2 border-dashed border-primary-200 rounded-xl px-10 py-6 mb-8">
-            <p class="text-sm text-gray-500 uppercase tracking-widest font-bold mb-2">KODE PELACAKAN</p>
-            <div class="text-5xl font-mono font-black text-primary-700 tracking-wider">
-                {{ $trackingCode }}
+            <div class="flex items-center justify-center gap-3">
+                <span class="text-3xl sm:text-4xl font-mono font-black text-primary-700 tracking-wider select-all">
+                    {{ $trackingCode }}
+                </span>
+
             </div>
+             <button
+                    type="button"
+                    @click="
+                        navigator.clipboard.writeText('{{ $trackingCode }}');
+                        copied = true;
+                        setTimeout(() => copied = false, 2000);
+                    "
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 hover:text-primary-600 transition shadow-sm text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    :title="copied ? 'Berhasil disalin!' : 'Salin Kode'">
+                    <template x-if="!copied">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>Salin</span>
+                        </span>
+                    </template>
+                    <template x-if="copied">
+                        <span class="flex items-center gap-1 text-green-600 font-bold">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span>Tersalin!</span>
+                        </span>
+                    </template>
+                </button>
         </div>
 
         <div>
-            <a href="{{ route('lacak') }}" class="inline-flex items-center px-8 py-3 border border-transparent text-lg font-bold rounded-xl shadow-sm shadow-primary-200 text-white bg-primary-600 hover:bg-primary-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            <a href="{{ route('lacak', ['code' => $trackingCode]) }}" class="inline-flex items-center px-8 py-3 border border-transparent text-lg font-bold rounded-xl shadow-sm shadow-primary-200 text-white bg-primary-600 hover:bg-primary-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                 Lacak Surat Sekarang
             </a>
         </div>
@@ -126,7 +155,7 @@
             /* gray-500 */
         }
 
-        .fi-sc-wizard-header-step:not(.fi-active):not(.fi-completed) .fi-sc-wizard-header-step-label{
+        .fi-sc-wizard-header-step:not(.fi-active):not(.fi-completed) .fi-sc-wizard-header-step-label {
 
             /* gray-200 */
             color: var(--color-neutral-400) !important;
@@ -176,6 +205,7 @@
         .fi-sc-wizard-step.fi-active {
             min-height: 400px;
         }
+
         #guest-pengajuan-wrapper {
             min-height: 500px;
         }
@@ -205,7 +235,13 @@
             }, true);
 
             // Intercept Livewire commits on guest-pengajuan to lock scroll position during intra-step updates
-            Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+            Livewire.hook('commit', ({
+                component,
+                commit,
+                respond,
+                succeed,
+                fail
+            }) => {
                 const formEl = document.getElementById('guest-pengajuan-form');
                 if (formEl && (!isNavigatingWizard)) {
                     savedScrollY = window.scrollY;
@@ -215,13 +251,22 @@
                     if (!isNavigatingWizard && savedScrollY !== null && savedScrollY > 0) {
                         const targetScroll = savedScrollY;
                         requestAnimationFrame(() => {
-                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                            window.scrollTo({
+                                top: targetScroll,
+                                behavior: 'instant'
+                            });
                         });
                         setTimeout(() => {
-                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                            window.scrollTo({
+                                top: targetScroll,
+                                behavior: 'instant'
+                            });
                         }, 50);
                         setTimeout(() => {
-                            window.scrollTo({ top: targetScroll, behavior: 'instant' });
+                            window.scrollTo({
+                                top: targetScroll,
+                                behavior: 'instant'
+                            });
                         }, 150);
                     }
                     isNavigatingWizard = false;

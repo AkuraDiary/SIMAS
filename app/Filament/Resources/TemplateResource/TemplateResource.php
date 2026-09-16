@@ -145,6 +145,16 @@ class TemplateResource extends Resource
                             ])
                             ->default('INTERNAL')
                             ->required(),
+                            
+                        Select::make('entry_point_unit_id')
+                            ->label('Unit Penerima Utama (Entry Point)')
+                            ->relationship('entryPointUnit', 'nama_unit')
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Pilih unit kerja penerima...')
+                            ->helperText('Unit kerja yang dituju / akan pertama kali memproses surat jika template ini digunakan.')
+                            ->columnSpanFull(),
+
                     ])->columns(2)
                     ->columnSpanFull(),
 
@@ -291,11 +301,11 @@ class TemplateResource extends Resource
                             ->profile('full')
                             ->label('')
                             ->placeholder('Mulai mengetik template Anda di sini...')
-                            ->fileAttachmentsDisk('public')
+                            ->fileAttachmentsDisk('private')
                             ->fileAttachmentsDirectory('template-attachments')
                             ->setCustomConfigs([
-                                        'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
-                                    ])
+                                'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                            ])
                             ->hintAction(
                                 Action::make('scanHtmlPlaceholders')
                                     ->label('Scan Placeholders')

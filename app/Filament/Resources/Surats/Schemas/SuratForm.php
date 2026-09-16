@@ -150,6 +150,19 @@ class SuratForm
                                             }
                                         }
                                         $set('content', $content);
+
+                                        // isi Unit Penerima jika template memiliki Entry Point
+                                        if ($template->entry_point_unit_id) {
+                                            $set('unitTujuan', [(int) $template->entry_point_unit_id]);
+                                        }
+                                        // isi Alur Persetujuan jika template memiliki Approval Path bawaan
+                                        if (!empty($template->approval_path)) {
+                                            $set('approval_path', $template->approval_path);
+                                        }
+                                        // Sinkronkan Tipe Surat bawaan template
+                                        if ($template->tipe_surat) {
+                                            $set('tipe_surat', $template->tipe_surat);
+                                        }
                                     } else {
                                         $set('content', []);
                                     }

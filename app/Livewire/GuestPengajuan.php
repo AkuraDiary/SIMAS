@@ -150,6 +150,13 @@ class GuestPengajuan extends Component implements HasForms
                                     ->label('Subjek / Judul')
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
 
+                                TextInput::make('nomor_surat_eksternal')
+                                    ->label('Nomor Surat Asal / Referensi (Opsional)')
+                                    ->placeholder('Contoh: 045/DIR-PLN/IX/2026')
+                                    ->helperText('Isi jika dokumen yang dikirimkan memiliki nomor surat resmi dari instansi Anda (misal: surat undangan, proposal, kerjasama).')
+                                    ->visible(fn(Get $get) => $get('tipe_pengirim') === 'guest' && $get('template_id') === 'scratch')
+                                    ->columnSpanFull(),
+
                                 TinyEditor::make('content_scratch')
                                     ->label('Isi Surat')
                                     ->setCustomConfigs([
@@ -159,13 +166,13 @@ class GuestPengajuan extends Component implements HasForms
                                     ->placeholder('Tuliskan isi surat secara bebas di sini...')
                                     ->visible(fn(Get $get) => $get('template_id') === 'scratch')
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch')
-
                                     ->columnSpanFull(),
                             ])
                                 ->visible(fn(Get $get) => $get('template_id') === 'scratch'),
 
                             // TEMPLATE MODE
                             Group::make()->schema(function (Get $get) {
+
                                 $templateId = $get('template_id');
                                 if (! $templateId || $templateId === 'scratch') return [];
 
@@ -175,9 +182,9 @@ class GuestPengajuan extends Component implements HasForms
                                 $components = [];
 
                                 // Header info
-                                $components[] = \Filament\Forms\Components\Placeholder::make('template_info')
+                                $components[] = TextEntry::make('template_info')
                                     ->hiddenLabel()
-                                    ->content(new \Illuminate\Support\HtmlString('
+                                    ->state(new \Illuminate\Support\HtmlString('
                                         <div>
                                             <h2 class="text-xl font-bold text-gray-900 mb-4">Detail Surat</h2>
                                             <div class="flex items-center gap-2 mb-4">
@@ -186,11 +193,17 @@ class GuestPengajuan extends Component implements HasForms
                                                 <span class="text-sm font-bold text-primary-600">' . e($template->nama_template) . '</span>
                                             </div>
                                             <hr class="border-gray-200">
+                                            <div class="flex items-center gap-2 mt-4">
+                                                <span class="text-sm font-bold text-primary-600">' . e($template->deskripsi) . '</span>
+                                            </div>
                                         </div>
                                     '))->columnSpanFull();
 
                                 // Variabel Template Section
                                 $fieldVariables = $template->field_variables ?? [];
+
+                                $components[] = TextInput::make('perihal')
+                                    ->label('Subjek / Judul');
 
                                 if (empty($fieldVariables)) {
                                     $components[] = TextEntry::make('no_vars')
@@ -312,14 +325,11 @@ class GuestPengajuan extends Component implements HasForms
         $isScratch = $state['template_id'] === 'scratch';
 
         $surat = new \App\Models\Surat();
-        $surat->tipe_surat = 'PENGAJUAN';
+
         $surat->status_surat = 'TERKIRIM';
         $surat->pengirim_nama = $state['pengirim_nama'] ?? null;
         $surat->pengirim_email = $state['pengirim_email'] ?? null;
         $surat->tanggal_kirim = now();
-
-
-
 
         $metadata = [
             'tipe_pengirim' => $state['tipe_pengirim'] ?? 'guest',
@@ -334,17 +344,26 @@ class GuestPengajuan extends Component implements HasForms
             $metadata['instansi'] = $state['pengirim_instansi'] ?? null;
         }
         $surat->pengirim_metadata = $metadata;
+        $surat->nomor_surat_eksternal = $state['nomor_surat_eksternal'] ?? null;
 
         if ($isScratch) {
+            $surat->tipe_surat = !empty($state['nomor_surat_eksternal']) ? 'EKSTERNAL' : 'PENGAJUAN'; // Default surat from external
             $surat->template_id = null;
             $surat->perihal = $state['perihal'] ?? 'Pengajuan Guest';
             $scratchContent = $state['content'] ?? [];
-            $scratchContent['html'] = $state['content_scratch'] ?? '';
+            $scratchContent['isi_surat'] = $state['content_scratch'] ?? '';
             $surat->content = $scratchContent;
         } else {
             $surat->template_id = $state['template_id'];
             $template = \App\Models\Template::find($state['template_id']);
-            $surat->perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+
+            $surat->tipe_surat = $template?->tipe_surat ?: (!empty($state['nomor_surat_eksternal']) ? 'EKSTERNAL' : 'PENGAJUAN');
+
+            if (!empty($template?->approval_path)) {
+                $surat->approval_path = $template->approval_path;
+            }
+
+            $surat->perihal = $state['perihal']; //'Pengajuan ' . ($template?->nama_template ?? '');
             $surat->content = $state['content'] ?? [];
         }
 
@@ -373,22 +392,81 @@ class GuestPengajuan extends Component implements HasForms
             ]);
         }
 
+        $targetUnitId = null;
+        if ($isScratch && !empty($state['unit_tujuan'])) {
+            $targetUnitId = (int) $state['unit_tujuan'];
+        } elseif (!$isScratch && isset($template) && $template->entry_point_unit_id) {
+            $targetUnitId = (int) $template->entry_point_unit_id;
+        }
+
+
+        // Inisialisasi langkah awal alur persetujuan (Workflow)
+        if ($targetUnitId) {
+
+            $surat->unitTujuan()->syncWithoutDetaching([
+                $targetUnitId => [
+                    'jenis_tujuan'   => 'UTAMA',
+                    'tanggal_terima' => now(),
+                    'status_baca'    => 'BELUM',
+                ],
+            ]);
+
+            $unitAsalId = $state['pengirim_prodi']
+                ?? $state['pengirim_fakultas']
+                ?? $targetUnitId;
+
+            \App\Models\SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => null,
+                'unit_asal_id'   => $unitAsalId,
+                'unit_tujuan_id' => $targetUnitId,
+                'user_aktor_id'  => null,
+                'status'         => 'MENUNGGU',
+                'catatan'        => 'Pengajuan baru dari: ' . ($surat->pengirim_nama ?? 'Guest'),
+                'actioned_at'    => null,
+            ]);
+        }
+
+
         // Process file uploads (Spatie Media Library)
         if (!empty($state['lampiran'])) {
-            foreach ($state['lampiran'] as $file) {
+            $privateStorage = \Illuminate\Support\Facades\Storage::disk('private');
+            foreach ($state['lampiran'] as $index => $file) {
+                // Jika berupa object upload langsung
                 if (is_object($file) && method_exists($file, 'getRealPath')) {
                     $surat->addMedia($file->getRealPath())
                         ->usingFileName($file->getClientOriginalName())
                         ->toMediaCollection('lampiran-surat');
-                } elseif (is_string($file)) {
-                    $path = storage_path('app/public/' . $file);
-                    if (file_exists($path)) {
-                        $surat->addMedia($path)
+                }
+                // Jika berupa string path dari FileUpload
+                elseif (is_string($file)) {
+                    $fullPath = $privateStorage->path($file);
+                    if (file_exists($fullPath)) {
+                        $originalName = $state['lampiran_names'][$file]
+                            ?? $state['lampiran_names'][$index]
+                            ?? basename($file);
+                        $surat->addMedia($fullPath)
+                            ->usingFileName($originalName)
                             ->toMediaCollection('lampiran-surat');
                     }
                 }
             }
         }
+        // if (!empty($state['lampiran'])) {
+        //     foreach ($state['lampiran'] as $file) {
+        //         if (is_object($file) && method_exists($file, 'getRealPath')) {
+        //             $surat->addMedia($file->getRealPath())
+        //                 ->usingFileName($file->getClientOriginalName())
+        //                 ->toMediaCollection('lampiran-surat');
+        //         } elseif (is_string($file)) {
+        //             $path = storage_path('app/public/' . $file);
+        //             if (file_exists($path)) {
+        //                 $surat->addMedia($path)
+        //                     ->toMediaCollection('lampiran-surat');
+        //             }
+        //         }
+        //     }
+        // }
 
         // Clear the form data
         $this->data = [];
