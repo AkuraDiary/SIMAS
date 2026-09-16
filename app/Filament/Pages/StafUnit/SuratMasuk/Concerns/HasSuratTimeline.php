@@ -108,7 +108,7 @@ trait HasSuratTimeline
                 'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
-                'MENUNGGU' => 'Menunggu tindakan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'MENUNGGU' => 'Menunggu tindakan oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITOLAK' => 'Ditolak permanen oleh: ' . ($riwayat->unitAsal?->nama_unit ?? '-'),
                 'REVISI' => 'Dikembalikan ke pembuat: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 default => $riwayat->status,
