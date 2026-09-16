@@ -5,6 +5,7 @@ namespace App\Filament\Pages\StafUnit\SuratMasuk;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasApprovalActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasArsipActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasDisposisiActions;
+use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasFinalisasiActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasInternalActions;
 use App\Filament\Pages\StafUnit\SuratMasuk\Concerns\HasSuratTimeline;
 use App\Filament\Pages\StafUnit\SuratMasuk\SuratMasuk;
@@ -28,6 +29,7 @@ class DetailSurat extends Page implements HasForms
     use HasApprovalActions;
     use HasArsipActions;
     use HasInternalActions;
+    use HasFinalisasiActions;
 
     public static function canAccess(): bool
     {
@@ -49,12 +51,18 @@ class DetailSurat extends Page implements HasForms
     public ?string $previewUrl = null;
     public ?string $downloadUrl = null;
     public bool $previewModal = false;
+    public bool $previewIsImage = false;
 
     public function getBreadcrumbs(): array
     {
         return match ($this->scope) {
             'keluar' => [
                 SuratResource::getUrl('index', ['scope' => 'keluar']) => 'Surat Keluar',
+                '#' => $this->surat->perihal,
+                'Detail',
+            ],
+            'arsip' => [
+                SuratResource::getUrl('index', ['scope' => 'arsip']) => 'Arsip Surat',
                 '#' => $this->surat->perihal,
                 'Detail',
             ],
@@ -83,17 +91,74 @@ class DetailSurat extends Page implements HasForms
         $this->userUnitId = Auth::user()->unit_kerja_id;
         $this->scope = request('scope', 'masuk');
 
+        // Verify letter access authorization for incoming & archived letters
+        if (in_array($this->scope, ['masuk', 'persetujuan', 'arsip']) && $this->userUnitId) {
+            $hasAccess = app(\App\Services\UnitAksesService::class)->canUserAccessSurat(
+                Auth::user(),
+                $surat,
+                $this->userUnitId
+            );
+
+            if (!$hasAccess) {
+                abort(403, 'Anda tidak memiliki hak akses untuk melihat surat ini sesuai kebijakan unit.');
+            }
+        }
+
         $this->surat = $surat->load([
             'template',
             'unitPengirim',
             'userPegawaiJabatan.pegawai',
             'userPegawaiJabatan.jabatan',
             'userPegawaiJabatan.unitKerja',
+            'unitTujuan',
             'suratUnits',
-            'disposisis',
+            'media',
+            // 'terbitanForSurat.media',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
+            'disposisis.unitPembuat',
+            'riwayats.unitTujuan',
+            'riwayats.unitAsal',
+            'riwayats.aktor',
+            'komentars.user',
+            'komentars.unitKerja',
+            'arsipSurats.kategoriArsip',
+            'arsipSurats.unitKerja',
         ]);
+
+        // Self-Healing: Jika surat PENGAJUAN belum memiliki SuratRiwayat sama sekali
+        // if ($this->surat->tipe_surat === 'PENGAJUAN' && $this->surat->riwayats->isEmpty()) {
+        //     $targetUnitId = $this->surat->unitTujuan->first()?->id ?? $this->userUnitId;
+        //     $unitAsalId = $this->surat->unit_pengirim_id ?? $targetUnitId;
+
+        //     if ($targetUnitId) {
+        //         \App\Models\SuratRiwayat::create([
+        //             'surat_id'       => $this->surat->id,
+        //             'parent_id'      => null,
+        //             'unit_asal_id'   => $unitAsalId,
+        //             'unit_tujuan_id' => $targetUnitId,
+        //             'user_aktor_id'  => null,
+        //             'status'         => 'MENUNGGU',
+        //             'catatan'        => 'Inisialisasi pengajuan dari: ' . ($this->surat->pengirim_nama ?? 'Guest'),
+        //             'actioned_at'    => null,
+        //         ]);
+
+        //         // Muat ulang relasi riwayats agar langsung terbaca di memori
+        //         $this->surat->load('riwayats');
+        //     }
+        // }
+
+        // $this->surat = $surat->load([
+        //     'template',
+        //     'unitPengirim',
+        //     'userPegawaiJabatan.pegawai',
+        //     'userPegawaiJabatan.jabatan',
+        //     'userPegawaiJabatan.unitKerja',
+        //     'suratUnits',
+        //     'disposisis',
+        //     'disposisis.pembuat.jabatanAktif.unitKerja',
+        //     'disposisis.unitTujuan',
+        // ]);
 
         $this->suratUnit = \App\Models\SuratUnit::where('surat_id', $this->surat->id)
             ->where('unit_kerja_id', $this->userUnitId)
@@ -104,6 +169,16 @@ class DetailSurat extends Page implements HasForms
                 'status_baca' => 'SUDAH',
                 'tanggal_terima' => now()
             ]);
+        }
+
+        // Jika surat masih berstatus TERKIRIM, upgrade menjadi DIPROSES
+        // Hanya ubah status ke DIPROSES jika dibuka oleh pihak PENERIMA (bukan pengirim/pembuat surat)
+        $isSender = ($this->userUnitId && (int) $this->userUnitId === (int) $this->surat->unit_pengirim_id) ||
+            ((int) $this->surat->user_pembuat_id === (int) Auth::id()) ||
+            ($this->scope === 'keluar');
+        if ($this->surat->status_surat === 'TERKIRIM' && ! $isSender) {
+            $this->surat->update(['status_surat' => 'DIPROSES']);
+            $this->surat->status_surat = 'DIPROSES';
         }
 
         $this->jenisTujuanLabel = $this->resolveJenisTujuanLabel();
@@ -121,16 +196,43 @@ class DetailSurat extends Page implements HasForms
         $primaryActions = [];
         $secondaryActions = [];
 
-        $user = Auth::user();
-        $activeJabatan = $user->pegawai?->jabatanAktif()->first();
-        $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
+        $unitId = Auth::user()->unit_kerja_id;
 
-        if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id === $unitId) {
+        // Inject Finalisasi Actions (Generate Nomor & Download PDF)
+        $primaryActions = array_merge($primaryActions, $this->getFinalisasiActions());
+
+        // Download Template Action
+        if ($this->surat->template_id) {
+            $secondaryActions[] = ActionGroup::make([
+                Action::make('download_blank')
+                    ->label('Unduh Template Asli (Kosong)')
+                    ->icon('heroicon-o-document')
+                    ->action(function () {
+                        $path = app(\App\Services\DocxTemplateService::class)->downloadBlankDocx($this->surat->template);
+                        return response()->download($path, 'Template_Kosong_' . $this->surat->template->nama_template . '.docx');
+                    }),
+
+                Action::make('download_filled')
+                    ->label('Unduh Draft Surat (.docx)')
+                    ->icon('heroicon-o-document-text')
+                    ->action(function () {
+                        $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->surat);
+                        return response()->download($path, 'Draft_Surat_' . $this->surat->perihal . '.docx');
+                    }),
+            ])
+                ->label('Unduh Dokumen (Word)')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->button()
+                ->color('gray');
+        }
+
+        // 1. TAMPILKAN TOMBOL PERBAIKI UNTUK PEMBUAT AWAL (Ubah === menjadi == agar kebal tipe data)
+        if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id == $unitId) {
             $primaryActions[] = Action::make('edit')
                 ->label('Perbaiki Surat')
                 ->icon('heroicon-o-pencil')
                 ->color('primary')
-                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat->id]));
+                ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
         }
 
         $secondaryActions[] = Action::make('export')
@@ -138,49 +240,80 @@ class DetailSurat extends Page implements HasForms
             ->icon('heroicon-o-arrow-down-tray')
             ->action(fn() => redirect()->route('surat.export', $this->surat));
 
-        // AKSIS KHSUS DRAFT
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
+            $secondaryActions[] = $this->getActionArsipInfo();
         }
 
-        // AKSI KHUSUS SURAT PENGAJUAN
+        // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK
         if ($this->surat->tipe_surat === 'PENGAJUAN') {
-            $hasPendingPersetujuan = $this->surat->riwayats()
+            $hasPendingPersetujuan = $this->surat->riwayats
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
-                ->exists();
+                ->isNotEmpty();
 
             $persetujuan = $this->getActionPersetujuan();
 
             if ($hasPendingPersetujuan) {
-                if (isset($persetujuan[0])) $primaryActions[] = $persetujuan[0]; // Setujui
-                if (isset($persetujuan[1])) $secondaryActions[] = $persetujuan[1]; // Minta Revisi
-                if (isset($persetujuan[2])) $secondaryActions[] = $persetujuan[2]; // Tolak
+                $primaryActions[] = $persetujuan['group_proses'] ?? null;
+                $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
             }
 
-            if (isset($persetujuan[3])) $primaryActions[] = $persetujuan[3]; // Buat Terbitan
+            if (isset($persetujuan['terbitan'])) {
+                $primaryActions[] = $persetujuan['terbitan'];
+            }
         }
 
-        // AKSI KHUSUS SURAT INTERNAL
-        if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id !== $unitId) {
-            $hasPendingTugas = $this->surat->riwayats()
+        if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
+            $hasPendingTugas = $this->surat->riwayats
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
-                ->exists();
+                ->isNotEmpty();
             if ($hasPendingTugas) {
                 $internalActions = $this->getActionSelesaiInternal();
                 if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
             }
         }
+        // if ($this->surat->tipe_surat === 'PENGAJUAN') {
+        //     $hasPendingPersetujuan = $this->surat->riwayats()
+        //         ->where('status', 'MENUNGGU')
+        //         ->where('unit_tujuan_id', $unitId)
+        //         ->exists();
+
+        //     $persetujuan = $this->getActionPersetujuan();
+
+        //     if ($hasPendingPersetujuan) {
+        //         // Jangan gunakan isset array key yang rawan error, langsung push object-nya
+        //         $primaryActions[] = $persetujuan['group_proses'] ?? null;
+        //         $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
+        //     }
+
+        //     if (isset($persetujuan['terbitan'])) {
+        //         $primaryActions[] = $persetujuan['terbitan'];
+        //     }
+        // }
+
+        // if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
+        //     $hasPendingTugas = $this->surat->riwayats()
+        //         ->where('status', 'MENUNGGU')
+        //         ->where('unit_tujuan_id', $unitId)
+        //         ->exists();
+        //     if ($hasPendingTugas) {
+        //         $internalActions = $this->getActionSelesaiInternal();
+        //         if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
+        //     }
+        // }
 
         $disposisi = $this->getActionDisposisi();
-        if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0]; // Disposisikan
-        if (isset($disposisi[1])) $primaryActions[] = $disposisi[1]; // Tindaklanjuti
+        if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0];
+        if (isset($disposisi[1])) $primaryActions[] = $disposisi[1];
 
-        $actions = $primaryActions;
+        // 3. RENDER SEMUA BUTTON
+        // Filter out any nulls that might have snuck into primaryActions
+        $actions = array_filter($primaryActions);
 
         if (count($secondaryActions) > 0) {
-            $actions[] = ActionGroup::make($secondaryActions)
+            $actions[] = ActionGroup::make(array_filter($secondaryActions))
                 ->label('Lainnya')
                 ->icon('heroicon-m-ellipsis-vertical')
                 ->button()
@@ -189,10 +322,10 @@ class DetailSurat extends Page implements HasForms
 
         return $actions;
     }
-
     public function openPreview(int $mediaId): void
     {
         $media = Media::findOrFail($mediaId);
+        $this->previewIsImage = str_starts_with($media->mime_type, 'image/');
 
         if (str_starts_with($media->mime_type, 'image/') || $media->mime_type === 'application/pdf') {
             $this->previewUrl = route('media.file', $media->id);

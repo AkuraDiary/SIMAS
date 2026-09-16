@@ -1,5 +1,22 @@
 <x-filament-panels::page>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
 
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+    </style>
     <x-filament::modal
         id="preview-modal"
         width="7xl">
@@ -8,7 +25,13 @@
         </x-slot>
 
         @if ($previewUrl)
-        <iframe src="{{ $previewUrl }}" style="height: 75vh;" class="border-0 w-full"></iframe>
+        @if($previewIsImage)
+        <div class="flex justify-center items-center h-[75vh] w-full bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden">
+            <img src="{{ $previewUrl }}" class="max-h-full max-w-full object-contain" />
+        </div>
+        @else
+        <iframe src="{{ $previewUrl }}" style="height: 75vh;" class="border-0 w-full rounded-lg"></iframe>
+        @endif
         @endif
 
         <x-slot name="footer">
@@ -42,7 +65,15 @@
 
             {{-- Lampiran Section --}}
             @php
-            $lampirans = $surat->getMedia('lampiran-surat');
+            $lampirans = collect();
+
+            // 1. Inherit Attachments from Parent (Pengajuan) if this is a Terbitan
+            if ($surat->terbitan_for_surat_id && $surat->terbitanForSurat) {
+            $lampirans = $lampirans->merge($surat->terbitanForSurat->getMedia('lampiran-surat'));
+            }
+
+            // 2. Add this letter's own attachments
+            $lampirans = $lampirans->merge($surat->getMedia('lampiran-surat'));
             @endphp
             @if ($lampirans->isNotEmpty())
             <x-filament::section>
@@ -87,17 +118,35 @@
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Informasi Pengirim</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            @if ($surat->tipe_surat === 'EKSTERNAL')
-                            Eksternal melalui {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
-                            @else
-                            @if ($surat->userPegawaiJabatan)
+                            @if ($surat->tipe_surat === 'PENGAJUAN' || filled($surat->pengirim_nama))
+                            {{ $surat->pengirim_nama }}<br>
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                @if($surat->pengirim_nim)
+                                NIM: {{ $surat->pengirim_nim }}
+                                @elseif(!empty($surat->pengirim_metadata['instansi']))
+                                {{ $surat->pengirim_metadata['instansi'] }}
+                                @else
+                                Pemohon Luar (Guest)
+                                @endif
+                                @if($surat->pengirim_email)
+                                {{ $surat->pengirim_email }}
+                                @endif
+                                @if(!empty($surat->pengirim_metadata['telp']))
+                                {{ $surat->pengirim_metadata['telp'] }}
+                                @endif
+                            </span>
+                            @elseif ($surat->tipe_surat === 'EKSTERNAL')
+                            {{ $surat->pengirim_nama ?? 'Eksternal' }}<br>
+                            <span class="text-xs text-gray-500 font-normal">
+                                via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
+                            </span>
+                            @elseif ($surat->userPegawaiJabatan)
                             {{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}<br>
                             <span class="text-xs text-gray-500 font-normal">
                                 {{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? '' }}
                             </span>
                             @else
                             {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
-                            @endif
                             @endif
                         </p>
                     </div>
@@ -107,10 +156,18 @@
                             {{ $surat->created_at->format('d M Y') }}
                         </p>
                     </div>
+
+
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Nomor Surat</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ $surat->nomor_surat }}
+                        </p>
+                    </div>
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Diterima Via</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Manual/Upload' : 'Sistem SIMAS' }}
+                            {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Eksternal (Manual)' : 'Sistem SIMAS' }}
                         </p>
                     </div>
 
@@ -132,7 +189,7 @@
                     <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Perjalanan Surat</span>
                 </x-slot>
 
-                <div class="mt-4">
+                <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
                     @include('filament.pages.components.surat-timeline')
                 </div>
             </x-filament::section>
@@ -144,7 +201,7 @@
                     </div>
                 </x-slot>
 
-                <div class="mt-4">
+                <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
                     @if ($surat->disposisis->isEmpty())
                     <div class="flex flex-col items-center justify-center py-6 text-center">
                         <x-heroicon-o-document-text class="w-8 h-8 text-gray-400 mb-2" />
@@ -163,7 +220,7 @@
                                 <h3 class="text-sm font-bold text-gray-900 dark:text-white">
                                     Ke {{ $d->unitTujuan->nama_unit }}
                                 </h3>
-                                @if($d->status_disposisi === 'selesai')
+                                @if($d->status_disposisi === 'SELESAI')
                                 <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Selesai</span>
                                 @else
                                 <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Sedang Proses</span>

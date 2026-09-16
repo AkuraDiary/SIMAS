@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Vinkla\Hashids\Facades\Hashids;
 
 class Surat extends Model implements HasMedia
 {
@@ -29,21 +30,44 @@ class Surat extends Model implements HasMedia
         'user_pembuat_id',
         'pengirim_nim',
         'pengirim_nama',
+        'pengirim_eksternal',
         'pengirim_email',
         'pengirim_metadata',
+        'nomor_surat',
+        'nomor_surat_eksternal',
         'perihal',
         'tipe_surat',
         'status_surat',
         'content',
+        'approval_path',
         'tracking_code',
         'qr_code_payload',
     ];
+
+    public function getRouteKey()
+    {
+        return Hashids::encode($this->id);
+    }
+
+    public function resolveRouteBindingQuery($query, $value, $field = null)
+    {
+        // Fallback jika tiba-tiba menerima ID angka asli
+        if (is_numeric($value)) {
+            return parent::resolveRouteBindingQuery($query, $value, $field);
+        }
+
+        $decoded = \Vinkla\Hashids\Facades\Hashids::decode($value);
+        $id = $decoded[0] ?? null;
+        // Berikan ID yang sudah di-decode ke query builder
+        return $query->where($field ?? $this->getRouteKeyName(), $id);
+    }
 
     protected function casts(): array
     {
         return [
             'pengirim_metadata' => 'array',
             'content' => 'array',
+            'approval_path' => 'array',
         ];
     }
 
@@ -86,7 +110,7 @@ class Surat extends Model implements HasMedia
         return $this->belongsTo(UnitKerja::class, 'unit_pengirim_id');
     }
 
-    // In Disposisi.php
+
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('lampiran-surat')
@@ -94,6 +118,11 @@ class Surat extends Model implements HasMedia
 
         $this->addMediaCollection('lampiran-preview')
             ->useDisk('private');
+
+        // Koleksi khusus untuk PDF terbitan final
+        $this->addMediaCollection('dokumen-final')
+            ->useDisk('private')
+            ->singleFile();
     }
     public function suratUnits(): HasMany
     {
@@ -125,10 +154,59 @@ class Surat extends Model implements HasMedia
         return $this->hasMany(NomorSuratLog::class);
     }
 
+    public function nomorSuratLogTerakhir()
+    {
+        return $this->hasOne(NomorSuratLog::class)->latestOfMany();
+    }
+
+    public function isBackdate(): bool
+    {
+        return $this->nomorSuratLogs()->where('is_backdate', true)->exists();
+    }
+
     // User pembuat surat (NULL jika Guest tanpa login)
     public function pembuat(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_pembuat_id');
+    }
+
+    public function getPengirimEksternalAttribute(): ?string
+    {
+        return $this->pengirim_nama;
+    }
+
+    public function setPengirimEksternalAttribute(?string $value): void
+    {
+        $this->attributes['pengirim_nama'] = $value;
+    }
+
+    /**
+     * Dapatkan identitas / nama pengirim surat yang terformat rapi.
+     */
+    public function getIdentitasPengirim(): string
+    {
+        if ($this->tipe_surat === 'EKSTERNAL' && !empty($this->pengirim_nama)) {
+            return $this->pengirim_nama;
+        }
+
+        if (!empty($this->pengirim_nama)) {
+            $nim = !empty($this->pengirim_nim) ? " ({$this->pengirim_nim})" : '';
+            return $this->pengirim_nama . $nim;
+        }
+
+        if ($this->userPegawaiJabatan) {
+            $nama = $this->userPegawaiJabatan->pegawai?->nama_lengkap ?? 'Pegawai';
+            $jabatan = $this->userPegawaiJabatan->jabatan?->nama_jabatan;
+            $unit = $this->userPegawaiJabatan->unitKerja?->nama_unit;
+            $jabatanInfo = ($jabatan && $unit) ? " ({$jabatan} - {$unit})" : ($jabatan ? " ({$jabatan})" : '');
+            return $nama . $jabatanInfo;
+        }
+
+        if ($this->pembuat && $this->pembuat->nama_lengkap) {
+            return $this->pembuat->nama_lengkap;
+        }
+
+        return $this->unitPengirim?->nama_unit ?? 'Pengirim Tidak Diketahui';
     }
 
     public function registerMediaConversions(?Media $media = null): void
@@ -174,14 +252,14 @@ class Surat extends Model implements HasMedia
                     'suratUnits',
                     fn($sq) => $sq->where('unit_kerja_id', $unitId)
                 )
-                ->orWhereHas(
-                    'disposisis',
-                    fn($dq) => $dq->where('unit_tujuan_id', $unitId)
-                )
-                ->orWhereHas(
-                    'riwayats',
-                    fn($rq) => $rq->where('unit_tujuan_id', $unitId)
-                );
+                    ->orWhereHas(
+                        'disposisis',
+                        fn($dq) => $dq->where('unit_tujuan_id', $unitId)
+                    )
+                    ->orWhereHas(
+                        'riwayats',
+                        fn($rq) => $rq->where('unit_tujuan_id', $unitId)
+                    );
             });
     }
 
@@ -200,6 +278,7 @@ class Surat extends Model implements HasMedia
                 $q->where('unit_tujuan_id', $unitId)
             );
     }
+
 
     public function scopeDisposisi(Builder $query, int $unitId): Builder
     {

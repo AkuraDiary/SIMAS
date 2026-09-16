@@ -17,7 +17,16 @@ class UserPegawaiJabatan extends Model
         'unit_kerja_id',
         'jabatan_id',
         'status_jabatan',
+        'akses_surat_masuk',
+        'can_disposisi',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'can_disposisi' => 'boolean',
+        ];
+    }
 
     public function pegawai(): BelongsTo
     {

@@ -6,8 +6,33 @@ use Illuminate\Support\Facades\Auth;
 
 trait HasSuratTimeline
 {
+
+    protected ?array $memoizedTimeline = null;
     public function getTimelineDataProperty(): array
     {
+
+        if ($this->memoizedTimeline !== null) {
+            return $this->memoizedTimeline;
+        }
+
+        // Cegah N+1 Query: Tarik seluruh relasi linimasa sekaligus
+        $this->surat->loadMissing([
+            'unitPengirim',
+            'userPegawaiJabatan.pegawai',
+            'unitTujuan',
+            'riwayats.unitTujuan',
+            'riwayats.unitAsal',
+            'riwayats.aktor',
+            'disposisis.unitTujuan',
+            'disposisis.pembuat',
+            'disposisis.unitPembuat',
+            'komentars.user',
+            'komentars.unitKerja',
+            'arsipSurats.kategoriArsip',
+            'arsipSurats.unitKerja',
+        ]);
+
+
         $timeline = [];
 
 
@@ -22,10 +47,76 @@ trait HasSuratTimeline
             'icon' => 'heroicon-m-document-plus',
         ];
 
-        // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN)
+        // dd($this->surat->unitTujuan);
+
+        // 1.B. Surat Dikirim ke Banyak Tujuan (Tujuan Utama & Tembusan)
+        if ($this->surat->unitTujuan->isNotEmpty() && $this->surat->status_surat !== 'DRAFT') {
+            $tujuanUtama = [];
+            $tembusan = [];
+
+            foreach ($this->surat->unitTujuan as $unit) {
+                $isUtama = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'UTAMA';
+                $item = [
+                    'nama' => $unit->nama_unit,
+                    'status_baca' => $unit->pivot->status_baca ?? 'BELUM',
+                    'tanggal_terima' => $unit->pivot->tanggal_terima,
+                ];
+
+                if ($isUtama) {
+                    $tujuanUtama[] = $item;
+                } else {
+                    $tembusan[] = $item;
+                }
+            }
+
+            // dd($tujuanUtama);
+            $totalTujuan = count($tujuanUtama) + count($tembusan);
+            $timeline[] = [
+                'title' => 'Surat Dikirim ke ' . $totalTujuan . ' Unit Penerima',
+                'actor' => $this->surat->userPegawaiJabatan?->pegawai->nama_lengkap ?? $this->surat->pengirim_nama ?? 'Pengirim',
+                'unit' => $this->surat->unitPengirim?->nama_unit ?? 'Eksternal',
+                'catatan' => null,
+                'date' => $this->surat->tanggal_kirim ?? $this->surat->created_at,
+                'color' => 'bg-blue-600 ring-blue-100 dark:ring-blue-900',
+                'icon' => 'heroicon-m-paper-airplane',
+                'tujuan_utama' => $tujuanUtama,
+                'tembusan' => $tembusan,
+            ];
+
+            // 1.C. Milestone Saat Masing-Masing Unit Membuka/Menerima Surat
+            // foreach ($this->surat->unitTujuan as $unit) {
+            //     if ($unit->pivot->status_baca === 'SUDAH' && $unit->pivot->tanggal_terima) {
+            //         $jenis = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'TEMBUSAN' ? 'Tembusan' : 'Tujuan Utama';
+            //         $timeline[] = [
+            //             'title' => "Surat Dibaca & Diterima ({$jenis})",
+            //             'actor' => 'Petugas Unit',
+            //             'unit' => $unit->nama_unit,
+            //             'catatan' => null,
+            //             'date' => $unit->pivot->tanggal_terima,
+            //             'color' => 'bg-teal-500 ring-teal-100 dark:ring-teal-900',
+            //             'icon' => 'heroicon-m-envelope-open',
+            //         ];
+            //     }
+            // }
+        }
+
+        // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
         foreach ($this->surat->riwayats as $riwayat) {
+
+
+            $title = match ($riwayat->status) {
+                'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'MENUNGGU' => 'Menunggu tindakan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DITOLAK' => 'Ditolak permanen oleh: ' . ($riwayat->unitAsal?->nama_unit ?? '-'),
+                'REVISI' => 'Dikembalikan ke pembuat: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                default => $riwayat->status,
+            };
+
             $icon = match ($riwayat->status) {
                 'DISETUJUI' => 'heroicon-m-check-circle',
+                'DITERUSKAN' => 'heroicon-m-arrow-right-circle',
                 'DITOLAK' => 'heroicon-m-x-circle',
                 'REVISI' => 'heroicon-m-pencil-square',
                 'DIPERBARUI' => 'heroicon-m-arrow-up-tray',
@@ -35,6 +126,7 @@ trait HasSuratTimeline
 
             $bgColor = match ($riwayat->status) {
                 'DISETUJUI' => 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-900',
+                'DITERUSKAN' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
                 'DITOLAK' => 'bg-red-500 ring-red-100 dark:ring-red-900',
                 'REVISI' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
                 'DIKEMBALIKAN' => 'bg-amber-500 ring-amber-100 dark:ring-amber-900',
@@ -42,11 +134,10 @@ trait HasSuratTimeline
                 default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
             };
 
-
             $timeline[] = [
-                'title' =>  $riwayat->status,
+                'title' =>  $title,
                 'actor' => $riwayat->aktor?->nama_lengkap ?? '',
-                'unit' => $riwayat->unitTujuan?->nama_unit,
+                'unit' => $riwayat->unitTujuan?->nama_unit, // Siapa yang mengambil aksi ini
                 'catatan' => $riwayat->catatan,
                 'date' => $riwayat->actioned_at ?? $riwayat->created_at,
                 'color' => $bgColor,
@@ -68,38 +159,43 @@ trait HasSuratTimeline
             ];
         }
 
-        // 4. Komentar (Diskusi)
-        foreach ($this->surat->komentars as $komentar) {
-            $timeline[] = [
-                'title' => 'Komentar',
-                'actor' => $komentar->user?->nama_lengkap ?? '',
-                'unit' => $komentar->unitKerja?->nama_unit ?? '',
-                'catatan' => $komentar->pesan,
-                'date' => $komentar->created_at,
-                'color' => 'bg-purple-500 ring-purple-100 dark:ring-purple-900',
-                'icon' => 'heroicon-m-chat-bubble-left-ellipsis',
-            ];
-        }
-
-        // 5. Arsip Surat (Hanya Tampil Jika Unit Kerja User = Unit Kerja Pengarsip)
-        $userUnitId = Auth::user()->unit_kerja_id;
-        foreach ($this->surat->arsipSurats as $arsip) {
-            if ($arsip->unit_kerja_id === $userUnitId) {
+        // 4. Komentar (Hanya tampil bagi staf internal yang login)
+        if (Auth::check()) {
+            foreach ($this->surat->komentars as $komentar) {
                 $timeline[] = [
-                    'title' => 'Surat Diarsipkan (' . ($arsip->kategoriArsip?->nama ?? 'Tanpa Kategori') . ')',
-                    'actor' => 'Sistem',
-                    'unit' => $arsip->unitKerja?->nama_unit ?? '',
-                    'catatan' => $arsip->catatan,
-                    'date' => $arsip->tanggal_arsip ?? $arsip->created_at,
-                    'color' => 'bg-indigo-500 ring-indigo-100 dark:ring-indigo-900',
-                    'icon' => 'heroicon-m-archive-box',
+                    'title' => 'Komentar',
+                    'actor' => $komentar->user?->nama_lengkap ?? '',
+                    'unit' => $komentar->unitKerja?->nama_unit ?? '',
+                    'catatan' => $komentar->pesan,
+                    'date' => $komentar->created_at,
+                    'color' => 'bg-purple-500 ring-purple-100 dark:ring-purple-900',
+                    'icon' => 'heroicon-m-chat-bubble-left-ellipsis',
                 ];
             }
         }
 
+        // 5. Arsip Surat (Hanya Tampil Jika Unit Kerja User = Unit Kerja Pengarsip)
+        $userUnitId = Auth::user()?->unit_kerja_id;
+        if ($userUnitId) {
+            foreach ($this->surat->arsipSurats as $arsip) {
+                if ($arsip->unit_kerja_id === $userUnitId) {
+                    $timeline[] = [
+                        'title' => 'Surat Diarsipkan (' . ($arsip->kategoriArsip?->nama ?? 'Tanpa Kategori') . ')',
+                        'actor' => 'Sistem',
+                        'unit' => $arsip->unitKerja?->nama_unit ?? '',
+                        'catatan' => $arsip->catatan,
+                        'date' => $arsip->tanggal_arsip ?? $arsip->created_at,
+                        'color' => 'bg-indigo-500 ring-indigo-100 dark:ring-indigo-900',
+                        'icon' => 'heroicon-m-archive-box',
+                    ];
+                }
+            }
+        }
+
+
         // Sort secara kronologis (dari yang terlama sampai terbaru)
         usort($timeline, fn($a, $b) => $a['date'] <=> $b['date']);
-
-        return $timeline;
+        return $this->memoizedTimeline = $timeline;
+        // return $timeline;
     }
 }

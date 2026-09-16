@@ -16,166 +16,6 @@ use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 class PlaceholderService
 {
     /**
-     * Extract placeholders matching the format {{ field_name }}, loop blocks, and dot notation.
-     * Returns a structured array of fields with metadata (key, label, type, repeater_fields).
-     */
-    public function extractPlaceholders(string $html): array
-    {
-        $fields = [];
-        $tempHtml = $html;
-
-        // 1. Scan HTML Loop Blocks: [loop:parent] ... {{ child }} ... [/loop:parent]
-        if (preg_match_all('/\[loop:([a-zA-Z0-9_]+)\](.*?)\[\/loop:\1\]/is', $tempHtml, $loopMatches, PREG_SET_ORDER)) {
-            foreach ($loopMatches as $match) {
-                $parentKey = $match[1];
-                $blockContent = $match[2];
-
-                preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $blockContent, $childMatches);
-                $subFields = array_unique($childMatches[1] ?? []);
-
-                $repeaterFields = [];
-                foreach ($subFields as $subField) {
-                    $repeaterFields[] = [
-                        'key' => $subField,
-                        'label' => ucwords(str_replace('_', ' ', $subField)),
-                    ];
-                }
-
-                $fields[] = [
-                    'key' => $parentKey,
-                    'label' => ucwords(str_replace('_', ' ', $parentKey)),
-                    'type' => 'repeater',
-                    'repeater_fields' => $repeaterFields,
-                ];
-
-                $tempHtml = str_replace($match[0], '', $tempHtml);
-            }
-        }
-
-        // 2. Scan DOCX Block tags: ${parent} ... {{ child }} ... ${/parent}
-        if (preg_match_all('/\$\{([a-zA-Z0-9_]+)\}(.*?)\$\{\/\1\}/is', $tempHtml, $docxMatches, PREG_SET_ORDER)) {
-            foreach ($docxMatches as $match) {
-                $parentKey = $match[1];
-                $blockContent = $match[2];
-
-                preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $blockContent, $childMatches);
-                $subFields = array_unique($childMatches[1] ?? []);
-
-                $repeaterFields = [];
-                foreach ($subFields as $subField) {
-                    $repeaterFields[] = [
-                        'key' => $subField,
-                        'label' => ucwords(str_replace('_', ' ', $subField)),
-                    ];
-                }
-
-                $fields[] = [
-                    'key' => $parentKey,
-                    'label' => ucwords(str_replace('_', ' ', $parentKey)),
-                    'type' => 'repeater',
-                    'repeater_fields' => $repeaterFields,
-                ];
-
-                $tempHtml = str_replace($match[0], '', $tempHtml);
-            }
-        }
-
-        // 3. Scan DOCX Table Row notation: {{ parent.child }}
-        if (preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\s*\}\}/', $tempHtml, $dotMatches, PREG_SET_ORDER)) {
-            $groupedDots = [];
-            foreach ($dotMatches as $match) {
-                $parentKey = $match[1];
-                $childKey = $match[2];
-                $groupedDots[$parentKey][] = $childKey;
-
-                $tempHtml = str_replace($match[0], '', $tempHtml);
-            }
-
-            foreach ($groupedDots as $parentKey => $children) {
-                $children = array_unique($children);
-                $repeaterFields = [];
-                foreach ($children as $subField) {
-                    $repeaterFields[] = [
-                        'key' => $subField,
-                        'label' => ucwords(str_replace('_', ' ', $subField)),
-                    ];
-                }
-
-                $existingIndex = null;
-                foreach ($fields as $idx => $f) {
-                    if ($f['key'] === $parentKey) {
-                        $existingIndex = $idx;
-                        break;
-                    }
-                }
-
-                if ($existingIndex !== null) {
-                    $existingSubKeys = array_column($fields[$existingIndex]['repeater_fields'], 'key');
-                    foreach ($repeaterFields as $rf) {
-                        if (!in_array($rf['key'], $existingSubKeys)) {
-                            $fields[$existingIndex]['repeater_fields'][] = $rf;
-                        }
-                    }
-                } else {
-                    $fields[] = [
-                        'key' => $parentKey,
-                        'label' => ucwords(str_replace('_', ' ', $parentKey)),
-                        'type' => 'repeater',
-                        'repeater_fields' => $repeaterFields,
-                    ];
-                }
-            }
-        }
-
-        // 4. Scan Flat Placeholders: {{ field }}
-        preg_match_all('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', $tempHtml, $flatMatches);
-        $flatFields = array_unique($flatMatches[1] ?? []);
-
-        foreach ($flatFields as $flatField) {
-            $fields[] = [
-                'key' => $flatField,
-                'label' => ucwords(str_replace('_', ' ', $flatField)),
-                'type' => 'text',
-            ];
-        }
-
-        return $fields;
-    }
-
-    /**
-     * Merge newly extracted fields with the existing fields from state.
-     * Keeps user labels/types, adds new ones, removes deleted ones.
-     */
-    public function syncExtractedToVariables(array $extractedFields, array $currentVars): array
-    {
-        $existingKeys = array_column($currentVars, 'key');
-
-        // Add new fields
-        foreach ($extractedFields as $field) {
-            if (!in_array($field['key'], $existingKeys)) {
-                $currentVars[] = $field;
-            }
-        }
-
-        // Clean up deleted fields
-        $extractedKeys = array_column($extractedFields, 'key');
-        $uuidVars = [];
-        foreach ($currentVars as $index => $var) {
-            $key = $var['key'] ?? '';
-            if (!in_array($key, $extractedKeys)) {
-                continue;
-            }
-            if (is_numeric($index)) {
-                $uuidVars[(string) \Illuminate\Support\Str::uuid()] = $var;
-            } else {
-                $uuidVars[$index] = $var;
-            }
-        }
-
-        return $uuidVars;
-    }
-
-    /**
      * Inject missing variables back into the HTML content block.
      * Returns the updated HTML string and the count of items added.
      */
@@ -218,173 +58,65 @@ class PlaceholderService
     }
 
     /**
-     * Ensure hydrated variables are correctly structured for Filament.
-     * Prevent flat arrays with UUID strings from replacing data structures.
-     */
-    public function formatHydratedVariables(?array $state): array
-    {
-        if (empty($state)) return [];
-
-        $isOldFormat = false;
-        foreach ($state as $key => $value) {
-            if (is_string($key) && !is_array($value)) {
-                $isOldFormat = true;
-                break;
-            }
-        }
-
-        if ($isOldFormat) {
-            $newFormat = [];
-            foreach ($state as $key => $value) {
-                $newFormat[(string) \Illuminate\Support\Str::uuid()] = [
-                    'key' => $key,
-                    'label' => is_string($value) ? $value : 'Unknown',
-                    'type' => 'text',
-                ];
-            }
-            return $newFormat;
-        }
-
-        // Ensure state has UUID keys
-        $uuidState = [];
-        foreach ($state as $index => $item) {
-            if (is_numeric($index)) {
-                $uuidState[(string) \Illuminate\Support\Str::uuid()] = $item;
-            } else {
-                $uuidState[$index] = $item;
-            }
-        }
-
-        return $uuidState;
-    }
-
-    /**
-     * Generate dynamic Filament Form Schema based on the field_variables structure.
-     */
-    public function generateFilamentSchema(array $fieldVariables): array
-    {
-        $schema = [];
-
-        foreach ($fieldVariables as $field) {
-            $key = $field['key'] ?? null;
-            $label = $field['label'] ?? 'Unknown';
-            $type = $field['type'] ?? 'text';
-
-            if (!$key) continue;
-
-            $contentKey = "content.{$key}";
-
-            switch ($type) {
-                case 'long_text':
-                    $schema[] = \Filament\Forms\Components\Textarea::make($contentKey)
-                        ->label($label)
-                        ->required()
-                        ->live(debounce: 500);
-                    break;
-                case 'number':
-                    $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
-                        ->label($label)
-                        ->numeric()
-                        ->required()
-                        ->live(debounce: 500);
-                    break;
-                case 'date':
-                    $schema[] = \Filament\Forms\Components\DatePicker::make($contentKey)
-                        ->label($label)
-                        ->required()
-                        ->live(debounce: 500);
-                    break;
-                case 'repeater':
-                    $subSchema = [];
-                    $subFields = $field['repeater_fields'] ?? [];
-                    foreach ($subFields as $subField) {
-                        $subKey = $subField['key'] ?? null;
-                        $subLabel = $subField['label'] ?? 'Unknown';
-                        if ($subKey) {
-                            $subSchema[] = \Filament\Forms\Components\TextInput::make($subKey)
-                                ->label($subLabel)
-                                ->required()
-                                ->live(debounce: 500);
-                        }
-                    }
-                    $schema[] = \Filament\Forms\Components\Repeater::make($contentKey)
-                        ->label($label)
-                        ->schema($subSchema)
-                        ->defaultItems(1)
-                        ->addActionLabel('Tambah ' . $label)
-                        ->live(debounce: 500);
-                    break;
-                case 'signature':
-                    $isOptional = $field['is_optional_signature'] ?? false;
-                    $schema[] = Fieldset::make($label)
-                        ->schema([
-
-                            Radio::make($contentKey . '_method')
-                                ->label('Metode Input')
-                                ->options([
-                                    'draw' => 'Gambar Langsung',
-                                    'upload' => 'Upload File Image',
-                                ])
-                                ->columns(2)
-                                ->default('draw')
-                                ->reactive()
-                                ->afterStateUpdated(function ($state, Set $set) use ($contentKey) {
-                                    $set($contentKey . '_draw', null);
-                                    $set($contentKey . '_upload', null);
-                                })->columnSpanFull(),
-
-                            SignaturePad::make($contentKey . '_draw')
-                                ->label('Gambar Tanda Tangan')
-                                ->downloadable()                    // Allow download of the signature (defaults to false)
-                                ->downloadableFormats([             // Available formats for download (defaults to all)
-                                    DownloadableFormat::PNG,
-                                    DownloadableFormat::JPG,
-                                    DownloadableFormat::SVG,
-                                ])
-                                ->exportBackgroundColor('rgba(0,0,0,0)')
-                                ->exportPenColor('#000000')
-                                ->backgroundColor('#ffffff')       // White background on light mode
-                                ->backgroundColorOnDark('#111111') // Transparent background to let Tailwind classes show
-                                ->penColor('#000000')              // Black pen on light mode
-                                ->penColorOnDark('#ffffff')        // White pen on dark mode
-                                ->visible(fn(Get $get) => $get($contentKey . '_method') === 'draw')
-                                ->required(!$isOptional)
-                                ->default(null)
-                                ->columnSpanFull()
-                                ->live(debounce: 500),
-                            FileUpload::make($contentKey . '_upload')
-                                ->label('Upload Tanda Tangan')
-                                ->image()
-                                ->disk('public')
-                                ->directory('signatures')
-                                ->visible(fn(Get $get) => $get($contentKey . '_method') === 'upload')
-                                ->required(!$isOptional)
-                                ->default(null)
-                                ->columnSpanFull()
-                                ->live(debounce: 500),
-                        ]);
-                    break;
-                case 'text':
-                default:
-                    $schema[] = TextInput::make($contentKey)
-                        ->label($label)
-                        ->required()
-                        ->live(debounce: 500);
-                    break;
-            }
-        }
-
-        return $schema;
-    }
-
-    /**
      * Render the template's HTML by injecting the provided data.
      */
-    public function renderHtml(Template $template, array $data): string
+    public function renderHtml(Template $template, array $data, ?\App\Models\Surat $surat = null): string
     {
         $html = $template->content_html ?? '';
 
-        // Self-healing: if content_html is empty but it's a DOCX template, generate it once and save it
+        // Inject Reserved System Variables if a Surat instance is provided
+        if (!isset($data['nomor_surat']) || empty($data['nomor_surat'])) {
+            $data['nomor_surat'] = $surat?->nomor_surat ?? '_______________________';
+        }
+        if (!isset($data['tanggal_surat']) || empty($data['tanggal_surat'])) {
+            $data['tanggal_surat'] = ($surat && $surat->tanggal_kirim)
+                ? \Carbon\Carbon::parse($surat->tanggal_kirim)->translatedFormat('d F Y')
+                : '.......................';
+        }
+        $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
+
+        if ($surat) {
+
+            // Inject QR Code Dokumen Utama (Opsional, jika ada kebutuhan QR Global)
+            $data['qr_code'] = '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 80px; height: 80px;" />';
+
+            // Inject TTD & QR Code dari Database (surat_ttds)
+            foreach ($surat->suratTtds as $ttd) {
+                if ($ttd->placeholder_key) {
+                    $qrImg = '';
+                    if ($ttd->qr_code_path) {
+                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" pointer-events="none" /><br>';
+                    }
+
+                    $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
+                    
+                    // Merge coordinate and width data if available from current Livewire edit state
+                    $x = (int) ($data[$ttd->placeholder_key . '_posisi_x'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_x'] ?? $ttd->posisi_x ?? 0));
+                    $y = (int) ($data[$ttd->placeholder_key . '_posisi_y'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_y'] ?? $ttd->posisi_y ?? 0));
+                    // Guard against legacy page-absolute values
+                    if (abs($x) > 300) $x = 0;
+                    if (abs($y) > 400) $y = 0;
+
+                    $width = $data[$ttd->placeholder_key . '_width'] ?? ($surat->content[$ttd->placeholder_key . '_width'] ?? null);
+                    $widthVal = $width ? (int) $width : 160;
+                    
+                    $style = "text-align: left; display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+                    $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+
+                    // Render Visual TTD with draggable wrapper (relative offset preserves document flow)
+                    $ttdVisual = '<div class="draggable-signature" data-key="' . $ttd->placeholder_key . '" style="' . $style . '">' .
+                        $qrImg .
+                        '<b><u>' . $namaTerang . '</u></b><br>' .
+                        '<span style="font-size: 10pt;">' . $ttd->jabatan_saat_ttd . '</span>' .
+                        $resizeHandle .
+                        '</div>';
+
+                    $data[$ttd->placeholder_key] = $ttdVisual;
+                }
+            }
+        }
+
+        // Fallback : if content_html is empty but it's a DOCX template, generate it once and save it
         if (empty($html) && $template->render_engine === 'DOCX') {
             $media = $template->getFirstMedia('template_file');
             if ($media && file_exists($media->getPath())) {
@@ -442,31 +174,87 @@ class PlaceholderService
 
             $method = $data[$key . '_method'] ?? 'draw';
             $val = '';
+            $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
+            $widthVal = $width ? (int) $width : 160;
+
             if ($method === 'draw') {
                 $val = $data[$key . '_draw'] ?? '';
                 if ($val) {
-                    $val = '<img src="' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
+                    $val = '<img src="' . htmlspecialchars($val) . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
                 }
             } elseif ($method === 'upload') {
-                $val = $data[$key . '_upload'] ?? '';
-                if ($val) {
-                    $val = '<img src="/storage/' . htmlspecialchars($val) . '" style="max-height: 200px; max-width: 200px;" />';
+                $uploadFile = $data[$key . '_upload'] ?? null;
+                if (is_array($uploadFile)) {
+                    $uploadFile = reset($uploadFile);
+                }
+                if ($uploadFile instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                    try {
+                        $mime = $uploadFile->getMimeType() ?: 'image/png';
+                        $base64 = base64_encode(file_get_contents($uploadFile->getRealPath()));
+                        $val = '<img src="data:' . $mime . ';base64,' . $base64 . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                    } catch (\Exception $e) {
+                        $val = '';
+                    }
+                } elseif (is_string($uploadFile) && !empty($uploadFile)) {
+                    if (str_starts_with($uploadFile, 'data:image/')) {
+                        $val = '<img src="' . htmlspecialchars($uploadFile) . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                    } else {
+                        $filePath = public_path('storage/' . $uploadFile);
+                        if (file_exists($filePath)) {
+                            $mime = mime_content_type($filePath) ?: 'image/png';
+                            $base64 = base64_encode(file_get_contents($filePath));
+                            $val = '<img src="data:' . $mime . ';base64,' . $base64 . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                        } else {
+                            $val = '<img src="/storage/' . htmlspecialchars($uploadFile) . '" style="width: 100%; max-width: ' . $widthVal . 'px; height: auto; max-height: 180px; pointer-events: none; display: block;" />';
+                        }
+                    }
                 }
             }
 
             if ($val) {
-                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $val), $html);
+                $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
+                $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
+                // Guard against legacy page-absolute values
+                if (abs($x) > 300) $x = 0;
+                if (abs($y) > 400) $y = 0;
+
+                $style = "display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+                $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+                $wrapper = '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">' . $val . $resizeHandle . '</div>';
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $wrapper), $html);
             }
         }
 
         // Clean up remaining un-filled placeholders to make it obvious they are missing
-        $html = preg_replace('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', '<span style="color:#ef4444; font-weight:bold;">[$1]</span>', $html);
+        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function($m) use ($data, $surat) {
+            $key = $m[1];
+            
+            // If it's a signature placeholder (starts with ttd_)
+            if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
+                // Read from live form data, or Surat JSON content
+                $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
+                $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
+                if (abs($x) > 300) $x = 0;
+                if (abs($y) > 400) $y = 0;
+
+                $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
+                $widthVal = $width ? (int) $width : 140;
+                
+                $style = "color:#ef4444; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #ef4444; padding: 0.25rem; user-select: none; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+                $resizeHandle = '<div class="signature-resize-handle" style="position: absolute; right: -4px; bottom: -4px; width: 10px; height: 10px; background: #ef4444; border: 1px solid white; border-radius: 50%; cursor: se-resize; z-index: 10;"></div>';
+                return '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">[' . $key . ']' . $resizeHandle . '</div>';
+            }
+            
+            return '<span style="color:#ef4444; font-weight:bold;">[' . $key . ']</span>';
+        }, $html);
 
         // Inject basic CSS to ensure tables and lists render properly within Tailwind's reset environment
         $css = '<style>
+            .docx-preview-wrapper { position: relative; }
             .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-            .docx-preview-wrapper th, .docx-preview-wrapper td { border: 1px solid #d1d5db; text-align: left; padding: 0.25rem; }
-            .docx-preview-wrapper th { background-color: #f3f4f6; font-weight: bold; }
+            @media print {
+                .signature-resize-handle { display: none !important; }
+            }
         </style>';
 
         return '<div class="docx-preview-wrapper">' . $css . $html . '</div>';

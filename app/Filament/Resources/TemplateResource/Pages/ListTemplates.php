@@ -16,11 +16,14 @@ class ListTemplates extends ListRecords
     {
         return [
             CreateAction::make()
-            ->label("Buat Template Surat")
-            ->icon('heroicon-o-document-plus'),
+                ->extraAttributes([
+                    'class' => 'text-white',
+                ])
+                ->label("Buat Template Surat")
+                ->icon('heroicon-o-document-plus'),
         ];
     }
-   
+
     protected function getHeaderWidgets(): array
     {
         return [

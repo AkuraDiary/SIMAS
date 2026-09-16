@@ -2,10 +2,46 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../../vendor/filament/**/*.blade.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Unified Color Palette */
+    /* Primary: #f5783f */
+    --color-primary-50: #fff6f3;
+    --color-primary-100: #feede7;
+    --color-primary-200: #fcddd2;
+    --color-primary-300: #fac4b3;
+    --color-primary-400: #f89d81;
+    --color-primary-500: #f5783f;
+    --color-primary-600: #e65a1f;
+    --color-primary-700: #c04515;
+    --color-primary-800: #993815;
+    --color-primary-900: #7b3014;
+    /* Secondary: #f29266 */
+    --color-secondary-50: #fff8f5;
+    --color-secondary-100: #fef0ea;
+    --color-secondary-200: #fde1d5;
+    --color-secondary-300: #fbcdba;
+    --color-secondary-400: #f7b095;
+    --color-secondary-500: #f29266;
+    --color-secondary-600: #e37442;
+    --color-secondary-700: #be592b;
+    --color-secondary-800: #974825;
+    --color-secondary-900: #7a3c21;
+    /* Warning / Yellow: #ffd76d */
+    --color-warning-50: #fffdf5;
+    --color-warning-100: #fffbeb;
+    --color-warning-200: #fff3c6;
+    --color-warning-300: #ffe89e;
+    --color-warning-400: #ffd76d;
+    --color-warning-500: #f5bc3f;
+    --color-warning-600: #d9961f;
+    --color-warning-700: #b36e16;
+    --color-warning-800: #915517;
+    --color-warning-900: #784417;
 }

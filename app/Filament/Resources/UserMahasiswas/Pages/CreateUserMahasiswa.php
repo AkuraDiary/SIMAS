@@ -20,4 +20,24 @@ class CreateUserMahasiswa extends CreateRecord
     {
         return app(UserProvisioningService::class)->createMahasiswa($data);
     }
+
+    protected function afterCreate(): void
+    {
+        $opsi = $this->data['opsi_aktivasi'] ?? 'nanti';
+        if ($opsi !== 'nanti' && $this->record->user) {
+            $result = app(\App\Services\AccountActivationService::class)->sendActivationLink($this->record->user, $opsi);
+
+            if ($result['status'] ?? false) {
+                \Filament\Notifications\Notification::make()
+                    ->title("Tautan aktivasi berhasil dikirim via " . strtoupper($opsi))
+                    ->success()
+                    ->send();
+            } else {
+                \Filament\Notifications\Notification::make()
+                    ->title("Akun terbuat, namun gagal mengirim link: " . ($result['reason'] ?? 'Kesalahan jaringan'))
+                    ->warning()
+                    ->send();
+            }
+        }
+    }
 }

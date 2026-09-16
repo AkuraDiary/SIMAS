@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('templates', function (Blueprint $table) {
-            $table->text('deskripsi')->nullable()->after('nama_template');
+        Schema::table('surat_ttds', function (Blueprint $table) {
+            $table->string('placeholder_key')->nullable()->after('is_visible');
+            $table->string('qr_code_path')->nullable()->after('placeholder_key');
         });
     }
 
@@ -21,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('templates', function (Blueprint $table) {
-            $table->dropColumn('deskripsi');
+        Schema::table('surat_ttds', function (Blueprint $table) {
+            $table->dropColumn(['placeholder_key', 'qr_code_path']);
         });
     }
 };

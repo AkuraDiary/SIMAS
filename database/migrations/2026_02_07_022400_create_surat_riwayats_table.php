@@ -23,8 +23,7 @@ return new class extends Migration
                 ->comment('Unit yang dituju. NULL jika aksi terminal (DITOLAK, SELESAI) karena tidak ada tujuan berikutnya.');
             $table->foreignId('user_aktor_id')->nullable()->constrained('users')->nullOnDelete()
                 ->comment('Pengguna yang mengambil aksi. NULL jika belum diproses (status masih MENUNGGU).');
-            $table->enum('status', ['MENUNGGU', 'DISETUJUI', 'DIKEMBALIKAN', 'DITOLAK', 'REVISI'])
-                ->default('MENUNGGU')
+            $table->enum('status', ['DIBUAT', 'MENUNGGU', 'DISETUJUI', 'DITOLAK', 'REVISI', 'SELESAI', 'DIKEMBALIKAN', 'DIPERBARUI', 'DITERUSKAN'])->default('DIBUAT')
                 ->comment('MENUNGGU — belum diproses. DISETUJUI — maju ke unit_tujuan. DIKEMBALIKAN — backtrack via parent_id. DITOLAK — ditolak permanen. REVISI — bola ada di staf untuk diperbaiki sebelum dikirim ulang.');
             $table->text('catatan')->nullable()->comment('Instruksi, alasan pengembalian, atau catatan revisi dari aktor.');
             $table->dateTime('expired_at')->nullable()->comment('Batas berlakunya surat/persetujuan (jika ada)');

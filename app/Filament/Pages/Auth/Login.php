@@ -18,11 +18,11 @@ class Login extends BaseLogin
     public function form(Schema $schema): Schema
     {
         return $schema
-        ->components([
-            $this->getLoginFormComponent(),
-            $this->getPasswordFormComponent(),
-            $this->getRememberFormComponent(),
-        ])
+            ->components([
+                $this->getLoginFormComponent(),
+                $this->getPasswordFormComponent(),
+                $this->getRememberFormComponent(),
+            ])
             ->statePath('data');
     }
     protected function getCredentialsFromFormData(array $data): array
@@ -33,6 +33,7 @@ class Login extends BaseLogin
             'password' => $data['password'],
         ];
     }
+
 
     protected function getLoginFormComponent(): Component
     {
@@ -46,6 +47,19 @@ class Login extends BaseLogin
 
     protected function throwFailureValidationException(): never
     {
+        $username = $this->data['username'] ?? null;
+        $user = $username ? \App\Models\User::where('username', $username)->first() : null;
+        if ($user && ! $user->is_active) {
+            Notification::make()
+                ->title('Akun Belum Diaktifkan')
+                ->body('Akun Anda belum diaktifkan. Silakan lakukan aktivasi terlebih dahulu atau hubungi admin.')
+                ->warning()
+                ->persistent()
+                ->send();
+            throw ValidationException::withMessages([
+                'data.username' => 'Akun Anda belum diaktifkan. Silakan lakukan aktivasi terlebih dahulu atau hubungi admin.',
+            ]);
+        }
         // 1. Send the Notification
         Notification::make()
             ->title(__('auth.failed'))

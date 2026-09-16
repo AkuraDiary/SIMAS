@@ -122,6 +122,7 @@ class TemplateResource extends Resource
                             ->visible(fn(Get $get) => $get('visibility_type') === 'SPECIFIC')
                             ->required(fn(Get $get) => $get('visibility_type') === 'SPECIFIC'),
                     ]),
+
                 Section::make('Mode Template')
                     ->icon('heroicon-o-document-duplicate')
                     ->schema([
@@ -144,6 +145,16 @@ class TemplateResource extends Resource
                             ])
                             ->default('INTERNAL')
                             ->required(),
+                            
+                        Select::make('entry_point_unit_id')
+                            ->label('Unit Penerima Utama (Entry Point)')
+                            ->relationship('entryPointUnit', 'nama_unit')
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Pilih unit kerja penerima...')
+                            ->helperText('Unit kerja yang dituju / akan pertama kali memproses surat jika template ini digunakan.')
+                            ->columnSpanFull(),
+
                     ])->columns(2)
                     ->columnSpanFull(),
 
@@ -151,6 +162,23 @@ class TemplateResource extends Resource
                     ->columnSpanFull()
                     ->description('Definisikan placeholder yang akan digunakan di dalam template. Pengguna akan diminta mengisi nilai ini saat membuat surat.')
                     ->schema([
+                        // [NEW] Helper Component
+                        TextEntry::make('reserved_keywords_helper')
+                            ->label('Daftar Reserved Keywords')
+                            ->state(new \Illuminate\Support\HtmlString('
+                                <div class="bg-gray-50 border border-gray-200 text-gray-600 rounded-lg p-3 text-sm mb-4 dark:bg-gray-900/50 dark:border-gray-800 dark:text-gray-400">
+    <strong class="text-gray-900 dark:text-white">Keyword di bawah ini tidak akan meminta input dari user:</strong><br>
+    <ul class="list-disc ml-5 mt-2 space-y-1">
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ nomor_surat }}</code> : Nomor surat (di-generate di akhir)</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_surat }}</code> : Tanggal dikirimnya surat</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_terbit }}</code> : Sama dengan tanggal surat</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ qr_code }}</code> : QR Code pelacakan</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ ttd_approver_... }}</code> : Tanda tangan untuk approver/penandatangan legal</li>
+    </ul>
+</div>
+                            '))
+                            ->columnSpanFull(),
+
                         Repeater::make('field_variables')
                             ->label('Daftar Placeholder')
                             ->schema([
@@ -217,23 +245,23 @@ class TemplateResource extends Resource
                                     ->grid(2)
                             ])
                             ->collapsible()
-                             ->itemLabel(function ($state) {
-                                 if (!is_array($state)) return null;
+                            ->itemLabel(function ($state) {
+                                if (!is_array($state)) return null;
 
-                                 $label = $state['label'] ?? null;
-                                 if (!is_string($label) && !is_numeric($label)) {
-                                     $label = null;
-                                 }
+                                $label = $state['label'] ?? null;
+                                if (!is_string($label) && !is_numeric($label)) {
+                                    $label = null;
+                                }
 
-                                 $key = $state['key'] ?? null;
-                                 if (!is_string($key) && !is_numeric($key)) {
-                                     $key = null;
-                                 }
+                                $key = $state['key'] ?? null;
+                                if (!is_string($key) && !is_numeric($key)) {
+                                    $key = null;
+                                }
 
-                                 return $label ? ($label . ' ({{ ' . $key . ' }})') : null;
-                             })
+                                return $label ? ($label . ' ({{ ' . $key . ' }})') : null;
+                            })
                             ->afterStateHydrated(function ($component, $state) {
-                                $service = app(\App\Services\PlaceholderService::class);
+                                $service = app(\App\Services\FormSchemaService::class);
                                 $component->state($service->formatHydratedVariables($state));
                             })
                             ->hintAction(
@@ -273,8 +301,11 @@ class TemplateResource extends Resource
                             ->profile('full')
                             ->label('')
                             ->placeholder('Mulai mengetik template Anda di sini...')
-                            ->fileAttachmentsDisk('public')
+                            ->fileAttachmentsDisk('private')
                             ->fileAttachmentsDirectory('template-attachments')
+                            ->setCustomConfigs([
+                                'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                            ])
                             ->hintAction(
                                 Action::make('scanHtmlPlaceholders')
                                     ->label('Scan Placeholders')
@@ -283,7 +314,7 @@ class TemplateResource extends Resource
                                         $state = $get('content_html');
                                         if (!$state) return;
 
-                                        $service = app(\App\Services\PlaceholderService::class);
+                                        $service = app(\App\Services\FormSchemaService::class);
                                         $fields = $service->extractPlaceholders($state);
 
                                         $current = $get('field_variables') ?? [];
@@ -335,9 +366,10 @@ class TemplateResource extends Resource
 
                                         try {
                                             $docxService = app(\App\Services\DocxTemplateService::class);
-                                            $placeholderService = app(\App\Services\PlaceholderService::class);
+                                            $placeholderService = app(\App\Services\FormSchemaService::class);
 
                                             $html = $docxService->convertToHtml($path);
+                                            // dd($html);
                                             $fields = $placeholderService->extractPlaceholders($html);
 
                                             $set('content_html', $html);
@@ -385,16 +417,16 @@ class TemplateResource extends Resource
 
                                         try {
                                             $docxService = app(\App\Services\DocxTemplateService::class);
-                                            $placeholderService = app(\App\Services\PlaceholderService::class);
+                                            $formSchemaService = app(\App\Services\FormSchemaService::class);
 
                                             $html = $docxService->convertToHtml($path);
-                                            $fields = $placeholderService->extractPlaceholders($html);
+                                            $fields = $formSchemaService->extractPlaceholders($html);
 
                                             $set('content_html', $html);
                                             $set('render_engine', 'HTML');
 
                                             $currentFields = $get('field_variables') ?? [];
-                                            $currentFields = $placeholderService->syncExtractedToVariables($fields, $currentFields);
+                                            $currentFields = $formSchemaService->syncExtractedToVariables($fields, $currentFields);
                                             $set('field_variables', $currentFields);
 
                                             \Filament\Notifications\Notification::make()->title('Berhasil dikonversi ke HTML. Mode diubah menjadi Buat dari Awal.')->success()->send();
@@ -406,7 +438,7 @@ class TemplateResource extends Resource
 
                         TextEntry::make('docx_preview')
                             ->label('Preview Dokumen')
-                            ->state(function(Get $get) {
+                            ->state(function (Get $get) {
                                 $content = $get('content_html');
                                 if (! $content) {
                                     $content = '<p style="color: #666; text-align: center;">Klik "Scan Placeholders & Preview" di bagian Upload File untuk melihat preview.</p>';
@@ -423,6 +455,37 @@ class TemplateResource extends Resource
                         //     ->columnSpanFull(),
                     ])
                     ->columnSpanFull(),
+                // [NEW] Jalur Persetujuan Section
+                Section::make('Jalur Persetujuan & Penandatangan')
+                    ->icon('heroicon-o-users')
+                    ->description('Tentukan urutan jabatan yang harus menyetujui surat ini. Jika ada penandatangan, tentukan mapping ttd-nya.')
+                    ->schema([
+                        Repeater::make('approval_path')
+                            ->label('Jalur Approval (Urutkan dari awal hingga akhir)')
+                            ->addActionLabel('Tambah Jabatan Approver')
+                            ->reorderable(true)
+                            ->schema([
+                                Select::make('jabatan_id')
+                                    ->label('Jabatan')
+                                    ->options(\App\Models\Jabatan::pluck('nama_jabatan', 'id'))
+                                    ->required()
+                                    ->searchable(),
+                                Toggle::make('is_signer')
+                                    ->label('Bertindak sbg Penandatangan?')
+                                    ->default(false)
+                                    ->reactive(),
+                                TextInput::make('placeholder_key')
+                                    ->label('Tujuan Placeholder TTD')
+                                    ->placeholder('Contoh: ttd_approver_rektor')
+                                    ->visible(fn(Get $get) => $get('is_signer') === true)
+                                    ->required(fn(Get $get) => $get('is_signer') === true)
+                                    ->helperText('Samakan dengan kode {{ ttd_approver_... }} di template dokumen Anda.'),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull()
+                    ])
+                    ->columnSpanFull()
+                    ->collapsible(),
             ]);
     }
 

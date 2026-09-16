@@ -14,6 +14,7 @@ return [
     |
     */
 
+    // laravel's generated
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
@@ -35,4 +36,21 @@ return [
         ],
     ],
 
+    // laravel's generated
+
+    'ollama' => [
+        'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
+        'api_key'  => env('OLLAMA_API_KEY'),
+        'model'    => env('OLLAMA_MODEL', 'gpt-oss:20b'),
+        'timeout'  => (int) env('OLLAMA_TIMEOUT', 60),
+    ],
+
+    'fonnte' => [
+        'token' => env('FONNTE_TOKEN'),
+    ],
+
+     'activation' => [
+        'require_nip_nim_confirmation' => env('SIMAS_REQUIRE_NIP_NIM_CONFIRMATION', true),
+        'token_lifetime_days'          => (int) env('SIMAS_ACTIVATION_LIFETIME_DAYS', 3),
+    ],
 ];

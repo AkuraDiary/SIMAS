@@ -26,14 +26,7 @@ trait HasInternalActions
                 ])
                 ->action(function (array $data): void {
                     $user = Auth::user();
-                    $activeJabatan = $user->pegawai?->jabatanAktif()->first();
-                    $unitId = $activeJabatan ? $activeJabatan->unit_kerja_id : null;
-
-                    $activeRiwayat = $this->surat->riwayats()
-                        ->where('status', 'MENUNGGU')
-                        ->where('unit_tujuan_id', $unitId)
-                        ->latest()
-                        ->first();
+                    $activeRiwayat = $this->getActiveInternalRiwayat();
 
                     if (!$activeRiwayat) {
                         Notification::make()->title('Gagal: Surat sudah diproses')->danger()->send();
@@ -55,11 +48,36 @@ trait HasInternalActions
                             ->title('Surat Internal Selesai')
                             ->body("Unit Anda telah menyelesaikan surat '{$this->surat->perihal}'. Balasan: {$data['catatan']}")
                             ->success()
+                            ->viewData([
+                                'unit_kerja_id' => (int) $this->surat->unit_pengirim_id,
+                                'surat_id'      => $this->surat->id,
+                            ])
                             ->sendToDatabase($this->surat->pembuat);
+
+                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                            $this->surat,
+                            $this->surat->pembuat,
+                            "Balasan: " . $data['catatan']
+                        );
                     }
 
                     $this->refreshPage('Berhasil', 'Surat internal berhasil diselesaikan dan dibalas.');
                 }),
         ];
+    }
+
+    /**
+     * Get the currently active routing step (Riwayat) for Internal letters.
+     */
+    protected function getActiveInternalRiwayat()
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $unitId = $user->getActiveUnitId();
+
+        return $this->surat->riwayats()
+            ->where('status', 'MENUNGGU')
+            ->where('unit_tujuan_id', $unitId)
+            ->latest()
+            ->first();
     }
 }

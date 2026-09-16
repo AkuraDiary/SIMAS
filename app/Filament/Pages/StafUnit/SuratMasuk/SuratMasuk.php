@@ -27,47 +27,12 @@ class SuratMasuk extends Page implements HasTable
     use InteractsWithTable, HasTabs;
 
 
-    public int $lastCount = 0;
-
     public function content(Schema $schema): Schema
     {
         return $schema->components([
             $this->getTabsContentComponent(),
             EmbeddedTable::make(),
         ]);
-    }
-
-    public function mount(): void
-    {
-        // for initials data
-        $this->lastCount = $this->getSuratMasukCount();
-    }
-
-    protected function getSuratMasukCount(): int
-    {
-        $unitId = Auth::user()->unit_kerja_id;
-
-        return Surat::query()
-            ->untukUnit($unitId)
-            ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                $q->where('unit_kerja_id', $unitId);
-            })
-            ->count();
-    }
-
-
-    public function hydrate(): void
-    {
-        $currentCount = $this->getSuratMasukCount();
-
-        if ($this->lastCount !== 0 && $currentCount > $this->lastCount) {
-            \Filament\Notifications\Notification::make()
-                ->title('Surat baru masuk')
-                ->info()
-                ->send();
-        }
-
-        $this->lastCount = $currentCount;
     }
 
 
@@ -88,41 +53,61 @@ class SuratMasuk extends Page implements HasTable
 
     protected function getTableQuery(): Builder
     {
-
         $unitId = Auth::user()->unit_kerja_id;
 
-        return Surat::query()
-            ->untukUnit($unitId)
+        return app(\App\Services\UnitAksesService::class)
+            ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
                 $q->where('unit_kerja_id', $unitId);
             })
             ->with([
                 'unitPengirim',
+                 'userPegawaiJabatan.pegawai',
                 'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
                 'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
                 'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
-            ])
-            ->orderByDesc('created_at');
+            ]);
+        // ->orderByDesc('created_at');
     }
 
 
     public function table(Table $table): Table
     {
         return $table
-            ->poll('7s')
+            ->poll('60s')
             ->emptyStateHeading('Tidak Ada Data Surat')
             ->emptyStateDescription('')
+            ->defaultSort('created_at', 'desc')
             ->columns([
                 TextColumn::make('perihal')
                     ->label('Perihal & Pengirim')
-                    ->searchable(['perihal', 'pengirim_nama'])
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query
+                            ->where('perihal', 'like', "%{$search}%")
+                            ->orWhere('pengirim_nama', 'like', "%{$search}%")
+                            ->orWhereHas('userPegawaiJabatan.pegawai', function ($q) use ($search) {
+                                $q->where('nama_lengkap', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('unitPengirim', function ($q) use ($search) {
+                                $q->where('nama_unit', 'like', "%{$search}%");
+                            });
+                    })
                     ->weight('bold')
                     ->wrap()
+
                     ->description(function (Surat $record) {
                         $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
+
+                        if ($record->tipe_surat === 'PENGAJUAN' || filled($record->pengirim_nama)) {
+                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
+                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
+                            return $nomor . ($record->pengirim_nama ?? 'Guest') . $nim . $instansi;
+                        }
+
                         $pengirim = $record->tipe_surat === 'EKSTERNAL'
                             ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
                             : ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '-') . ' - ' . ($record->unitPengirim?->nama_unit ?? '-');
+
                         return $nomor . $pengirim;
                     }),
 
@@ -174,6 +159,18 @@ class SuratMasuk extends Page implements HasTable
                 TextColumn::make('status baca')
                     ->label('Status Baca')
                     ->badge()
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        // sort via sub-query pivot table
+                        $unitId = Auth::user()->unit_kerja_id;
+                        return $query->orderBy(
+                            \App\Models\SuratUnit::select('status_baca')
+                                ->whereColumn('surat_unit.surat_id', 'surats.id')
+                                ->where('unit_kerja_id', $unitId)
+                                ->take(1),
+                            $direction
+                        );
+                    })
+
                     ->getStateUsing(function (Surat $record, $livewire) {
                         $baca = $record->suratUnits->firstWhere('unit_kerja_id', Auth::user()->unit_kerja_id)?->status_baca;
 
@@ -189,8 +186,7 @@ class SuratMasuk extends Page implements HasTable
                     }),
 
             ])
-            ->recordActions([
-            ])
+            ->recordActions([])
             ->filters([
                 \Filament\Tables\Filters\Filter::make('tanggal')
                     ->schema([
@@ -225,7 +221,7 @@ class SuratMasuk extends Page implements HasTable
 
                 return DetailSurat::getUrl(
                     parameters: [
-                        'surat' => $record->id,
+                        'surat' => $record,
                         'scope' => $isPersetujuan ? 'persetujuan' : 'masuk'
                     ],
                     panel: 'simas'
@@ -261,10 +257,10 @@ class SuratMasuk extends Page implements HasTable
                 ->modifyQueryUsing(function (Builder $query) {
                     $unitId = Auth::user()->unit_kerja_id;
                     return $query->where('tipe_surat', 'PENGAJUAN');
-                        // ->whereHas('riwayats', function ($q) use ($unitId) {
-                        //     $q->where('status', 'MENUNGGU')
-                        //         ->where('unit_tujuan_id', $unitId);
-                        // });
+                    // ->whereHas('riwayats', function ($q) use ($unitId) {
+                    //     $q->where('status', 'MENUNGGU')
+                    //         ->where('unit_tujuan_id', $unitId);
+                    // });
                     // return $query->where('status_surat', 'DIPROSES')
                     //     ->whereHas('riwayats', function ($q) use ($unitId) {
                     //         $q->where('status', 'MENUNGGU')

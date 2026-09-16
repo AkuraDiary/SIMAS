@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('format_nomor_surats', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('unit_kerja_id')->constrained('unit_kerjas')->cascadeOnDelete();
+            $table->foreignId('unit_kerja_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
+            // $table->foreignId('unit_kerja_id')->constrained('unit_kerjas')->cascadeOnDelete();
             $table->string('nama_format');
             $table->string('format_penomoran')->comment('cth: {KODE_UNIT}/{NOMOR}/{BULAN-ROMAWI}/{TAHUN}');
             $table->integer('nomor_urut_terakhir')->default(0)->comment('di-increment hanya saat surat resmi dikirim');

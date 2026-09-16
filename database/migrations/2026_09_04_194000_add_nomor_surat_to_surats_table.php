@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('surats', function (Blueprint $table) {
-            $table->foreignId('unit_pengirim_id')->nullable()->change();
+            $table->string('nomor_surat')->nullable()->index()->after('perihal');
+            $table->string('nomor_surat_eksternal')->nullable()->after('nomor_surat')
+                ->comment('Nomor surat asal dari pihak luar (khusus tipe EKSTERNAL)');
         });
     }
 
@@ -22,7 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('surats', function (Blueprint $table) {
-            $table->foreignId('unit_pengirim_id')->nullable(false)->change();
+            $table->dropIndex(['nomor_surat']);
+            $table->dropColumn(['nomor_surat', 'nomor_surat_eksternal']);
         });
     }
 };

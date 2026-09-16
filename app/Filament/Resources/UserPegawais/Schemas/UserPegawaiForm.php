@@ -28,7 +28,7 @@ class UserPegawaiForm
                             ->unique(
                                 table: 'users',
                                 column: 'username',
-                                modifyRuleUsing: fn ($rule, $record) => $record ? $rule->ignore($record->user_id) : $rule
+                                modifyRuleUsing: fn($rule, $record) => $record ? $rule->ignore($record->user_id) : $rule
                             )
                             ->disabled(fn(string $context): bool => $context === 'edit')
                             ->dehydrated(),
@@ -51,6 +51,18 @@ class UserPegawaiForm
                             ->label('Nomor Telepon')
                             ->tel()
                             ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->phone)),
+
+                        Select::make('opsi_aktivasi')
+                            ->label('Pengiriman Link Aktivasi')
+                            ->options([
+                                'nanti'    => 'Kirim Nanti Saja (Default)',
+                                'whatsapp' => 'Kirim via WhatsApp Sekarang',
+                                'email'    => 'Kirim via Email Sekarang',
+                            ])
+                            ->default('nanti')
+                            ->helperText('Pilih metode untuk mengirimkan link aktivasi saat akun dibuat.')
+                            ->visible(fn(string $context): bool => $context === 'create')
+                            ->columnSpanFull(),
                     ])
                     ->columnSpanFull()
                     ->columns(2),
@@ -88,9 +100,10 @@ class UserPegawaiForm
                                     })
                                     ->searchable()
                                     ->required()
-                                    ->helperText(fn(Get $get) => $get('unit_kerja_id')
-                                        ? null
-                                        : 'Pilih unit terlebih dahulu.'
+                                    ->helperText(
+                                        fn(Get $get) => $get('unit_kerja_id')
+                                            ? null
+                                            : 'Pilih unit terlebih dahulu.'
                                     ),
 
                                 Select::make('status_jabatan')
@@ -113,6 +126,7 @@ class UserPegawaiForm
 
 
 
+              
             ]);
     }
 }
