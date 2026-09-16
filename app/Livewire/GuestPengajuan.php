@@ -312,7 +312,7 @@ class GuestPengajuan extends Component implements HasForms
         $isScratch = $state['template_id'] === 'scratch';
 
         $surat = new \App\Models\Surat();
-        $surat->tipe_surat = 'PENGAJUAN';
+
         $surat->status_surat = 'TERKIRIM';
         $surat->pengirim_nama = $state['pengirim_nama'] ?? null;
         $surat->pengirim_email = $state['pengirim_email'] ?? null;
@@ -333,6 +333,7 @@ class GuestPengajuan extends Component implements HasForms
         $surat->pengirim_metadata = $metadata;
 
         if ($isScratch) {
+            $surat->tipe_surat = 'PENGAJUAN'; // Default surat from external
             $surat->template_id = null;
             $surat->perihal = $state['perihal'] ?? 'Pengajuan Guest';
             $scratchContent = $state['content'] ?? [];
@@ -341,6 +342,12 @@ class GuestPengajuan extends Component implements HasForms
         } else {
             $surat->template_id = $state['template_id'];
             $template = \App\Models\Template::find($state['template_id']);
+
+            $surat->tipe_surat = $template?->tipe_surat ?: 'PENGAJUAN';
+            if (!empty($template?->approval_path)) {
+                $surat->approval_path = $template->approval_path;
+            }
+
             $surat->perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
             $surat->content = $state['content'] ?? [];
         }

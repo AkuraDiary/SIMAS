@@ -50,7 +50,7 @@ class GuestLacak extends Component
             'media',
         ])
             ->where('tracking_code', trim($this->trackingCode))
-            ->where('tipe_surat', 'PENGAJUAN')
+            ->whereIn('tipe_surat', ['PENGAJUAN', 'EKSTERNAL'])
             ->first();
 
         if (! $surat) {
