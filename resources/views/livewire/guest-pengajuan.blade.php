@@ -8,7 +8,20 @@
             </svg>
         </div>
         <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Surat Berhasil Dikirim!</h2>
-        <p class="text-gray-500 text-lg mb-8 max-w-xl mx-auto">Harap simpan kode pelacakan unik di bawah ini dengan aman. Anda akan membutuhkannya untuk mengecek status atau mengunduh surat terbitan Anda nanti.</p>
+
+        @if($revisiCode)
+        <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Perbaikan Berhasil Dikirim!</h2>
+        <p class="text-gray-500 text-lg mb-8 max-w-xl mx-auto">
+            Dokumen pengajuan Anda telah berhasil diperbarui dan dikembalikan ke antrean verifikasi petugas.
+        </p>
+        @else
+        <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Surat Berhasil Dikirim!</h2>
+        <p class="text-gray-500 text-lg mb-8 max-w-xl mx-auto">
+            Harap simpan kode pelacakan unik di bawah ini dengan aman untuk mengecek status atau mengunduh surat terbitan Anda.
+        </p>
+        @endif
+
+
         <div x-data="{ copied: false }" class="inline-block bg-gray-50 border-2 border-dashed border-primary-200 rounded-xl px-8 py-6 mb-8 max-w-lg mx-auto">
             <p class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">KODE PELACAKAN</p>
 
@@ -18,46 +31,74 @@
                 </span>
 
             </div>
-             <button
-                    type="button"
-                    @click="
+            <button
+                type="button"
+                @click="
                         navigator.clipboard.writeText('{{ $trackingCode }}');
                         copied = true;
                         setTimeout(() => copied = false, 2000);
                     "
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 hover:text-primary-600 transition shadow-sm text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    :title="copied ? 'Berhasil disalin!' : 'Salin Kode'">
-                    <template x-if="!copied">
-                        <span class="flex items-center gap-1">
-                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                            </svg>
-                            <span>Salin</span>
-                        </span>
-                    </template>
-                    <template x-if="copied">
-                        <span class="flex items-center gap-1 text-green-600 font-bold">
-                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            <span>Tersalin!</span>
-                        </span>
-                    </template>
-                </button>
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 hover:text-primary-600 transition shadow-sm text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500"
+                :title="copied ? 'Berhasil disalin!' : 'Salin Kode'">
+                <template x-if="!copied">
+                    <span class="flex items-center gap-1">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Salin</span>
+                    </span>
+                </template>
+                <template x-if="copied">
+                    <span class="flex items-center gap-1 text-green-600 font-bold">
+                        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span>Tersalin!</span>
+                    </span>
+                </template>
+            </button>
         </div>
 
         <div>
             <a href="{{ route('lacak', ['code' => $trackingCode]) }}" class="inline-flex items-center px-8 py-3 border border-transparent text-lg font-bold rounded-xl shadow-sm shadow-primary-200 text-white bg-primary-600 hover:bg-primary-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                Lacak Surat Sekarang
+                {{ $revisiCode ? 'Kembali ke Halaman Pelacakan' : 'Lacak Surat Sekarang' }}
             </a>
         </div>
     </div>
     @else
-    <!-- NEW Form Header matching the UI Design -->
+    @if($revisiSurat)
+    <div class="max-w-[90%] mx-auto mb-8 p-6  border border-gray-200  bg-white rounded-2xl shadow-sm">
+        <div class="flex items-start gap-4">
+            <div class="p-3  text-white rounded-xl shrink-0 shadow-md bg-primary-500 shadow-amber-500/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+            </div>
+            <div>
+                <h2  class="text-lg font-bold text-gray-900 dark:text-white">
+                    Mode Perbaikan Pengajuan ({{ $revisiSurat->tracking_code }})
+                </h2>
+                <p class="text-xs text-amber-800 dark:text-amber-300 font-semibold uppercase tracking-wider my-2">
+                    Catatan dari Petugas Pemeriksa:
+                </p>
+                <div class="p-3 bg-white/80 dark:bg-gray-200/60 rounded-xl text-sm text-gray-800 dark:text-gray-200">
+                    {{ $catatanRevisiTerakhir ?? 'Silakan lengkapi atau perbaiki data dokumen Anda sesuai arahan petugas.' }}
+                </div>
+                <p class="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                    Periksa kembali data pada langkah-langkah di bawah, ubah isian yang keliru, lalu kirim ulang perbaikan Anda.
+                </p>
+            </div>
+        </div>
+    </div>
+    @else
+    <!-- Default Form Header -->
     <div class="text-center mb-10">
         <h1 class="text-4xl font-extrabold text-gray-900 mb-3">Ajukan Surat Baru</h1>
         <p class="text-gray-500 text-lg">Lengkapi langkah berikut untuk mengajukan surat baru</p>
     </div>
+    @endif
+
+
 
     <style>
         /* Customizing Filament's Native Wizard to match the wireframe */

@@ -132,13 +132,12 @@
                 </div>
 
                 <div class="shrink-0 w-full sm:w-auto">
-                    <button
-                        type="button"
-                        wire:click="openRevisiModal"
+                    <a
+                        href="{{ route('pengajuan', ['revisi' => $surat->tracking_code]) }}"
                         class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500">
                         <x-filament::icon icon="heroicon-m-pencil-square" class="w-4 h-4" />
                         <span>Perbaiki Pengajuan Sekarang</span>
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
@@ -173,7 +172,7 @@
                                 wire:model="catatanPerbaikan"
                                 class="w-full block border-0 p-2 outline-0"
                                 placeholder="Jelaskan perubahan yang telah Anda lakukan atau tanggapan untuk petugas..."
-                                required ></textarea>
+                                required></textarea>
                         </x-filament::input.wrapper>
                         <!-- <textarea
 

@@ -36,8 +36,44 @@ class GuestPengajuan extends Component implements HasForms
     public bool $submitted = false;
     public ?string $trackingCode = null;
 
+    public ?string $revisiCode = null;
+    public ?\App\Models\Surat $revisiSurat = null;
+    public ?string $catatanRevisiTerakhir = null;
+
     public function mount(): void
     {
+
+        $revisiParam = request()->query('revisi');
+        if ($revisiParam) {
+            $surat = \App\Models\Surat::with(['unitTujuan', 'riwayats'])
+                ->where('tracking_code', trim($revisiParam))
+                ->where('status_surat', 'REVISI')
+                ->first();
+            if ($surat) {
+                $this->revisiCode = $surat->tracking_code;
+                $this->revisiSurat = $surat;
+                $this->catatanRevisiTerakhir = $surat->riwayats->where('status', 'REVISI')->last()?->catatan;
+                // Pre-fill form wizard dengan seluruh data lama (baik Scratch maupun Variabel Template)
+                $metadata = $surat->pengirim_metadata ?? [];
+                $this->form->fill([
+                    'template_id'           => $surat->template_id ?: 'scratch',
+                    'tipe_pengirim'         => $metadata['tipe_pengirim'] ?? ($surat->pengirim_nim ? 'mahasiswa' : 'guest'),
+                    'pengirim_nama'         => $surat->pengirim_nama,
+                    'pengirim_email'        => $surat->pengirim_email,
+                    'pengirim_telp'         => $metadata['telp'] ?? null,
+                    'pengirim_nim'          => $surat->pengirim_nim,
+                    'pengirim_fakultas'     => $metadata['fakultas_id'] ?? null,
+                    'pengirim_prodi'        => $metadata['prodi_id'] ?? null,
+                    'pengirim_instansi'     => $metadata['instansi'] ?? null,
+                    'nomor_surat_eksternal' => $surat->nomor_surat_eksternal,
+                    'unit_tujuan'           => $surat->unitTujuan->first()?->id,
+                    'perihal'               => $surat->perihal,
+                    'content_scratch'       => $surat->content['isi_surat'] ?? null,
+                    'content'               => $surat->content ?? [], // 🟢 Mengisi otomatis seluruh variabel template!
+                ]);
+                return;
+            }
+        }
         $this->form->fill();
     }
 
@@ -242,6 +278,22 @@ class GuestPengajuan extends Component implements HasForms
                     Step::make('Pratinjau')
                         ->description('Tinjau kembali pengajuan Anda')
                         ->schema([
+                            Section::make()
+                                ->schema([
+                                    // show only on mode revisi
+                                    \Filament\Forms\Components\Textarea::make('catatan_perbaikan')
+                                        ->label('Penjelasan Perbaikan untuk Petugas')
+                                        ->placeholder('Jelaskan bagian apa saja yang telah Anda perbaiki...')
+                                        ->rows(3)
+                                        ->visible(fn() => (bool) $this->revisiSurat)
+                                        ->required(fn() => (bool) $this->revisiSurat),
+
+                                    Checkbox::make('konfirmasi')
+                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
+                                        ->required()
+                                        ->accepted(),
+                                ])
+                                ->columnSpanFull(),
                             TextEntry::make('summary')
                                 ->hiddenLabel()
                                 ->state(function (Get $get) {
@@ -311,9 +363,14 @@ class GuestPengajuan extends Component implements HasForms
                     )
                     ->persistStepInQueryString()
                     ->contained(false)
-
-
-                    ->submitAction(new \Illuminate\Support\HtmlString('<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">Kirim Sekarang &nearr;</button>'))
+                    
+                    ->submitAction(
+                        new \Illuminate\Support\HtmlString(
+                            '<button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg transition shadow-sm shadow-primary-200">' .
+                                ($this->revisiSurat ? 'Kirim Ulang Perbaikan &nearr;' : 'Kirim Sekarang &nearr;') .
+                                '</button>'
+                        )
+                    )
             ])
             ->statePath('data');
     }
@@ -323,6 +380,99 @@ class GuestPengajuan extends Component implements HasForms
         $state = $this->form->getState();
 
         $isScratch = $state['template_id'] === 'scratch';
+
+        if ($this->revisiSurat) {
+            $surat = $this->revisiSurat;
+            // 1. Update data identitas pengirim
+            $surat->pengirim_nama = $state['pengirim_nama'] ?? $surat->pengirim_nama;
+            $surat->pengirim_email = $state['pengirim_email'] ?? $surat->pengirim_email;
+            $surat->nomor_surat_eksternal = $state['nomor_surat_eksternal'] ?? null;
+            $metadata = $surat->pengirim_metadata ?? [];
+            $metadata['telp'] = $state['pengirim_telp'] ?? null;
+            if ($state['tipe_pengirim'] === 'mahasiswa') {
+                $surat->pengirim_nim = $state['pengirim_nim'] ?? null;
+                $metadata['fakultas_id'] = $state['pengirim_fakultas'] ?? null;
+                $metadata['prodi_id'] = $state['pengirim_prodi'] ?? null;
+            } else {
+                $metadata['instansi'] = $state['pengirim_instansi'] ?? null;
+            }
+            $surat->pengirim_metadata = $metadata;
+            // 2. Update konten surat (Scratch vs Template)
+            if ($isScratch) {
+                $surat->perihal = $state['perihal'] ?? $surat->perihal;
+                $scratchContent = $state['content'] ?? [];
+                $scratchContent['isi_surat'] = $state['content_scratch'] ?? '';
+                $surat->content = $scratchContent;
+            } else {
+                $template = \App\Models\Template::find($state['template_id']);
+                $surat->perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+                $surat->content = $state['content'] ?? []; // Menyimpan isian variabel template yang baru dikoreksi
+            }
+            // 3. Simpan lampiran baru (jika pemohon mengunggah berkas baru)
+            if (!empty($state['lampiran'])) {
+                $privateStorage = \Illuminate\Support\Facades\Storage::disk('private');
+                foreach ($state['lampiran'] as $index => $file) {
+                    if (is_object($file) && method_exists($file, 'getRealPath')) {
+                        $surat->addMedia($file->getRealPath())
+                            ->usingFileName($file->getClientOriginalName())
+                            ->toMediaCollection('lampiran-surat');
+                    } elseif (is_string($file)) {
+                        $fullPath = $privateStorage->path($file);
+                        if (file_exists($fullPath)) {
+                            $originalName = $state['lampiran_names'][$file] ?? $state['lampiran_names'][$index] ?? basename($file);
+                            $surat->addMedia($fullPath)
+                                ->usingFileName($originalName)
+                                ->toMediaCollection('lampiran-surat');
+                        }
+                    }
+                }
+            }
+            $surat->save();
+            // 4. Catat riwayat alur persetujuan: DIPERBARUI & MENUNGGU
+            $lastRevisi = $surat->riwayats->where('status', 'REVISI')->last();
+            $targetUnitId = $lastRevisi?->unit_tujuan_id ?? $surat->unitTujuan->first()?->id;
+            $unitAsalId = $surat->unit_pengirim_id ?? $targetUnitId;
+            \App\Models\SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => $lastRevisi?->id,
+                'unit_asal_id'   => $unitAsalId,
+                'unit_tujuan_id' => $targetUnitId,
+                'user_aktor_id'  => null,
+                'status'         => 'DIPERBARUI',
+                'catatan'        => $state['catatan_perbaikan'] ?? 'Pemohon telah memperbarui dokumen permohonan.',
+                'actioned_at'    => now(),
+            ]);
+            \App\Models\SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => null,
+                'unit_asal_id'   => $unitAsalId,
+                'unit_tujuan_id' => $targetUnitId,
+                'user_aktor_id'  => null,
+                'status'         => 'MENUNGGU',
+                'catatan'        => 'Menunggu verifikasi ulang pasca perbaikan berkas oleh pemohon.',
+                'actioned_at'    => null,
+            ]);
+            // 5. Kembalikan status surat ke DIPROSES
+            $surat->update(['status_surat' => 'DIPROSES']);
+            // 6. Notifikasi sistem ke unit pemeriksa
+            if ($targetUnitId) {
+                $targetUsers = \App\Models\User::ofUnitKerja($targetUnitId)->get();
+                if ($targetUsers->isNotEmpty()) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Berkas Pengajuan Telah Diperbaiki')
+                        ->body('Pemohon ' . ($surat->pengirim_nama ?? 'Guest') . ' telah memperbarui berkas untuk surat: ' . $surat->perihal)
+                        ->info()
+                        ->viewData([
+                            'unit_kerja_id' => (int) $targetUnitId,
+                            'surat_id'      => $surat->id,
+                        ])
+                        ->sendToDatabase($targetUsers);
+                }
+            }
+            // Redirect kembali ke halaman pelacakan
+            return redirect()->route('lacak', ['code' => $surat->tracking_code]);
+        }
+
 
         $surat = new \App\Models\Surat();
 
