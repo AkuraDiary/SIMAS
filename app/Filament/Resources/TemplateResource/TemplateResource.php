@@ -291,7 +291,7 @@ class TemplateResource extends Resource
                             ->profile('full')
                             ->label('')
                             ->placeholder('Mulai mengetik template Anda di sini...')
-                            ->fileAttachmentsDisk('public')
+                            ->fileAttachmentsDisk('private')
                             ->fileAttachmentsDirectory('template-attachments')
                             ->setCustomConfigs([
                                         'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',

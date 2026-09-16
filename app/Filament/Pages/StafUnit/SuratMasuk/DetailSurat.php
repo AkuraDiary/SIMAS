@@ -125,6 +125,29 @@ class DetailSurat extends Page implements HasForms
             'arsipSurats.kategoriArsip',
             'arsipSurats.unitKerja',
         ]);
+
+        // Self-Healing: Jika surat PENGAJUAN belum memiliki SuratRiwayat sama sekali
+        // if ($this->surat->tipe_surat === 'PENGAJUAN' && $this->surat->riwayats->isEmpty()) {
+        //     $targetUnitId = $this->surat->unitTujuan->first()?->id ?? $this->userUnitId;
+        //     $unitAsalId = $this->surat->unit_pengirim_id ?? $targetUnitId;
+
+        //     if ($targetUnitId) {
+        //         \App\Models\SuratRiwayat::create([
+        //             'surat_id'       => $this->surat->id,
+        //             'parent_id'      => null,
+        //             'unit_asal_id'   => $unitAsalId,
+        //             'unit_tujuan_id' => $targetUnitId,
+        //             'user_aktor_id'  => null,
+        //             'status'         => 'MENUNGGU',
+        //             'catatan'        => 'Inisialisasi pengajuan dari: ' . ($this->surat->pengirim_nama ?? 'Guest'),
+        //             'actioned_at'    => null,
+        //         ]);
+
+        //         // Muat ulang relasi riwayats agar langsung terbaca di memori
+        //         $this->surat->load('riwayats');
+        //     }
+        // }
+
         // $this->surat = $surat->load([
         //     'template',
         //     'unitPengirim',

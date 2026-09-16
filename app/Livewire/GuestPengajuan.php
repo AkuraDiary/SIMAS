@@ -318,9 +318,6 @@ class GuestPengajuan extends Component implements HasForms
         $surat->pengirim_email = $state['pengirim_email'] ?? null;
         $surat->tanggal_kirim = now();
 
-
-
-
         $metadata = [
             'tipe_pengirim' => $state['tipe_pengirim'] ?? 'guest',
             'telp' => $state['pengirim_telp'] ?? null,
@@ -339,7 +336,7 @@ class GuestPengajuan extends Component implements HasForms
             $surat->template_id = null;
             $surat->perihal = $state['perihal'] ?? 'Pengajuan Guest';
             $scratchContent = $state['content'] ?? [];
-            $scratchContent['html'] = $state['content_scratch'] ?? '';
+            $scratchContent['isi_surat'] = $state['content_scratch'] ?? '';
             $surat->content = $scratchContent;
         } else {
             $surat->template_id = $state['template_id'];
@@ -373,22 +370,81 @@ class GuestPengajuan extends Component implements HasForms
             ]);
         }
 
+        $targetUnitId = null;
+        if ($isScratch && !empty($state['unit_tujuan'])) {
+            $targetUnitId = (int) $state['unit_tujuan'];
+        } elseif (!$isScratch && isset($template) && $template->entry_point_unit_id) {
+            $targetUnitId = (int) $template->entry_point_unit_id;
+        }
+
+
+        // Inisialisasi langkah awal alur persetujuan (Workflow)
+        if ($targetUnitId) {
+
+            $surat->unitTujuan()->syncWithoutDetaching([
+                $targetUnitId => [
+                    'jenis_tujuan'   => 'UTAMA',
+                    'tanggal_terima' => now(),
+                    'status_baca'    => 'BELUM',
+                ],
+            ]);
+
+            $unitAsalId = $state['pengirim_prodi']
+                ?? $state['pengirim_fakultas']
+                ?? $targetUnitId;
+
+            \App\Models\SuratRiwayat::create([
+                'surat_id'       => $surat->id,
+                'parent_id'      => null,
+                'unit_asal_id'   => $unitAsalId,
+                'unit_tujuan_id' => $targetUnitId,
+                'user_aktor_id'  => null,
+                'status'         => 'MENUNGGU',
+                'catatan'        => 'Pengajuan baru dari: ' . ($surat->pengirim_nama ?? 'Guest'),
+                'actioned_at'    => null,
+            ]);
+        }
+
+
         // Process file uploads (Spatie Media Library)
         if (!empty($state['lampiran'])) {
-            foreach ($state['lampiran'] as $file) {
+            $privateStorage = \Illuminate\Support\Facades\Storage::disk('private');
+            foreach ($state['lampiran'] as $index => $file) {
+                // Jika berupa object upload langsung
                 if (is_object($file) && method_exists($file, 'getRealPath')) {
                     $surat->addMedia($file->getRealPath())
                         ->usingFileName($file->getClientOriginalName())
                         ->toMediaCollection('lampiran-surat');
-                } elseif (is_string($file)) {
-                    $path = storage_path('app/public/' . $file);
-                    if (file_exists($path)) {
-                        $surat->addMedia($path)
+                }
+                // Jika berupa string path dari FileUpload
+                elseif (is_string($file)) {
+                    $fullPath = $privateStorage->path($file);
+                    if (file_exists($fullPath)) {
+                        $originalName = $state['lampiran_names'][$file]
+                            ?? $state['lampiran_names'][$index]
+                            ?? basename($file);
+                        $surat->addMedia($fullPath)
+                            ->usingFileName($originalName)
                             ->toMediaCollection('lampiran-surat');
                     }
                 }
             }
         }
+        // if (!empty($state['lampiran'])) {
+        //     foreach ($state['lampiran'] as $file) {
+        //         if (is_object($file) && method_exists($file, 'getRealPath')) {
+        //             $surat->addMedia($file->getRealPath())
+        //                 ->usingFileName($file->getClientOriginalName())
+        //                 ->toMediaCollection('lampiran-surat');
+        //         } elseif (is_string($file)) {
+        //             $path = storage_path('app/public/' . $file);
+        //             if (file_exists($path)) {
+        //                 $surat->addMedia($path)
+        //                     ->toMediaCollection('lampiran-surat');
+        //             }
+        //         }
+        //     }
+        // }
 
         // Clear the form data
         $this->data = [];

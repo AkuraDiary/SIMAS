@@ -47,6 +47,8 @@ trait HasSuratTimeline
             'icon' => 'heroicon-m-document-plus',
         ];
 
+        // dd($this->surat->unitTujuan);
+
         // 1.B. Surat Dikirim ke Banyak Tujuan (Tujuan Utama & Tembusan)
         if ($this->surat->unitTujuan->isNotEmpty() && $this->surat->status_surat !== 'DRAFT') {
             $tujuanUtama = [];
@@ -67,6 +69,7 @@ trait HasSuratTimeline
                 }
             }
 
+            // dd($tujuanUtama);
             $totalTujuan = count($tujuanUtama) + count($tembusan);
             $timeline[] = [
                 'title' => 'Surat Dikirim ke ' . $totalTujuan . ' Unit Penerima',
@@ -81,20 +84,20 @@ trait HasSuratTimeline
             ];
 
             // 1.C. Milestone Saat Masing-Masing Unit Membuka/Menerima Surat
-            foreach ($this->surat->unitTujuan as $unit) {
-                if ($unit->pivot->status_baca === 'SUDAH' && $unit->pivot->tanggal_terima) {
-                    $jenis = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'TEMBUSAN' ? 'Tembusan' : 'Tujuan Utama';
-                    $timeline[] = [
-                        'title' => "Surat Dibaca & Diterima ({$jenis})",
-                        'actor' => 'Petugas Unit',
-                        'unit' => $unit->nama_unit,
-                        'catatan' => null,
-                        'date' => $unit->pivot->tanggal_terima,
-                        'color' => 'bg-teal-500 ring-teal-100 dark:ring-teal-900',
-                        'icon' => 'heroicon-m-envelope-open',
-                    ];
-                }
-            }
+            // foreach ($this->surat->unitTujuan as $unit) {
+            //     if ($unit->pivot->status_baca === 'SUDAH' && $unit->pivot->tanggal_terima) {
+            //         $jenis = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'TEMBUSAN' ? 'Tembusan' : 'Tujuan Utama';
+            //         $timeline[] = [
+            //             'title' => "Surat Dibaca & Diterima ({$jenis})",
+            //             'actor' => 'Petugas Unit',
+            //             'unit' => $unit->nama_unit,
+            //             'catatan' => null,
+            //             'date' => $unit->pivot->tanggal_terima,
+            //             'color' => 'bg-teal-500 ring-teal-100 dark:ring-teal-900',
+            //             'icon' => 'heroicon-m-envelope-open',
+            //         ];
+            //     }
+            // }
         }
 
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
@@ -105,7 +108,7 @@ trait HasSuratTimeline
                 'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
-                'MENUNGGU' => 'Menunggu persetujuan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'MENUNGGU' => 'Menunggu tindakan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITOLAK' => 'Ditolak permanen oleh: ' . ($riwayat->unitAsal?->nama_unit ?? '-'),
                 'REVISI' => 'Dikembalikan ke pembuat: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 default => $riwayat->status,

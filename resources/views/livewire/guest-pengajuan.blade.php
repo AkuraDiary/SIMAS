@@ -1,7 +1,7 @@
-<div class="max-w-full mx-auto py-10 px-2 sm:px-6 lg:px-4">
+<div class="max-w-[85%] mx-auto py-10 px-2 sm:px-6 lg:px-4">
     @if($submitted)
     <!-- Success State -->
-    <div class="max-w-[60%] bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
+    <div class="max-w-[60%] mx-auto bg-white shadow-sm sm:rounded-2xl p-10 text-center border border-gray-100">
         <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
             <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
