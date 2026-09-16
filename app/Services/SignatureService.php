@@ -46,7 +46,7 @@ class SignatureService
                     $decoded_image = base64_decode($base64_image);
                     $fileName = 'signatures/drawn_' . $surat->id . '_' . $actor->id . '_' . time() . '.' . $type;
 
-                    Storage::disk('public')->put($fileName, $decoded_image);
+                    Storage::disk('private')->put($fileName, $decoded_image);
                     $finalQrCodePath = $fileName;
                 }
             }
@@ -55,7 +55,7 @@ class SignatureService
         elseif ($qrCodeType === 'generate') {
             $verifyUrl = url('/verify/ttd/' . $surat->id . '/' . $actor->id);
             $qrCodeFileName = 'qr_' . $surat->id . '_' . $actor->id . '_' . time() . '.png';
-            $qrPathAbsolute = storage_path('app/public/signatures/' . $qrCodeFileName);
+            $qrPathAbsolute = storage_path('app/private/signatures/' . $qrCodeFileName);
 
             if (!file_exists(dirname($qrPathAbsolute))) {
                 mkdir(dirname($qrPathAbsolute), 0755, true);
