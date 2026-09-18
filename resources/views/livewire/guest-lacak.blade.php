@@ -232,18 +232,18 @@
         @endphp
 
         @if($isFinished)
-        <div class="rounded-2xl border-2 border-success-500/30 bg-success-50/60 dark:bg-success-950/30 p-6 sm:p-8">
+        <div class="rounded-2xl border-2 hadow-sm border-gray-200  bg-white p-6 sm:p-8">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div class="flex items-start gap-4">
-                    <div class="w-12 h-12 rounded-xl bg-success-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-success-500/20">
+                    <div class="w-12 h-12 rounded-xl  flex items-center justify-center shrink-0">
                         <x-filament::icon icon="heroicon-o-document-check" class="w-7 h-7" />
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                            Dokumen Surat Resmi Telah Terbit!
+                            Balasan Surat Sudah Terbit!
                         </h3>
                         <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            Pengajuan Anda telah selesai diproses dan surat balasan/rekomendasi resmi telah diterbitkan oleh pihak berwenang.
+                            Pengajuan anda telah selesai diproses dan surat balasan telah diterbitkan oleh pihak berwenang.
                         </p>
                         @if($terbitan?->nomor_surat)
                         <p class="text-xs font-mono font-semibold text-success-800 dark:text-success-400 mt-2 bg-success-100 dark:bg-success-900/50 inline-block px-2.5 py-1 rounded-md">
@@ -258,18 +258,14 @@
                     <x-filament::button
                         wire:click="downloadTerbitan({{ $terbitan->id }})"
                         size="lg"
-                        color="success"
-                        icon="heroicon-m-arrow-down-tray"
-                        class="w-full sm:w-auto justify-center">
-                        Unduh Dokumen Resmi
+                        class="w-full sm:w-auto justify-center text-white bg-green-600">
+                        Unduh Dokumen
                     </x-filament::button>
                     @else
                     <x-filament::button
                         wire:click="downloadTerbitan({{ $surat->id }})"
                         size="lg"
-                        color="success"
-                        icon="heroicon-m-arrow-down-tray"
-                        class="w-full sm:w-auto justify-center">
+                        class="w-full sm:w-auto justify-center text-white bg-green-600">
                         Unduh Dokumen
                     </x-filament::button>
                     @endif

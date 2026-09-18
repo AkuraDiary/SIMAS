@@ -1,10 +1,11 @@
 <?php
 
+use App\Http\Controllers\MediaController;
+use App\Http\Controllers\SuratExportController;
+use App\Http\Controllers\TtdVerificationController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\MediaController;
-use App\Http\Controllers\SuratExportController;
 
 
 
@@ -19,6 +20,12 @@ Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
 Route::get('/pengajuan', \App\Livewire\GuestPengajuan::class)->name('pengajuan');
 Route::get('/lacak', \App\Livewire\GuestLacak::class)->name('lacak');
 Route::get('/aktivasi', \App\Livewire\Auth\AktivasiAkun::class)->name('aktivasi');
+
+Route::get('/verify/ttd/{surat}/{user}', [TtdVerificationController::class, 'verify'])
+    ->name('verify.ttd');
+    
+Route::get('/verify/ttd/{surat}/download', [\App\Http\Controllers\TtdVerificationController::class, 'downloadDokumen'])
+    ->name('verify.ttd.download');
 
 Route::middleware('auth')->group(function () {
     Route::get('/media/{media}/file', [MediaController::class, 'file'])

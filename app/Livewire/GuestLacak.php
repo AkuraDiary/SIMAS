@@ -168,7 +168,7 @@ class GuestLacak extends Component
             'unit_tujuan_id' => $targetUnitId,
             'user_aktor_id'  => null,
             'status'         => 'MENUNGGU',
-            'catatan'        => 'Menunggu verifikasi ulang setelah dokumen diperbaiki oleh pemohon.',
+            'catatan'        => '',
             'actioned_at'    => null,
         ]);
         // 5. Kembalikan status surat menjadi DIPROSES

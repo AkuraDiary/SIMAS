@@ -149,6 +149,11 @@ class Surat extends Model implements HasMedia
         return $this->hasMany(SuratTtd::class);
     }
 
+    public function suratTtds(): HasMany
+    {
+        return $this->ttds();
+    }
+
     public function nomorSuratLogs(): HasMany
     {
         return $this->hasMany(NomorSuratLog::class);

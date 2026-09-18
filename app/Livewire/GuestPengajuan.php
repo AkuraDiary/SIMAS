@@ -500,7 +500,7 @@ class GuestPengajuan extends Component implements HasForms
                 'unit_tujuan_id' => $targetUnitId,
                 'user_aktor_id'  => null,
                 'status'         => 'MENUNGGU',
-                'catatan'        => 'Menunggu verifikasi ulang pasca perbaikan berkas oleh pemohon.',
+                'catatan'        => '',
                 'actioned_at'    => null,
             ]);
             // 5. Kembalikan status surat ke DIPROSES
