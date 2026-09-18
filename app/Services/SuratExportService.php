@@ -49,6 +49,14 @@ class SuratExportService
 
     protected function generateSuratPdf(Surat $surat, string $dir): void
     {
+
+       // Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut!
+        $dokumenFinal = $surat->getFirstMedia('dokumen-final');
+        if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
+            copy($dokumenFinal->getPath(), $dir . '/01_Surat_Resmi.pdf');
+            return;
+        }
+
         $renderedHtml = null;
         if ($surat->template_id && $surat->template) {
             $service = app(\App\Services\PlaceholderService::class);

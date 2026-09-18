@@ -207,7 +207,7 @@ class SuratForm
                                     ->options([
                                         'INTERNAL' => 'Internal',
                                         'PENGAJUAN' => 'Pengajuan',
-                                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                                        'TERBITAN' => 'Terbitan',
                                         'EKSTERNAL' => 'Eksternal',
                                     ])
                                     ->default('INTERNAL')

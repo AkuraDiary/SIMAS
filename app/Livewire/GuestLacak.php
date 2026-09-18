@@ -91,14 +91,33 @@ class GuestLacak extends Component
             return;
         }
 
-        // 1. Ambil berkas dari koleksi media jika sudah tersedia
+        // Jika terbitan memiliki lampiran tambahan, bundle PDF resmi + Lampiran menjadi ZIP!
+        $attachments = $terbitan->getMedia('lampiran-surat');
+        if ($attachments->isNotEmpty()) {
+            try {
+                $exportService = app(SuratExportService::class);
+                $zipPath = $exportService->export($terbitan);
+                return response()->download($zipPath)->deleteFileAfterSend();
+            } catch (\Throwable $e) {
+                $this->errorMsg = 'Gagal membundel berkas: ' . $e->getMessage();
+                return;
+            }
+        }
+        // Jika tidak ada lampiran tambahan, unduh PDF resmi dokumen-final langsung
         $media = $terbitan->getFirstMedia('dokumen-final')
-            ?? $terbitan->getFirstMedia('lampiran-surat')
-            ?? $this->surat->getFirstMedia('dokumen-final');
-
+            ?? $terbitan->getFirstMedia('lampiran-surat');
         if ($media && file_exists($media->getPath())) {
             return response()->download($media->getPath(), $media->file_name);
         }
+
+        // // 1. Ambil berkas dari koleksi media jika sudah tersedia
+        // $media = $terbitan->getFirstMedia('dokumen-final')
+        //     ?? $terbitan->getFirstMedia('lampiran-surat')
+        //     ?? $this->surat->getFirstMedia('dokumen-final');
+
+        // if ($media && file_exists($media->getPath())) {
+        //     return response()->download($media->getPath(), $media->file_name);
+        // }
 
         // 2. Jika belum ada berkas fisik, buat dokumen PDF/ZIP on-the-fly via SuratExportService
         try {
@@ -122,7 +141,7 @@ class GuestLacak extends Component
         $this->showRevisiModal = false;
     }
 
-     public function submitRevisi(): void
+    public function submitRevisi(): void
     {
         if (! $this->surat || $this->surat->status_surat !== 'REVISI') {
             return;

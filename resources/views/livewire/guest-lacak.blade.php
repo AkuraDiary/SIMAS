@@ -225,13 +225,11 @@
         @endif
 
         <!-- 2. KARTU HASIL PENGUNDUHAN DOKUMEN RESMI (FR-REQ-05) -->
-        @php
-        // Ambil data surat Terbitan jika ada
-        $terbitan = $surat->terbitans()->latest()->first();
-        $isFinished = in_array($surat->status_surat, ['SELESAI', 'TERBIT']) || $terbitan;
+       @php
+        $terbitan = $surat->terbitans()->whereIn('status_surat', ['SELESAI', 'TERBIT'])->latest()->first();
+        $attachmentCount = $terbitan ? $terbitan->getMedia('lampiran-surat')->count() : 0;
         @endphp
-
-        @if($isFinished)
+        @if($terbitan)
         <div class="rounded-2xl border-2 hadow-sm border-gray-200  bg-white p-6 sm:p-8">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div class="flex items-start gap-4">
