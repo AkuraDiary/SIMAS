@@ -30,6 +30,8 @@ class CreateSurat extends CreateRecord
             $data['content'] = $content;
         }
 
+         unset($data['custom_nomor_tags']); 
+
         // Jika pakai template dan Path Builder manual kosong, copy dari Template!
         if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
             if (empty($data['approval_path'])) {

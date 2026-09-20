@@ -49,23 +49,37 @@ class SuratExportService
 
     protected function generateSuratPdf(Surat $surat, string $dir): void
     {
+        // Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut!
+        $dokumenFinal = $surat->getFirstMedia('dokumen-final');
+        if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
+            copy($dokumenFinal->getPath(), $dir . '/01_Surat_Utama.pdf');
+            return;
+        }
+        // 2. Fallback: generate HTML surat
         $renderedHtml = null;
         if ($surat->template_id && $surat->template) {
             $service = app(\App\Services\PlaceholderService::class);
-            $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? []);
+            $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? [], $surat);
         } else {
-            $renderedHtml = $surat->isi_surat;
+            $renderedHtml = $surat->content['isi_surat'] ?? '';
         }
-
-        $pdf = Pdf::loadView(
+        $suratHtml = view(
             'filament.exports.surat.surat',
             [
                 'surat'        => $surat,
                 'isArsip'      => $surat->status_surat === 'ARSIP',
                 'renderedHtml' => $renderedHtml,
             ]
-        );
+        )->render();
+        // Sertakan lembar metadata jika surat berasal dari pengajuan
+        $metadataHtml = view('filament.exports.surat.metadata', [
+            'surat' => $surat,
+        ])->render();
 
+
+        $suratHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
+        // }
+        $pdf = Pdf::loadHTML($suratHtml);
         $pdf->save($dir . '/01_Surat_Utama.pdf');
     }
 

@@ -84,12 +84,21 @@ class PlaceholderService
             foreach ($surat->suratTtds as $ttd) {
                 if ($ttd->placeholder_key) {
                     $qrImg = '';
-                    if ($ttd->qr_code_path) {
-                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" pointer-events="none" /><br>';
+                      if ($ttd->qr_code_path) {
+                        // Gunakan Base64 Data URI agar DomPDF dan browser dapat merender gambar dari disk private 
+                        $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
+                        if (!file_exists($fullPath)) {
+                            $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
+                        }
+                        if (file_exists($fullPath)) {
+                            $mime = mime_content_type($fullPath) ?: 'image/png';
+                            $base64Data = base64_encode(file_get_contents($fullPath));
+                            $qrImg = '<img src="data:' . $mime . ';base64,' . $base64Data . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" pointer-events="none" /><br>';
+                        }
                     }
 
                     $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
-                    
+
                     // Merge coordinate and width data if available from current Livewire edit state
                     $x = (int) ($data[$ttd->placeholder_key . '_posisi_x'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_x'] ?? $ttd->posisi_x ?? 0));
                     $y = (int) ($data[$ttd->placeholder_key . '_posisi_y'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_y'] ?? $ttd->posisi_y ?? 0));
@@ -99,7 +108,7 @@ class PlaceholderService
 
                     $width = $data[$ttd->placeholder_key . '_width'] ?? ($surat->content[$ttd->placeholder_key . '_width'] ?? null);
                     $widthVal = $width ? (int) $width : 160;
-                    
+
                     $style = "text-align: left; display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
                     $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
 
@@ -228,7 +237,7 @@ class PlaceholderService
         // Clean up remaining un-filled placeholders to make it obvious they are missing
         $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function($m) use ($data, $surat) {
             $key = $m[1];
-            
+
             // If it's a signature placeholder (starts with ttd_)
             if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
                 // Read from live form data, or Surat JSON content
@@ -239,12 +248,12 @@ class PlaceholderService
 
                 $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
                 $widthVal = $width ? (int) $width : 140;
-                
+
                 $style = "color:#ef4444; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #ef4444; padding: 0.25rem; user-select: none; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
                 $resizeHandle = '<div class="signature-resize-handle" style="position: absolute; right: -4px; bottom: -4px; width: 10px; height: 10px; background: #ef4444; border: 1px solid white; border-radius: 50%; cursor: se-resize; z-index: 10;"></div>';
                 return '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">[' . $key . ']' . $resizeHandle . '</div>';
             }
-            
+
             return '<span style="color:#ef4444; font-weight:bold;">[' . $key . ']</span>';
         }, $html);
 

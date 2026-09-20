@@ -91,20 +91,28 @@ class GuestLacak extends Component
             return;
         }
 
-        // 1. Ambil berkas dari koleksi media jika sudah tersedia
-        $media = $terbitan->getFirstMedia('dokumen-final')
-            ?? $terbitan->getFirstMedia('lampiran-surat')
-            ?? $this->surat->getFirstMedia('dokumen-final');
 
+        // Jika terbitan memiliki lampiran, bundel PDF resmi + Lampiran menjadi ZIP
+        $attachments = $terbitan->getMedia('lampiran-surat');
+        if ($attachments->isNotEmpty()) {
+            try {
+                $exportService = app(SuratExportService::class);
+                $zipPath = $exportService->export($terbitan);
+                return response()->download($zipPath)->deleteFileAfterSend();
+            } catch (\Throwable $e) {
+                $this->errorMsg = 'Gagal mengunduh berkas ZIP: ' . $e->getMessage();
+                return;
+            }
+        }
+        // Jika tidak ada lampiran tambahan, langsung unduh PDF resmi
+        $media = $terbitan->getFirstMedia('dokumen-final')
+            ?? $terbitan->getFirstMedia('lampiran-surat');
         if ($media && file_exists($media->getPath())) {
             return response()->download($media->getPath(), $media->file_name);
         }
-
-        // 2. Jika belum ada berkas fisik, buat dokumen PDF/ZIP on-the-fly via SuratExportService
         try {
             $exportService = app(SuratExportService::class);
             $zipPath = $exportService->export($terbitan);
-
             return response()->download($zipPath)->deleteFileAfterSend();
         } catch (\Throwable $e) {
             $this->errorMsg = 'Gagal mengunduh berkas: ' . $e->getMessage();
@@ -122,7 +130,7 @@ class GuestLacak extends Component
         $this->showRevisiModal = false;
     }
 
-     public function submitRevisi(): void
+    public function submitRevisi(): void
     {
         if (! $this->surat || $this->surat->status_surat !== 'REVISI') {
             return;
@@ -168,7 +176,7 @@ class GuestLacak extends Component
             'unit_tujuan_id' => $targetUnitId,
             'user_aktor_id'  => null,
             'status'         => 'MENUNGGU',
-            'catatan'        => 'Menunggu verifikasi ulang setelah dokumen diperbaiki oleh pemohon.',
+            'catatan'        => '',
             'actioned_at'    => null,
         ]);
         // 5. Kembalikan status surat menjadi DIPROSES

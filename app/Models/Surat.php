@@ -149,6 +149,11 @@ class Surat extends Model implements HasMedia
         return $this->hasMany(SuratTtd::class);
     }
 
+    public function suratTtds(): HasMany
+    {
+        return $this->ttds();
+    }
+
     public function nomorSuratLogs(): HasMany
     {
         return $this->hasMany(NomorSuratLog::class);
@@ -243,25 +248,41 @@ class Surat extends Model implements HasMedia
             ]);
     }
 
-    public function scopeUntukUnit(Builder $query, int $unitId): Builder
+       public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query
             ->where('status_surat', '<>', 'DRAFT')
             ->where(function ($q) use ($unitId) {
-                $q->whereHas(
-                    'suratUnits',
-                    fn($sq) => $sq->where('unit_kerja_id', $unitId)
-                )
-                    ->orWhereHas(
-                        'disposisis',
-                        fn($dq) => $dq->where('unit_tujuan_id', $unitId)
-                    )
-                    ->orWhereHas(
-                        'riwayats',
-                        fn($rq) => $rq->where('unit_tujuan_id', $unitId)
-                    );
+                // 1. Surat yang ditujukan ke unit ini sebagai penerima resmi
+                $q->whereHas('suratUnits', fn($sq) => $sq->where('unit_kerja_id', $unitId))
+                    // 2. Atau surat yang didisposisikan ke unit ini
+                    ->orWhereHas('disposisis', fn($dq) => $dq->where('unit_tujuan_id', $unitId))
+                    // 3. Atau surat alur persetujuan untuk unit ini (aktif menunggu maupun sudah disetujui)
+                    ->orWhereHas('riwayats', function ($rw) use ($unitId) {
+                        $rw->where('unit_tujuan_id', $unitId)
+                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI']);
+                    });
             });
     }
+    // public function scopeUntukUnit(Builder $query, int $unitId): Builder
+    // {
+    //     return $query
+    //         ->where('status_surat', '<>', 'DRAFT')
+    //         ->where(function ($q) use ($unitId) {
+    //             $q->whereHas(
+    //                 'suratUnits',
+    //                 fn($sq) => $sq->where('unit_kerja_id', $unitId)
+    //             )
+    //                 ->orWhereHas(
+    //                     'disposisis',
+    //                     fn($dq) => $dq->where('unit_tujuan_id', $unitId)
+    //                 )
+    //                 ->orWhereHas(
+    //                     'riwayats',
+    //                     fn($rq) => $rq->where('unit_tujuan_id', $unitId)
+    //                 );
+    //         });
+    // }
 
     public function scopeMasukLangsung(Builder $query, int $unitId): Builder
     {

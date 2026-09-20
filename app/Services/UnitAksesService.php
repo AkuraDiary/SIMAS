@@ -22,8 +22,7 @@ class UnitAksesService
 
         $activeJabatanId = $user->getActiveJabatan()?->id;
 
-        // Restricted Mode (Disposisi Only):
-        // User can only see letters where there is a disposisi for this unit or letter assigned to user in this unit
+        // Restricted Mode (Disposisi & Workflow yang ditugaskan ke user/unit):
         return $query
             ->where('status_surat', '<>', 'DRAFT')
             ->where(function (Builder $q) use ($unitId, $user, $activeJabatanId) {
@@ -36,14 +35,17 @@ class UnitAksesService
                                 ->orWhere('user_pembuat_id', $user->id);
                         });
                 })
-                // 2. Letters in workflow where this user is the actor in this unit
-                ->orWhereHas('riwayats', function (Builder $rq) use ($unitId, $user) {
-                    $rq->where('unit_tujuan_id', $unitId)
-                        ->where('user_aktor_id', $user->id);
-                });
+                    // 2. Letters in workflow for this unit (actively waiting or approved)
+                    ->orWhereHas('riwayats', function (Builder $rw) use ($unitId, $user) {
+                        $rw->where('unit_tujuan_id', $unitId)
+                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI'])
+                            ->where(function ($s) use ($user) {
+                                $s->whereNull('user_aktor_id')
+                                    ->orWhere('user_aktor_id', $user->id);
+                            });
+                    });
             });
     }
-
     /**
      * Apply letter visibility filters for a user viewing Arsip Surat in a specific unit.
      */

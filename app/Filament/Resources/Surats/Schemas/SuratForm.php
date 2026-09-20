@@ -207,7 +207,7 @@ class SuratForm
                                     ->options([
                                         'INTERNAL' => 'Internal',
                                         'PENGAJUAN' => 'Pengajuan',
-                                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                                        'TERBITAN' => 'Terbitan',
                                         'EKSTERNAL' => 'Eksternal',
                                     ])
                                     ->default('INTERNAL')
@@ -216,18 +216,16 @@ class SuratForm
 
                                 Select::make('terbitan_for_surat_id')
                                     ->label('Merujuk ke Pengajuan')
-                                    ->options(function (?\App\Models\Surat $record) {
-                                        // =========================================================================
-                                        // [PENGATURAN STATUS PENGAJUAN RUJUKAN]
-                                        // Ubah atau tambahkan status di sini jika diperlukan (misal: ['SELESAI', 'DIPROSES']).
-                                        // =========================================================================
-                                        $allowedStatuses = ['SELESAI'];
-
+                                    ->options(function (Get $get, ?\App\Models\Surat $record) {
+                                        // Izinkan rujukan baik yang berstatus SELESAI maupun yang sedang DIPROSES
+                                        $allowedStatuses = ['SELESAI', 'DIPROSES'];
                                         $activeUnitId = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan()?->unit_kerja_id
                                             ?? \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
-
-                                        $requestedId = $record?->terbitan_for_surat_id
+                                        // Tangkap ID yang sedang terpilih di form, record, maupun query URL
+                                        $requestedId = $get('terbitan_for_surat_id')
+                                            ?? $record?->terbitan_for_surat_id
                                             ?? request()->query('terbitan_for_surat_id');
+
 
                                         return \App\Models\Surat::query()
                                             ->where('tipe_surat', 'PENGAJUAN')
@@ -297,9 +295,39 @@ class SuratForm
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'EKSTERNAL'),
                             ]),
 
+                            TextEntry::make('info_penerima_pengajuan')
+                                ->hiddenLabel()
+                                ->state(function (Get $get) {
+                                    $pengajuanId = $get('terbitan_for_surat_id');
+                                    if (!$pengajuanId) return null;
+                                    $pengajuan = \App\Models\Surat::find($pengajuanId);
+                                    if (!$pengajuan) return null;
+                                    $nama = $pengajuan->pengirim_nama ?? 'Pemohon';
+                                    $identitas = $pengajuan->pengirim_nim
+                                        ? "NIM: {$pengajuan->pengirim_nim} (Mahasiswa)"
+                                        : ($pengajuan->pengirim_metadata['instansi'] ?? 'Pihak Eksternal');
+                                    return new \Illuminate\Support\HtmlString("
+                                        <div class='flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900'>
+                                            <div class='w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 text-emerald-700 font-bold'>
+                                                <svg class='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'/></svg>
+                                            </div>
+                                            <div>
+                                                <span class='text-xs font-bold uppercase tracking-wider text-emerald-700'>Penerima Dokumen Terbitan:</span>
+                                                <p class='text-sm font-bold text-gray-900'>{$nama} <span class='text-xs font-normal text-gray-600'>({$identitas})</span></p>
+                                                <p class='text-xs text-gray-500 mt-0.5'>Surat resmi akan langsung tersedia untuk diunduh oleh pemohon setelah selesai ditandatangani.</p>
+                                            </div>
+                                        </div>
+                                    ");
+                                })
+                                ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
+
+
+
                             Select::make('unitTujuan')
-                                ->helperText('Unit pertama dianggap sebagai tujuan utama, sisanya sebagai tembusan')
-                                ->label('Penerima (Recipient)')
+                                ->label(fn(Get $get) => filled($get('terbitan_for_surat_id')) ? 'Tembusan Unit Internal (Opsional)' : 'Penerima Surat (Unit Tujuan)')
+                                ->helperText(fn(Get $get) => filled($get('terbitan_for_surat_id'))
+                                    ? 'Opsional: pilih unit internal yang perlu menerima tembusan surat terbitan ini.'
+                                    : 'Unit pertama dianggap sebagai tujuan utama, unit berikutnya sebagai tembusan.')
                                 ->multiple()
                                 ->relationship(
                                     'unitTujuan',
@@ -308,6 +336,7 @@ class SuratForm
                                 )
                                 ->searchable()
                                 ->preload(),
+
 
                             TextInput::make('perihal')
                                 ->label('Perihal Surat (Subject)')

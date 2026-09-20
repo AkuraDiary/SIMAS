@@ -212,7 +212,7 @@ class SuratMasuk extends Page implements HasTable
                     ->options([
                         'INTERNAL' => 'Internal',
                         'PENGAJUAN' => 'Pengajuan',
-                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                        'TERBITAN' => 'Terbitan',
                         'EKSTERNAL' => 'Eksternal',
                     ]),
             ])
