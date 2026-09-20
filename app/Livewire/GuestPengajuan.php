@@ -675,47 +675,58 @@ class GuestPengajuan extends Component implements HasForms
         $this->trackingCode = $surat->tracking_code;
         $this->submitted = true;
 
-        // TODO SETA SEND NOTIFICATION TO THE CORRESPONDING RECEIVER VIA NOTIFICATION SERVICE
+        // NOTIFIKASI KE PENERIMA SESUAI KEBIJAKAN AKSES UNIT
+        $targetUnitId = $targetUnitId ?? $surat->unitTujuan()->first()?->id;
 
-        //  $targetUnitId = $lastRevisi?->unit_tujuan_id ?? $surat->unitTujuan->first()?->id;
-        //     $unitAsalId = $surat->unit_pengirim_id ?? $targetUnitId;
-        //     \App\Models\SuratRiwayat::create([
-        //         'surat_id'       => $surat->id,
-        //         'parent_id'      => $lastRevisi?->id,
-        //         'unit_asal_id'   => $unitAsalId,
-        //         'unit_tujuan_id' => $targetUnitId,
-        //         'user_aktor_id'  => null,
-        //         'status'         => 'DIPERBARUI',
-        //         'catatan'        => $state['catatan_perbaikan'] ?? 'Pemohon telah memperbarui dokumen permohonan.',
-        //         'actioned_at'    => now(),
-        //     ]);
-        //     \App\Models\SuratRiwayat::create([
-        //         'surat_id'       => $surat->id,
-        //         'parent_id'      => null,
-        //         'unit_asal_id'   => $unitAsalId,
-        //         'unit_tujuan_id' => $targetUnitId,
-        //         'user_aktor_id'  => null,
-        //         'status'         => 'MENUNGGU',
-        //         'catatan'        => '',
-        //         'actioned_at'    => null,
-        //     ]);
-        //     // 5. Kembalikan status surat ke DIPROSES
-        //     $surat->update(['status_surat' => 'DIPROSES']);
-        //     // 6. Notifikasi sistem ke unit pemeriksa
-        //     if ($targetUnitId) {
-        //         $targetUsers = \App\Models\User::ofUnitKerja($targetUnitId)->get();
-        //         if ($targetUsers->isNotEmpty()) {
-        //             \Filament\Notifications\Notification::make()
-        //                 ->title('Surat Dari Eksternal')
-        //                 ->body('Anda menerima surat dari laman publik' . ($surat->pengirim_nama ?? 'Guest') . ' ()' . $surat->perihal . ')')
-        //                 ->info()
-        //                 ->viewData([
-        //                     'unit_kerja_id' => (int) $targetUnitId,
-        //                     'surat_id'      => $surat->id,
-        //                 ])
-        //                 ->sendToDatabase($targetUsers);
-        //         }
-        //     }
+        if ($targetUnitId) {
+            // Ambil staf unit dan filter HANYA mereka yang berhak menerima/melihat surat masuk
+            // (Memperhitungkan: Kepala Unit, delegasi SEMUA, kebijakan TERBUKA/LEVEL_JABATAN/TERBATAS_DISPOSISI)
+            $targetUsers = \App\Models\User::ofUnitKerja($targetUnitId)
+                ->get()
+                ->filter(fn(\App\Models\User $user) => $user->canViewAllSuratMasukUnit($targetUnitId));
+
+            // Fallback pengaman: jika policy sangat ketat hingga kosong, pastikan minimal Kepala Unit menerima
+            if ($targetUsers->isEmpty()) {
+                $kepala = \App\Models\UnitKerja::find($targetUnitId)?->getKepalaUnit()?->pegawai?->user;
+                if ($kepala) {
+                    $targetUsers = collect([$kepala]);
+                }
+            }
+
+            if ($targetUsers->isNotEmpty()) {
+                // 1. Notifikasi In-App Database Filament (Hanya ke user yang berhak melihat surat)
+                \Filament\Notifications\Notification::make()
+                    ->title('Pengajuan Surat Baru Masuk')
+                    ->body('Terdapat permohonan surat baru dari ' . ($surat->pengirim_nama ?? 'Pemohon') . ': ' . $surat->perihal)
+                    ->info()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $targetUnitId,
+                        'surat_id'      => $surat->id,
+                    ])
+                    ->sendToDatabase($targetUsers);
+
+                // 2. Notifikasi WhatsApp ke Petugas yang Berhak (dan mengaktifkan notif WA surat_masuk)
+                app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
+            }
+        }
+
+        // 3. (Opsional) Kirim Tanda Terima & Tautan Lacak Langsung ke WhatsApp Pemohon
+        $pemohonPhone = $state['pengirim_telp'] ?? null;
+        if (!empty($pemohonPhone)) {
+            $appUrl = rtrim(config('app.url', config('app.asset_url', url('/'))), '/');
+            $namaPemohon = $surat->pengirim_nama ?? 'Pemohon';
+            $pesanKonfirmasi = "*SIMAS: Konfirmasi Pengajuan Surat*\n"
+                . "Halo, *{$namaPemohon}*!\n\n"
+                . "Permohonan surat Anda telah berhasil dikirimkan ke unit tujuan dengan rincian:\n"
+                . "• *Kode Lacak*: *{$surat->tracking_code}*\n"
+                . "• *Perihal*: {$surat->perihal}\n"
+                . "• *Waktu Pengajuan*: " . now()->translatedFormat('d F Y H:i') . "\n\n"
+                . "Anda dapat memantau status surat secara berkala melalui tautan:\n"
+                . "🔗 {$appUrl}/lacak?code={$surat->tracking_code}\n\n"
+                . "_Pesan otomatis dikirim oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS)._";
+
+            app(\App\Services\FonnteService::class)->send($pemohonPhone, $pesanKonfirmasi);
+        }
     }
 
     public function downloadExistingMedia(int $mediaId)
