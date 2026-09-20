@@ -96,6 +96,7 @@ trait HasApprovalActions
                 ->options([
                     'generate' => 'Generate Otomatis dari Sistem (Verifikasi Internal)',
                     'upload'   => 'Unggah QR Code Eksternal (BSrE, Privy, dll)',
+                    'draw'     => 'Goreskan Tanda Tangan Langsung (Canvas TTD)',
                     'none'     => 'Tanpa QR Code (Hanya Nama Terang)',
                 ])
                 ->default('generate')

@@ -128,147 +128,176 @@ class SuratRoutingService
             }
 
             // 3. Advance to next step or mark as final
+            // 3. Advance to next step or mark as final
             $automatedNextUnitId = null;
+            $currentIndex = -1;
 
             if (!empty($surat->approval_path) && is_array($surat->approval_path)) {
-                // Temukan kita ada di index ke berapa
-                $currentIndex = -1;
-                $currentJabatanId = \App\Models\UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
+                $totalSteps = count($surat->approval_path);
+
+                // 3a. Cari index jabatan actor saat ini
+                $userJabatanIds = \App\Models\UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
                     ->where('status_jabatan', 'AKTIF')
-                    ->first()?->jabatan_id;
+                    ->pluck('jabatan_id')
+                    ->map(fn($id) => (int) $id)
+                    ->toArray();
 
                 foreach ($surat->approval_path as $index => $step) {
-                    if ($step['jabatan_id'] == $currentJabatanId) {
+                    $stepJabId = (int) ($step['jabatan_id'] ?? 0);
+                    if (in_array($stepJabId, $userJabatanIds, true)) {
                         $currentIndex = $index;
                         break;
                     }
                 }
-
-                // Jika ada step selanjutnya, arahkan ke sana!
-                if ($currentIndex !== -1 && isset($surat->approval_path[$currentIndex + 1])) {
+                // Fallback jika jabatan tidak match langsung: hitung riwayat persetujuan SEBELUM langkah ini
+                if ($currentIndex === -1) {
+                    $approvedBefore = $surat->riwayats()
+                        ->where('status', 'DISETUJUI')
+                        ->where('id', '!=', $currentRiwayat->id)
+                        ->count();
+                    $currentIndex = min($approvedBefore, $totalSteps - 1);
+                }
+                // 3b. Jika masih ada langkah berikutnya, cari unit tujuan berikutnya
+                if ($currentIndex < ($totalSteps - 1) && isset($surat->approval_path[$currentIndex + 1])) {
                     $nextStep = $surat->approval_path[$currentIndex + 1];
-                    $upj = \App\Models\UserPegawaiJabatan::where('jabatan_id', $nextStep['jabatan_id'])
+                    $nextJabId = (int) ($nextStep['jabatan_id'] ?? 0);
+                    // Cari via UserPegawaiJabatan aktif, ATAU fallback langsung ke unit_kerja_id milik Jabatan
+                    $upj = \App\Models\UserPegawaiJabatan::where('jabatan_id', $nextJabId)
                         ->where('status_jabatan', 'AKTIF')
                         ->first();
+                    $automatedNextUnitId = $upj?->unit_kerja_id
+                        ?? \App\Models\Jabatan::find($nextJabId)?->unit_kerja_id;
+                }
 
-                    if ($upj) {
-                        $automatedNextUnitId = $upj->unit_kerja_id;
+                // Tentukan tujuan akhir: utamakan rute otomatis dari approval_path
+                $finalNextUnitId = $automatedNextUnitId ?? $nextUnitTujuanId;
+                // Surat HANYA final jika:
+                // 1. Parameter $isFinalStep bernilai true (klik Setujui & Selesai), ATAU
+                // 2. Alur terstruktur sudah berada di langkah terakhir ($currentIndex >= total - 1)
+                // KECUALI jika caller secara eksplisit meneruskan ($isFinalStep === false) dan masih ada unit berikutnya!
+                if (!empty($surat->approval_path) && is_array($surat->approval_path)) {
+                    $isLastPathStep = ($currentIndex >= ($totalSteps - 1));
+                    if ($isFinalStep) {
+                        $finalIsFinalStep = true;
+                    } else {
+                        // Jika user klik "Lanjutkan", hanya final jika benar-benar langkah terakhir DAN tidak ada unit berikutnya
+                        $finalIsFinalStep = $isLastPathStep && (!$finalNextUnitId);
                     }
-                }
-            }
-
-            // Tentukan tujuan akhir: override dengan automated route jika ada
-            $finalNextUnitId = $automatedNextUnitId ?? $nextUnitTujuanId;
-            $finalIsFinalStep = $isFinalStep || (!$finalNextUnitId);
-
-            if ($finalIsFinalStep) {
-                $newStatus = 'SELESAI';
-
-                $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
-                    $surat->unit_pengirim_id,
-                    $surat->tipe_surat
-                );
-                if ($format && empty($surat->nomor_surat)) {
-                    $surat->nomor_surat = $format->generateNomorSurat($surat);
+                } else {
+                    $finalIsFinalStep = $isFinalStep || (!$finalNextUnitId);
                 }
 
-                $surat->status_surat = $newStatus;
-                $surat->save();
 
-                // 4. Finalisasi: Render HTML ke PDF dan lampirkan ke Surat
-                if ($surat->template_id) {
-                    // Tarik HTML yang sudah di-inject dengan Nomor Surat dan TTD QR Code
-                    $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
+                if ($finalIsFinalStep) {
+                    $newStatus = 'SELESAI';
+                    $actorUnitId = \App\Models\UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
+                        ->where('status_jabatan', 'AKTIF')
+                        ->first()?->unit_kerja_id ?? $actor->unit_kerja_id;
+                    $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
+                        $surat->unit_pengirim_id ?? $actorUnitId,
+                        $surat->tipe_surat
+                    );
+                    if ($format && empty($surat->nomor_surat)) {
+                        $surat->nomor_surat = $format->generateNomorSurat($surat, ['user_id' => $actor->id]);
+                    }
+                    $surat->status_surat = $newStatus;
+                    $surat->save();
 
-                    // Render menggunakan DomPDF
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
-                    $pdf->setPaper('A4', 'portrait');
-                    $pdfContent = $pdf->output();
+                    // 4. Finalisasi: Render HTML ke PDF dan lampirkan ke Surat
+                    if ($surat->template_id) {
+                        // Tarik HTML yang sudah di-inject dengan Nomor Surat dan TTD QR Code
+                        $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
 
-                    $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat ?? 'Terbitan');
-                    $fileName = 'Surat_Resmi_' . $safeNomor . '.pdf';
+                        // Render menggunakan DomPDF
+                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+                        $pdf->setPaper('A4', 'portrait');
+                        $pdfContent = $pdf->output();
 
-                    // Simpan sebagai media
-                    $surat->addMediaFromString($pdfContent)
-                        ->usingName('Dokumen Final Resmi')
-                        ->usingFileName($fileName)
-                        ->toMediaCollection('dokumen-final');
-                }
+                        $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat ?? 'Terbitan');
+                        $fileName = 'Surat_Resmi_' . $safeNomor . '.pdf';
 
-                // 5. Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
-                if ($surat->terbitan_for_surat_id) {
-                    $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);
-                    if ($pengajuan) {
-                        $pengajuan->update(['status_surat' => 'SELESAI']);
+                        // Simpan sebagai media
+                        $surat->addMediaFromString($pdfContent)
+                            ->usingName('Dokumen Final Resmi')
+                            ->usingFileName($fileName)
+                            ->toMediaCollection('dokumen-final');
+                    }
 
-                        // Kirim notifikasi sistem ke pembuat pengajuan awal
-                        if ($pengajuan->user_pembuat_id) {
-                            $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
-                            if ($targetUser) {
-                                \Filament\Notifications\Notification::make()
-                                    ->title('Surat Terbitan Selesai')
-                                    ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
-                                    ->success()
-                                    ->viewData([
-                                        'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $surat->unit_pengirim_id),
-                                        'surat_id'      => $surat->id,
-                                    ])
-                                    ->sendToDatabase($targetUser);
+                    // 5. Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
+                    if ($surat->terbitan_for_surat_id) {
+                        $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);
+                        if ($pengajuan) {
+                            $pengajuan->update(['status_surat' => 'SELESAI']);
 
-                                app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
-                                    $surat,
-                                    $targetUser,
-                                    'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
-                                );
+                            // Kirim notifikasi sistem ke pembuat pengajuan awal
+                            if ($pengajuan->user_pembuat_id) {
+                                $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
+                                if ($targetUser) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('Surat Terbitan Selesai')
+                                        ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
+                                        ->success()
+                                        ->viewData([
+                                            'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $surat->unit_pengirim_id),
+                                            'surat_id'      => $surat->id,
+                                        ])
+                                        ->sendToDatabase($targetUser);
+
+                                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                        $surat,
+                                        $targetUser,
+                                        'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
+                                    );
+                                }
                             }
+                        }
+                    } else {
+                        // Notifikasi ke pembuat surat bahwa surat selesai disetujui
+                        if ($surat->pembuat) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Surat Selesai & Disetujui')
+                                ->body("Surat '{$surat->perihal}' telah selesai disetujui.")
+                                ->success()
+                                ->viewData([
+                                    'unit_kerja_id' => (int) $surat->unit_pengirim_id,
+                                    'surat_id'      => $surat->id,
+                                ])
+                                ->sendToDatabase($surat->pembuat);
+
+                            app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                $surat,
+                                $surat->pembuat,
+                                $catatan
+                            );
                         }
                     }
                 } else {
-                    // Notifikasi ke pembuat surat bahwa surat selesai disetujui
-                    if ($surat->pembuat) {
+                    SuratRiwayat::create([
+                        'surat_id'       => $surat->id,
+                        'parent_id'      => $currentRiwayat->id,
+                        'unit_asal_id'   => $currentRiwayat->unit_tujuan_id,
+                        'unit_tujuan_id' => $finalNextUnitId,
+                        'user_aktor_id'  => $nextUserAktorId, // biarkan null jika tak dikunci
+                        'status'         => 'MENUNGGU',
+                        'catatan'        => 'Diteruskan untuk proses persetujuan (Otomatis).',
+                        'actioned_at'    => null,
+                    ]);
+
+                    // Notifikasi Surat Masuk ke Unit Selanjutnya
+                    $nextUnitUsers = \App\Models\User::ofUnitKerja($finalNextUnitId)->get();
+                    if ($nextUnitUsers->isNotEmpty()) {
                         \Filament\Notifications\Notification::make()
-                            ->title('Surat Selesai & Disetujui')
-                            ->body("Surat '{$surat->perihal}' telah selesai disetujui.")
-                            ->success()
+                            ->title('Surat Masuk Baru')
+                            ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Unit Sebelumnya') . ": " . $surat->perihal)
+                            ->info()
                             ->viewData([
-                                'unit_kerja_id' => (int) $surat->unit_pengirim_id,
+                                'unit_kerja_id' => (int) $finalNextUnitId,
                                 'surat_id'      => $surat->id,
                             ])
-                            ->sendToDatabase($surat->pembuat);
+                            ->sendToDatabase($nextUnitUsers);
 
-                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
-                            $surat,
-                            $surat->pembuat,
-                            $catatan
-                        );
+                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $nextUnitUsers, $catatan);
                     }
-                }
-            } else {
-                SuratRiwayat::create([
-                    'surat_id'       => $surat->id,
-                    'parent_id'      => $currentRiwayat->id,
-                    'unit_asal_id'   => $currentRiwayat->unit_tujuan_id,
-                    'unit_tujuan_id' => $finalNextUnitId,
-                    'user_aktor_id'  => $nextUserAktorId, // biarkan null jika tak dikunci
-                    'status'         => 'MENUNGGU',
-                    'catatan'        => 'Diteruskan untuk proses persetujuan (Otomatis).',
-                    'actioned_at'    => null,
-                ]);
-
-                // Notifikasi Surat Masuk ke Unit Selanjutnya
-                $nextUnitUsers = \App\Models\User::ofUnitKerja($finalNextUnitId)->get();
-                if ($nextUnitUsers->isNotEmpty()) {
-                    \Filament\Notifications\Notification::make()
-                        ->title('Surat Masuk Baru')
-                        ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Unit Sebelumnya') . ": " . $surat->perihal)
-                        ->info()
-                        ->viewData([
-                            'unit_kerja_id' => (int) $finalNextUnitId,
-                            'surat_id'      => $surat->id,
-                        ])
-                        ->sendToDatabase($nextUnitUsers);
-
-                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $nextUnitUsers, $catatan);
                 }
             }
 

@@ -24,7 +24,7 @@
     <!-- Bottom Half: Content and Footer -->
     <div style="flex: 1 1 0%; display: flex; flex-direction: column;">
         <div style="padding: 1rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 700; color: #1f2937; margin-bottom: 0.25rem; margin-top: 0;">
+            <h3 style="font-size: 1.125rem; font-weight: 700;color-scheme: light dark; color: light-dark(#1f2937,#ffffff); margin-bottom: 0.25rem; margin-top: 0;">
                 {{ $getRecord()->nama_template }}
 
             </h3>
