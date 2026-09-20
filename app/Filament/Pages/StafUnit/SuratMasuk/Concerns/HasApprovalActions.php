@@ -270,7 +270,7 @@ trait HasApprovalActions
                 ->icon('heroicon-m-check-circle')
                 ->button()
                 ->color('success')
-                ->visible(fn() => $this->surat->status_surat === 'DIPROSES'),
+                ->visible(fn() => in_array($this->surat->status_surat, ['DIPROSES', 'TERKIRIM'])),
 
             'group_kembalikan' => \Filament\Actions\ActionGroup::make([
                 Action::make('step_back')
@@ -323,7 +323,7 @@ trait HasApprovalActions
                 ->icon('heroicon-m-x-circle')
                 ->button()
                 ->color('danger')
-                ->visible(fn() => $this->surat->status_surat === 'DIPROSES'),
+                ->visible(fn() => in_array($this->surat->status_surat, ['DIPROSES', 'TERKIRIM'])),
 
             'terbitan' => Action::make('buat_terbitan')
                 ->label('Terbitkan Surat Balasan')

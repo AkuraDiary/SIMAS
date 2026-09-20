@@ -19,17 +19,8 @@ class SuratRoutingService
     {
         return DB::transaction(function () use ($surat, $unitTujuanId, $targetUserAktorId, $catatan) {
             $surat->update([
-                'status_surat' => 'TERKIRIM',
+                'status_surat' => 'DIPROSES',
             ]);
-
-            $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
-                $surat->unit_pengirim_id,
-                $surat->tipe_surat
-            );
-            if ($format && empty($surat->nomor_surat)) {
-                $surat->nomor_surat = $format->generateNomorSurat($surat);
-                $surat->save();
-            }
 
             // [NEW] Automated Routing Engine
             $finalUnitTujuanId = $unitTujuanId;
@@ -46,14 +37,13 @@ class SuratRoutingService
                     ->where('status_jabatan', 'AKTIF')
                     ->first();
 
-                if ($upj && $upj->pegawai && $upj->pegawai->user) {
-                    $finalUnitTujuanId = $upj->unit_kerja_id;
-                    // Boleh set user_aktor_id jika ingin mengunci hanya orang tersebut yg bisa acc
-                    // $finalUserAktorId = $upj->pegawai->user->id;
+                $automatedUnitId = $upj?->unit_kerja_id ?? \App\Models\Jabatan::find($jabatanId)?->unit_kerja_id;
+                if ($automatedUnitId) {
+                    $finalUnitTujuanId = $automatedUnitId;
                 }
             }
 
-            return SuratRiwayat::create([
+            $firstRiwayat = SuratRiwayat::create([
                 'surat_id'       => $surat->id,
                 'parent_id'      => null,
                 'unit_asal_id'   => $surat->unit_pengirim_id,
@@ -63,6 +53,24 @@ class SuratRoutingService
                 'catatan'        => $catatan ?? '',
                 'actioned_at'    => null,
             ]);
+
+            // Kirim notifikasi ke penerima di unit langkah pertama
+            $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get();
+            if ($targetUsers->isNotEmpty()) {
+                \Filament\Notifications\Notification::make()
+                    ->title('Permohonan Persetujuan Surat Masuk')
+                    ->body("Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda.")
+                    ->info()
+                    ->viewData([
+                        'unit_kerja_id' => (int) $finalUnitTujuanId,
+                        'surat_id'      => $surat->id,
+                    ])
+                    ->sendToDatabase($targetUsers);
+
+                app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
+            }
+
+            return $firstRiwayat;
         });
     }
 
@@ -189,86 +197,84 @@ class SuratRoutingService
 
 
                 if ($finalIsFinalStep) {
-                    $newStatus = 'SELESAI';
-                    $actorUnitId = \App\Models\UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
-                        ->where('status_jabatan', 'AKTIF')
-                        ->first()?->unit_kerja_id ?? $actor->unit_kerja_id;
-                    $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
-                        $surat->unit_pengirim_id ?? $actorUnitId,
-                        $surat->tipe_surat
-                    );
-                    if ($format && empty($surat->nomor_surat)) {
-                        $surat->nomor_surat = $format->generateNomorSurat($surat, ['user_id' => $actor->id]);
-                    }
-                    $surat->status_surat = $newStatus;
-                    $surat->save();
+                    if (!empty($surat->nomor_surat)) {
+                        $newStatus = 'SELESAI';
+                        $surat->status_surat = $newStatus;
+                        $surat->save();
 
-                    // 4. Finalisasi: Render HTML ke PDF dan lampirkan ke Surat
-                    if ($surat->template_id) {
-                        // Tarik HTML yang sudah di-inject dengan Nomor Surat dan TTD QR Code
-                        $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
+                        // Finalisasi: Render HTML ke PDF dan lampirkan ke Surat
+                        if ($surat->template_id) {
+                            $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
+                            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('A4', 'portrait');
+                            $pdfContent = $pdf->output();
 
-                        // Render menggunakan DomPDF
-                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
-                        $pdf->setPaper('A4', 'portrait');
-                        $pdfContent = $pdf->output();
+                            $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat);
+                            $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
 
-                        $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat ?? 'Terbitan');
-                        $fileName = 'Surat_Resmi_' . $safeNomor . '.pdf';
+                            $surat->addMediaFromString($pdfContent)
+                                ->usingName('Dokumen Final Resmi')
+                                ->usingFileName($fileName)
+                                ->toMediaCollection('dokumen-final');
+                        }
 
-                        // Simpan sebagai media
-                        $surat->addMediaFromString($pdfContent)
-                            ->usingName('Dokumen Final Resmi')
-                            ->usingFileName($fileName)
-                            ->toMediaCollection('dokumen-final');
-                    }
+                        // Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
+                        if ($surat->terbitan_for_surat_id) {
+                            $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);
+                            if ($pengajuan) {
+                                $pengajuan->update(['status_surat' => 'SELESAI']);
 
-                    // 5. Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
-                    if ($surat->terbitan_for_surat_id) {
-                        $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);
-                        if ($pengajuan) {
-                            $pengajuan->update(['status_surat' => 'SELESAI']);
+                                if ($pengajuan->user_pembuat_id) {
+                                    $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
+                                    if ($targetUser) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Surat Terbitan Selesai')
+                                            ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
+                                            ->success()
+                                            ->viewData([
+                                                'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $surat->unit_pengirim_id),
+                                                'surat_id'      => $surat->id,
+                                            ])
+                                            ->sendToDatabase($targetUser);
 
-                            // Kirim notifikasi sistem ke pembuat pengajuan awal
-                            if ($pengajuan->user_pembuat_id) {
-                                $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
-                                if ($targetUser) {
-                                    \Filament\Notifications\Notification::make()
-                                        ->title('Surat Terbitan Selesai')
-                                        ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
-                                        ->success()
-                                        ->viewData([
-                                            'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $surat->unit_pengirim_id),
-                                            'surat_id'      => $surat->id,
-                                        ])
-                                        ->sendToDatabase($targetUser);
-
-                                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
-                                        $surat,
-                                        $targetUser,
-                                        'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
-                                    );
+                                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                            $surat,
+                                            $targetUser,
+                                            'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
+                                        );
+                                    }
                                 }
+                            }
+                        } else {
+                            if ($surat->pembuat) {
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Surat Selesai & Disetujui')
+                                    ->body("Surat '{$surat->perihal}' telah selesai disetujui.")
+                                    ->success()
+                                    ->viewData([
+                                        'unit_kerja_id' => (int) $surat->unit_pengirim_id,
+                                        'surat_id'      => $surat->id,
+                                    ])
+                                    ->sendToDatabase($surat->pembuat);
+
+                                app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                    $surat,
+                                    $surat->pembuat,
+                                    $catatan
+                                );
                             }
                         }
                     } else {
-                        // Notifikasi ke pembuat surat bahwa surat selesai disetujui
+                        // Persetujuan pimpinan tuntas, menunggu penomoran oleh Staf TU
                         if ($surat->pembuat) {
                             \Filament\Notifications\Notification::make()
-                                ->title('Surat Selesai & Disetujui')
-                                ->body("Surat '{$surat->perihal}' telah selesai disetujui.")
-                                ->success()
+                                ->title('Persetujuan Tuntas - Menunggu Penomoran')
+                                ->body("Surat '{$surat->perihal}' telah selesai disetujui dan menunggu penetapan nomor surat resmi oleh Staf TU.")
+                                ->info()
                                 ->viewData([
                                     'unit_kerja_id' => (int) $surat->unit_pengirim_id,
                                     'surat_id'      => $surat->id,
                                 ])
                                 ->sendToDatabase($surat->pembuat);
-
-                            app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
-                                $surat,
-                                $surat->pembuat,
-                                $catatan
-                            );
                         }
                     }
                 } else {

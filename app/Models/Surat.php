@@ -259,7 +259,7 @@ class Surat extends Model implements HasMedia
                     ->orWhereHas('disposisis', fn($dq) => $dq->where('unit_tujuan_id', $unitId))
                     // Atau surat yang sedang AKTIF menunggu persetujuan di unit ini
                     ->orWhere(function ($rq) use ($unitId) {
-                        $rq->where('status_surat', 'DIPROSES')
+                        $rq->whereIn('status_surat', ['DIPROSES', 'TERKIRIM'])
                             ->whereHas(
                                 'riwayats',
                                 fn($rw) =>

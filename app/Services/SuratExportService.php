@@ -52,7 +52,7 @@ class SuratExportService
         // Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut!
         $dokumenFinal = $surat->getFirstMedia('dokumen-final');
         if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
-            copy($dokumenFinal->getPath(), $dir . '/01_Surat_Resmi.pdf');
+            copy($dokumenFinal->getPath(), $dir . '/01_Surat_Utama.pdf');
             return;
         }
         // 2. Fallback: generate HTML surat
@@ -75,19 +75,8 @@ class SuratExportService
         $metadataHtml = view('filament.exports.surat.metadata', [
             'surat' => $surat,
         ])->render();
-        
-        // if ($surat->pengirim_nama || $surat->pengirim_metadata || $surat->terbitan_for_surat_id) {
-        //     $metadataHtml = view('filament.exports.surat.metadata', [
-        //         'state' => array_merge([
-        //             'pengirim_nama'     => $surat->pengirim_nama,
-        //             'pengirim_nim'      => $surat->pengirim_nim,
-        //             'pengirim_email'    => $surat->pengirim_email,
-        //             'pengirim_telp'     => $surat->pengirim_metadata['telp'] ?? null,
-        //             'pengirim_instansi' => $surat->pengirim_metadata['instansi'] ?? null,
-        //             'tipe_pengirim'     => $surat->pengirim_nim ? 'mahasiswa' : 'guest',
-        //         ], $surat->pengirim_metadata ?? []),
-        //         'tujuan' => $surat->unitPengirim?->nama_unit ?? 'Unit Terkait',
-        //     ])->render();
+
+
         $suratHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
         // }
         $pdf = Pdf::loadHTML($suratHtml);

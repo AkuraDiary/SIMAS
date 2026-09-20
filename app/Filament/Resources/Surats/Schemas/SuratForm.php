@@ -216,18 +216,16 @@ class SuratForm
 
                                 Select::make('terbitan_for_surat_id')
                                     ->label('Merujuk ke Pengajuan')
-                                    ->options(function (?\App\Models\Surat $record) {
-                                        // =========================================================================
-                                        // [PENGATURAN STATUS PENGAJUAN RUJUKAN]
-                                        // Ubah atau tambahkan status di sini jika diperlukan (misal: ['SELESAI', 'DIPROSES']).
-                                        // =========================================================================
-                                        $allowedStatuses = ['SELESAI'];
-
+                                    ->options(function (Get $get, ?\App\Models\Surat $record) {
+                                        // Izinkan rujukan baik yang berstatus SELESAI maupun yang sedang DIPROSES
+                                        $allowedStatuses = ['SELESAI', 'DIPROSES'];
                                         $activeUnitId = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan()?->unit_kerja_id
                                             ?? \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
-
-                                        $requestedId = $record?->terbitan_for_surat_id
+                                        // Tangkap ID yang sedang terpilih di form, record, maupun query URL
+                                        $requestedId = $get('terbitan_for_surat_id')
+                                            ?? $record?->terbitan_for_surat_id
                                             ?? request()->query('terbitan_for_surat_id');
+
 
                                         return \App\Models\Surat::query()
                                             ->where('tipe_surat', 'PENGAJUAN')

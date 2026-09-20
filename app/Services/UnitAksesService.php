@@ -39,7 +39,7 @@ class UnitAksesService
 
                     // 2. Letters in workflow actively waiting for this user / unit
                     ->orWhere(function (Builder $rq) use ($unitId, $user) {
-                        $rq->where('status_surat', 'DIPROSES')
+                        $rq->whereIn('status_surat', ['DIPROSES', 'TERKIRIM'])
                             ->whereHas('riwayats', function (Builder $rw) use ($unitId, $user) {
                                 $rw->where('unit_tujuan_id', $unitId)
                                     ->where('status', 'MENUNGGU')
