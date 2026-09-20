@@ -248,24 +248,19 @@ class Surat extends Model implements HasMedia
             ]);
     }
 
-    public function scopeUntukUnit(Builder $query, int $unitId): Builder
+       public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query
             ->where('status_surat', '<>', 'DRAFT')
             ->where(function ($q) use ($unitId) {
-                // Surat yang ditujukan ke unit ini sebagai penerima resmi
+                // 1. Surat yang ditujukan ke unit ini sebagai penerima resmi
                 $q->whereHas('suratUnits', fn($sq) => $sq->where('unit_kerja_id', $unitId))
-                    // Atau surat yang didisposisikan ke unit ini
+                    // 2. Atau surat yang didisposisikan ke unit ini
                     ->orWhereHas('disposisis', fn($dq) => $dq->where('unit_tujuan_id', $unitId))
-                    // Atau surat yang sedang AKTIF menunggu persetujuan di unit ini
-                    ->orWhere(function ($rq) use ($unitId) {
-                        $rq->whereIn('status_surat', ['DIPROSES', 'TERKIRIM'])
-                            ->whereHas(
-                                'riwayats',
-                                fn($rw) =>
-                                $rw->where('unit_tujuan_id', $unitId)
-                                    ->where('status', 'MENUNGGU')
-                            );
+                    // 3. Atau surat alur persetujuan untuk unit ini (aktif menunggu maupun sudah disetujui)
+                    ->orWhereHas('riwayats', function ($rw) use ($unitId) {
+                        $rw->where('unit_tujuan_id', $unitId)
+                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI']);
                     });
             });
     }
