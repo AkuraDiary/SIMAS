@@ -1,3 +1,30 @@
+    @php
+    // Adapter cerdas: Jika dipanggil dengan menyertakan model $surat, mapping ke $state & $tujuan secara otomatis
+    if (isset($surat) && $surat instanceof \App\Models\Surat) {
+        $meta = $surat->pengirim_metadata ?? [];
+        $isMahasiswa = !empty($surat->pengirim_nim) || (($meta['tipe_pengirim'] ?? '') === 'mahasiswa');
+        $namaPengirim = $surat->pengirim_nama
+            ?: ($surat->userPegawaiJabatan?->pegawai?->nama_lengkap ?? $surat->pembuat?->nama_lengkap ?? '-');
+        $namaTujuan = $surat->unitTujuan->pluck('nama_unit')->join(', ');
+        if (empty($namaTujuan)) {
+            $namaTujuan = $surat->terbitanFor?->pengirim_nama
+                ?: ($surat->unitPengirim?->nama_unit ?? '-');
+        }
+        $state = $state ?? [
+            'pengirim_nama'     => $namaPengirim,
+            'tipe_pengirim'     => $isMahasiswa ? 'mahasiswa' : 'umum',
+            'pengirim_nim'      => $surat->pengirim_nim ?? '-',
+            'pengirim_fakultas' => $meta['fakultas_id'] ?? null,
+            'pengirim_prodi'    => $meta['prodi_id'] ?? null,
+            'pengirim_instansi' => $meta['instansi'] ?? ($surat->unitPengirim?->nama_unit ?? '-'),
+            'pengirim_email'    => $surat->pengirim_email ?? $surat->pembuat?->email ?? '-',
+            'pengirim_telp'     => $meta['telp'] ?? '-',
+            'lampiran_names'    => $surat->getMedia('lampiran-surat')->pluck('file_name')->toArray(),
+        ];
+        $tujuan = $tujuan ?? $namaTujuan;
+    }
+@endphp
+
     <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
         <strong style="font-size: 16px;">DETAIL & METADATA PENGAJUAN SURAT</strong><br>
     </div>
@@ -44,7 +71,7 @@
             <td style="width: 150px; font-weight: bold; padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">Tanggal Buat</td>
             <td style="padding: 8px 8px; vertical-align: top; border-bottom: 1px solid #ddd;">: {{ \Carbon\Carbon::now()->format('d M Y H:i:s') }}</td>
         </tr>
-        
+
         @php
             $lampiranList = [];
             if (!empty($state['lampiran_names']) && is_array($state['lampiran_names'])) {

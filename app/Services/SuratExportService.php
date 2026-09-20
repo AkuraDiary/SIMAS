@@ -49,31 +49,48 @@ class SuratExportService
 
     protected function generateSuratPdf(Surat $surat, string $dir): void
     {
-
-       // Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut!
+        // Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut!
         $dokumenFinal = $surat->getFirstMedia('dokumen-final');
         if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
             copy($dokumenFinal->getPath(), $dir . '/01_Surat_Resmi.pdf');
             return;
         }
-
+        // 2. Fallback: generate HTML surat
         $renderedHtml = null;
         if ($surat->template_id && $surat->template) {
             $service = app(\App\Services\PlaceholderService::class);
-            $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? []);
+            $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? [], $surat);
         } else {
-            $renderedHtml = $surat->isi_surat;
+            $renderedHtml = $surat->content['isi_surat'] ?? '';
         }
-
-        $pdf = Pdf::loadView(
+        $suratHtml = view(
             'filament.exports.surat.surat',
             [
                 'surat'        => $surat,
                 'isArsip'      => $surat->status_surat === 'ARSIP',
                 'renderedHtml' => $renderedHtml,
             ]
-        );
-
+        )->render();
+        // Sertakan lembar metadata jika surat berasal dari pengajuan
+        $metadataHtml = view('filament.exports.surat.metadata', [
+            'surat' => $surat,
+        ])->render();
+        
+        // if ($surat->pengirim_nama || $surat->pengirim_metadata || $surat->terbitan_for_surat_id) {
+        //     $metadataHtml = view('filament.exports.surat.metadata', [
+        //         'state' => array_merge([
+        //             'pengirim_nama'     => $surat->pengirim_nama,
+        //             'pengirim_nim'      => $surat->pengirim_nim,
+        //             'pengirim_email'    => $surat->pengirim_email,
+        //             'pengirim_telp'     => $surat->pengirim_metadata['telp'] ?? null,
+        //             'pengirim_instansi' => $surat->pengirim_metadata['instansi'] ?? null,
+        //             'tipe_pengirim'     => $surat->pengirim_nim ? 'mahasiswa' : 'guest',
+        //         ], $surat->pengirim_metadata ?? []),
+        //         'tujuan' => $surat->unitPengirim?->nama_unit ?? 'Unit Terkait',
+        //     ])->render();
+        $suratHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
+        // }
+        $pdf = Pdf::loadHTML($suratHtml);
         $pdf->save($dir . '/01_Surat_Utama.pdf');
     }
 

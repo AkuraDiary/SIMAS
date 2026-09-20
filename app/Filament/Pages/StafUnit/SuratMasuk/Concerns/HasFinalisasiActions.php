@@ -197,8 +197,12 @@ trait HasFinalisasiActions
                         'user_id' => Auth::id(),
                     ]);
 
+                    $hasPendingSteps = $this->surat->riwayats()
+                        ->where('status', 'MENUNGGU')
+                        ->exists();
+
                     // Jika tipe TERBITAN, finalisasikan surat dan generate PDF
-                    if ($this->surat->tipe_surat === 'TERBITAN') {
+                    if ($this->surat->tipe_surat === 'TERBITAN' && !$hasPendingSteps){
                         $this->surat->status_surat = 'SELESAI';
                         $this->surat->save();
 
@@ -221,10 +225,15 @@ trait HasFinalisasiActions
                         }
                     }
 
-                    $this->refreshPage(
-                        'Nomor Surat Berhasil Ditetapkan!',
-                        "Nomor surat: {$nomorAkhir}" . ($this->surat->tipe_surat === 'TERBITAN' ? '. Surat kini resmi SELESAI dan siap diunduh.' : '.')
-                    );
+
+                    $pesanSukses = "Nomor surat {$nomorAkhir} berhasil ditetapkan.";
+                    if ($this->surat->status_surat === 'SELESAI') {
+                        $pesanSukses .= ' Surat kini resmi SELESAI dan diterbitkan.';
+                    } else {
+                        $pesanSukses .= ' Nomor tercatat pada draf, alur persetujuan berlanjut ke tahap berikutnya.';
+                    }
+                    $this->refreshPage('Nomor Surat Ditetapkan!', $pesanSukses);
+
                 });
         }
 

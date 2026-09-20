@@ -246,23 +246,29 @@ class DetailSurat extends Page implements HasForms
         }
 
         // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK
-        if ($this->surat->tipe_surat === 'PENGAJUAN') {
+
+
+
+        // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK (Aktif untuk PENGAJUAN dan TERBITAN)
+        $isApprovalType = in_array($this->surat->tipe_surat, ['PENGAJUAN', 'TERBITAN']) || !empty($this->surat->approval_path);
+        if ($isApprovalType) {
             $hasPendingPersetujuan = $this->surat->riwayats
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
                 ->isNotEmpty();
-
             $persetujuan = $this->getActionPersetujuan();
-
             if ($hasPendingPersetujuan) {
+                // Tombol Proses Surat (Setujui & Teruskan / Setujui & Selesai dengan TTD Digital)
                 $primaryActions[] = $persetujuan['group_proses'] ?? null;
+                // Tombol Kembalikan / Tolak (Backtrack / Reset)
                 $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
             }
-
-            if (isset($persetujuan['terbitan'])) {
+            if (isset($persetujuan['terbitan']) && $this->surat->tipe_surat === 'PENGAJUAN') {
                 $primaryActions[] = $persetujuan['terbitan'];
             }
         }
+
+
 
         if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
             $hasPendingTugas = $this->surat->riwayats

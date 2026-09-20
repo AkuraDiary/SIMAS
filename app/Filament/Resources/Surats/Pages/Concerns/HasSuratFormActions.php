@@ -58,9 +58,12 @@ trait HasSuratFormActions
             ])
             ->before(function (Action $action) {
                 $unitIds = $this->data['unitTujuan'] ?? [];
-                if (empty($unitIds)) {
+                $hasRujukanPengajuan = !empty($this->data['terbitan_for_surat_id']);
+                // 🟢 Hanya wajibkan unitTujuan jika BUKAN surat balasan atas pengajuan pemohon
+                if (empty($unitIds) && !$hasRujukanPengajuan) {
                     Notification::make()
                         ->title('Tujuan Unit Tidak Boleh Kosong')
+                        ->body('Silakan pilih minimal satu unit kerja tujuan penerima surat.')
                         ->danger()
                         ->send();
                     $action->halt();
