@@ -43,15 +43,20 @@ trait HasFinalisasiActions
                 });
         }
 
-        // 2. Generate Nomor Action
-        // Berlaku untuk:
-        // a. TERBITAN yang belum bernomor
-        // b. Atau INTERNAL / PENGAJUAN / EKSTERNAL yang belum bernomor dan user berasal dari unit pengirim / admin
-        $canGenerateNomor = empty($this->surat->nomor_surat) && (
-            $this->surat->tipe_surat === 'TERBITAN' ||
-            $this->surat->unit_pengirim_id == $unitId ||
-            Auth::user()?->tipe_entitas === 'ADMIN'
-        );
+        $unitId = Auth::user()->unit_kerja_id;
+        $sudahBernomor = filled($this->surat->nomor_surat);
+        $isUnitPengirim = $this->surat->unit_pengirim_id == $unitId;
+        $isUnitPenerima = $this->surat->suratUnits()->where('unit_kerja_id', $unitId)->exists()
+            || $this->surat->disposisis()->where('unit_tujuan_id', $unitId)->exists()
+            || $this->surat->riwayats()->where('unit_tujuan_id', $unitId)->exists();
+        $isAdmin = Auth::user()?->tipe_entitas === 'ADMIN';
+        // Aturan Hak Penomoran:
+        // 1. Jika BELUM bernomor: Unit Pengirim, Unit Penerima (Eksternal/Pengajuan), atau Terbitan boleh menomori.
+        // 2. Jika SUDAH bernomor: HANYA Unit Pengirim atau Admin yang boleh mengubah/mengoreksi nomor.
+        $canGenerateNomor = $sudahBernomor
+            ? ($isUnitPengirim || $isAdmin)
+            : ($this->surat->tipe_surat === 'TERBITAN' || $isUnitPengirim || $isUnitPenerima || $isAdmin);
+
 
         if ($canGenerateNomor) {
             $actions[] = Action::make('generate_nomor')
@@ -262,7 +267,6 @@ trait HasFinalisasiActions
                         $pesanSukses .= ' Nomor tercatat pada draf, alur persetujuan berlanjut ke tahap berikutnya.';
                     }
                     $this->refreshPage('Nomor Surat Ditetapkan!', $pesanSukses);
-
                 });
         }
 

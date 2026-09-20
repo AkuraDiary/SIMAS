@@ -54,6 +54,7 @@ class EditSurat extends EditRecord
             $content['nomor_surat_tags'] = array_merge($content['nomor_surat_tags'] ?? [], $data['custom_nomor_tags']);
             $data['content'] = $content;
         }
+        unset($data['custom_nomor_tags']);
 
         // Jika form menyembunyikan template_id (karena mode 'scratch'),
         // pastikan nilainya di-set ke null agar menimpa ID lama di database.
@@ -119,7 +120,7 @@ class EditSurat extends EditRecord
                 Action::make('download_blank')
                     ->label('Unduh Template Asli (Kosong)')
                     ->icon('heroicon-o-document')
-                    ->visible(fn () => isset($this->data['template_id']))
+                    ->visible(fn() => isset($this->data['template_id']))
                     ->action(function () {
                         $template = Template::find($this->data['template_id']);
                         if (!$template) return;
@@ -133,16 +134,16 @@ class EditSurat extends EditRecord
                 Action::make('download_filled')
                     ->label('Unduh Draft Surat (.docx)')
                     ->icon('heroicon-o-document-text')
-                    ->visible(fn () => $this->record !== null)
+                    ->visible(fn() => $this->record !== null)
                     ->action(function () {
                         $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->record);
                         return response()->download($path, 'Draft_Surat_' . $this->record->perihal . '.docx');
                     }),
             ])
-            ->label('Unduh Dokumen')
-            ->icon('heroicon-o-arrow-down-tray')
-            ->button()
-            ->color('gray'),
+                ->label('Unduh Dokumen')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->button()
+                ->color('gray'),
 
             DeleteAction::make(),
 
