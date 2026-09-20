@@ -36,11 +36,19 @@ class UnitAksesService
                                 ->orWhere('user_pembuat_id', $user->id);
                         });
                 })
-                // 2. Letters in workflow where this user is the actor in this unit
-                ->orWhereHas('riwayats', function (Builder $rq) use ($unitId, $user) {
-                    $rq->where('unit_tujuan_id', $unitId)
-                        ->where('user_aktor_id', $user->id);
-                });
+
+                    // 2. Letters in workflow actively waiting for this user / unit
+                    ->orWhere(function (Builder $rq) use ($unitId, $user) {
+                        $rq->where('status_surat', 'DIPROSES')
+                            ->whereHas('riwayats', function (Builder $rw) use ($unitId, $user) {
+                                $rw->where('unit_tujuan_id', $unitId)
+                                    ->where('status', 'MENUNGGU')
+                                    ->where(function ($sub) use ($user) {
+                                        $sub->whereNull('user_aktor_id')
+                                            ->orWhere('user_aktor_id', $user->id);
+                                    });
+                            });
+                    });
             });
     }
 
