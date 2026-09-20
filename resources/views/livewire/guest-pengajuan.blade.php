@@ -7,7 +7,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
             </svg>
         </div>
-        <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Surat Berhasil Dikirim!</h2>
+        
 
         @if($revisiCode)
         <h2 class="text-3xl font-extrabold text-primary-900 mb-2">Perbaikan Berhasil Dikirim!</h2>

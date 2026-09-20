@@ -524,7 +524,6 @@ class GuestPengajuan extends Component implements HasForms
             return redirect()->route('lacak', ['code' => $surat->tracking_code]);
         }
 
-
         $surat = new \App\Models\Surat();
 
         $surat->status_surat = 'TERKIRIM';
@@ -675,6 +674,48 @@ class GuestPengajuan extends Component implements HasForms
         // Show the success screen with the tracking code
         $this->trackingCode = $surat->tracking_code;
         $this->submitted = true;
+
+        // TODO SETA SEND NOTIFICATION TO THE CORRESPONDING RECEIVER VIA NOTIFICATION SERVICE
+
+        //  $targetUnitId = $lastRevisi?->unit_tujuan_id ?? $surat->unitTujuan->first()?->id;
+        //     $unitAsalId = $surat->unit_pengirim_id ?? $targetUnitId;
+        //     \App\Models\SuratRiwayat::create([
+        //         'surat_id'       => $surat->id,
+        //         'parent_id'      => $lastRevisi?->id,
+        //         'unit_asal_id'   => $unitAsalId,
+        //         'unit_tujuan_id' => $targetUnitId,
+        //         'user_aktor_id'  => null,
+        //         'status'         => 'DIPERBARUI',
+        //         'catatan'        => $state['catatan_perbaikan'] ?? 'Pemohon telah memperbarui dokumen permohonan.',
+        //         'actioned_at'    => now(),
+        //     ]);
+        //     \App\Models\SuratRiwayat::create([
+        //         'surat_id'       => $surat->id,
+        //         'parent_id'      => null,
+        //         'unit_asal_id'   => $unitAsalId,
+        //         'unit_tujuan_id' => $targetUnitId,
+        //         'user_aktor_id'  => null,
+        //         'status'         => 'MENUNGGU',
+        //         'catatan'        => '',
+        //         'actioned_at'    => null,
+        //     ]);
+        //     // 5. Kembalikan status surat ke DIPROSES
+        //     $surat->update(['status_surat' => 'DIPROSES']);
+        //     // 6. Notifikasi sistem ke unit pemeriksa
+        //     if ($targetUnitId) {
+        //         $targetUsers = \App\Models\User::ofUnitKerja($targetUnitId)->get();
+        //         if ($targetUsers->isNotEmpty()) {
+        //             \Filament\Notifications\Notification::make()
+        //                 ->title('Surat Dari Eksternal')
+        //                 ->body('Anda menerima surat dari laman publik' . ($surat->pengirim_nama ?? 'Guest') . ' ()' . $surat->perihal . ')')
+        //                 ->info()
+        //                 ->viewData([
+        //                     'unit_kerja_id' => (int) $targetUnitId,
+        //                     'surat_id'      => $surat->id,
+        //                 ])
+        //                 ->sendToDatabase($targetUsers);
+        //         }
+        //     }
     }
 
     public function downloadExistingMedia(int $mediaId)
