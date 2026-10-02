@@ -92,9 +92,12 @@ class GuestLacak extends Component
         }
 
 
-        // Jika terbitan memiliki lampiran, bundel PDF resmi + Lampiran menjadi ZIP
-        $attachments = $terbitan->getMedia('lampiran-surat');
-        if ($attachments->isNotEmpty()) {
+        // Jika terbitan ATAU surat pengajuan asalnya memiliki lampiran, bundel PDF resmi + Lampiran menjadi ZIP
+        $hasAttachments = $terbitan->getMedia('lampiran-surat')->isNotEmpty()
+            || ($terbitan->terbitanForSurat && $terbitan->terbitanForSurat->getMedia('lampiran-surat')->isNotEmpty())
+            || $this->surat->getMedia('lampiran-surat')->isNotEmpty();
+
+        if ($hasAttachments) {
             try {
                 $exportService = app(SuratExportService::class);
                 $zipPath = $exportService->export($terbitan);
@@ -104,6 +107,20 @@ class GuestLacak extends Component
                 return;
             }
         }
+        // Jika terbitan memiliki lampiran, bundel PDF resmi + Lampiran menjadi ZIP
+        // $attachments = $terbitan->getMedia('lampiran-surat');
+        // if ($attachments->isNotEmpty()) {
+        //     try {
+        //         $exportService = app(SuratExportService::class);
+        //         $zipPath = $exportService->export($terbitan);
+        //         return response()->download($zipPath)->deleteFileAfterSend();
+        //     } catch (\Throwable $e) {
+        //         $this->errorMsg = 'Gagal mengunduh berkas ZIP: ' . $e->getMessage();
+        //         return;
+        //     }
+        // }
+
+
         // Jika tidak ada lampiran tambahan, langsung unduh PDF resmi
         $media = $terbitan->getFirstMedia('dokumen-final')
             ?? $terbitan->getFirstMedia('lampiran-surat');

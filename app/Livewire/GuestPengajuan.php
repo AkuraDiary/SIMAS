@@ -710,7 +710,7 @@ class GuestPengajuan extends Component implements HasForms
             }
         }
 
-        // 3. (Opsional) Kirim Tanda Terima & Tautan Lacak Langsung ke WhatsApp Pemohon
+        // 3. Kirim Tanda Terima & Tautan Lacak Langsung ke WhatsApp Pemohon (jika pengirim telp valid)
         $pemohonPhone = $state['pengirim_telp'] ?? null;
         if (!empty($pemohonPhone)) {
             $appUrl = rtrim(config('app.url', config('app.asset_url', url('/'))), '/');

@@ -84,8 +84,8 @@ class PlaceholderService
             foreach ($surat->suratTtds as $ttd) {
                 if ($ttd->placeholder_key) {
                     $qrImg = '';
-                      if ($ttd->qr_code_path) {
-                        // Gunakan Base64 Data URI agar DomPDF dan browser dapat merender gambar dari disk private 
+                    if ($ttd->qr_code_path) {
+                        // Gunakan Base64 Data URI agar DomPDF dan browser dapat merender gambar dari disk private
                         $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
                         if (!file_exists($fullPath)) {
                             $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
@@ -168,11 +168,18 @@ class PlaceholderService
             }
         }
 
-        // Handle flat vars
-        // Handle flat vars (text, date, number, etc.)
+        // // Handle flat vars
+        // // Handle flat vars (text, date, number, etc.)
+        // foreach ($data as $key => $value) {
+        //     if (!is_array($value) && $value !== null && $value !== '') {
+        //         $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', (string) $value, $html);
+        //     }
+        // }
+
+        // Handle flat vars (text, date, number, etc.) - amankan karakter '$'
         foreach ($data as $key => $value) {
             if (!is_array($value) && $value !== null && $value !== '') {
-                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', (string) $value, $html);
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', (string) $value), $html);
             }
         }
 
@@ -235,7 +242,7 @@ class PlaceholderService
         }
 
         // Clean up remaining un-filled placeholders to make it obvious they are missing
-        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function($m) use ($data, $surat) {
+        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function ($m) use ($data, $surat) {
             $key = $m[1];
 
             // If it's a signature placeholder (starts with ttd_)
@@ -313,5 +320,49 @@ class PlaceholderService
             }
         }
         return $html;
+    }
+
+    /**
+     * Render HTML untuk Surat Scratch / Bebas dengan menyematkan blok tanda tangan resmi di bagian bawah.
+     */
+    public function renderScratchHtml(\App\Models\Surat $surat): string
+    {
+        $content = $surat->content['isi_surat'] ?? '';
+
+        // Sematkan blok tanda tangan jika sudah ada pejabat yang menandatangani
+        $ttds = $surat->suratTtds;
+        if ($ttds->isNotEmpty()) {
+            $ttdHtml = '<div style="margin-top: 40px; page-break-inside: avoid; width: 100%;">';
+            $ttdHtml .= '<table style="width: 100%; border: none; border-collapse: collapse;"><tr>';
+
+            foreach ($ttds as $ttd) {
+                $qrImg = '';
+                if ($ttd->qr_code_path) {
+                    $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
+                    if (!file_exists($fullPath)) {
+                        $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
+                    }
+                    if (file_exists($fullPath)) {
+                        $mime = mime_content_type($fullPath) ?: 'image/png';
+                        $base64Data = base64_encode(file_get_contents($fullPath));
+                        $qrImg = '<img src="data:' . $mime . ';base64,' . $base64Data . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" /><br>';
+                    }
+                }
+
+                $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
+
+                $ttdHtml .= '<td style="vertical-align: top; text-align: left; padding: 10px; width: ' . floor(100 / max(count($ttds), 1)) . '%;">';
+                $ttdHtml .= '<p style="margin: 0 0 5px 0; font-size: 10pt;">' . htmlspecialchars($ttd->jabatan_saat_ttd ?? 'Pejabat Berwenang') . '</p>';
+                $ttdHtml .= $qrImg;
+                $ttdHtml .= '<b style="text-decoration: underline;">' . htmlspecialchars($namaTerang) . '</b><br>';
+                $ttdHtml .= '<span style="font-size: 9pt; color: #555;">' . htmlspecialchars($ttd->unit_saat_ttd ?? '') . '</span>';
+                $ttdHtml .= '</td>';
+            }
+
+            $ttdHtml .= '</tr></table></div>';
+            $content .= $ttdHtml;
+        }
+
+        return $content;
     }
 }

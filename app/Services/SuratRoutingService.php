@@ -112,19 +112,57 @@ class SuratRoutingService
             // 2. Record signature if required
             if ($isSignatureRequired) {
                 // 2a. Cari placeholder_key dari approval_path
+                // $placeholderKey = null;
+                // $pegawaiJabatan = UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
+                //     ->where('status_jabatan', 'AKTIF')
+                //     ->first();
+
+                // if (!empty($surat->approval_path) && is_array($surat->approval_path)) {
+                //     foreach ($surat->approval_path as $step) {
+                //         if (isset($step['jabatan_id']) && $step['jabatan_id'] == $pegawaiJabatan?->jabatan_id) {
+                //             $placeholderKey = $step['placeholder_key'] ?? null;
+                //             break;
+                //         }
+                //     }
+                // }
+
+                // 2a. Cari placeholder_key dari approval_path (Mendukung Multi-Jabatan & Fallback Unused Key)
                 $placeholderKey = null;
-                $pegawaiJabatan = UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $actor->id))
-                    ->where('status_jabatan', 'AKTIF')
-                    ->first();
+                $userJabatanIds = [];
+                if ($activeJab = $actor->getActiveJabatan()) {
+                    $userJabatanIds[] = (int) $activeJab->jabatan_id;
+                }
+                if ($pegawai = $actor->pegawai) {
+                    $userJabatanIds = array_merge(
+                        $userJabatanIds,
+                        $pegawai->jabatanAktif()->pluck('jabatan_id')->map(fn($id) => (int) $id)->toArray()
+                    );
+                }
+                $userJabatanIds = array_unique(array_filter($userJabatanIds));
 
                 if (!empty($surat->approval_path) && is_array($surat->approval_path)) {
+                    // Prioritas 1: Cocokkan jabatan aktif aktor dengan step jabatan_id
                     foreach ($surat->approval_path as $step) {
-                        if (isset($step['jabatan_id']) && $step['jabatan_id'] == $pegawaiJabatan?->jabatan_id) {
-                            $placeholderKey = $step['placeholder_key'] ?? null;
+                        $stepJabId = (int) ($step['jabatan_id'] ?? 0);
+                        if (in_array($stepJabId, $userJabatanIds, true) && !empty($step['placeholder_key'])) {
+                            $placeholderKey = $step['placeholder_key'];
                             break;
                         }
                     }
+
+                    // Prioritas 2 (Fallback): Ambil placeholder_key berikutnya yang belum terpakai di surat_ttds
+                    if (!$placeholderKey) {
+                        $existingKeys = $surat->suratTtds()->whereNotNull('placeholder_key')->pluck('placeholder_key')->toArray();
+                        foreach ($surat->approval_path as $step) {
+                            $key = $step['placeholder_key'] ?? null;
+                            if ($key && !in_array($key, $existingKeys, true)) {
+                                $placeholderKey = $key;
+                                break;
+                            }
+                        }
+                    }
                 }
+
                 // 2b. Serahkan urusan image processing & QR ke SignatureService!
                 app(\App\Services\SignatureService::class)->processDigitalSignature(
                     $surat,
@@ -135,7 +173,7 @@ class SuratRoutingService
                 );
             }
 
-            // 3. Advance to next step or mark as final
+
             // 3. Advance to next step or mark as final
             $automatedNextUnitId = null;
             $currentIndex = -1;
@@ -203,19 +241,42 @@ class SuratRoutingService
                         $surat->save();
 
                         // Finalisasi: Render HTML ke PDF dan lampirkan ke Surat
-                        if ($surat->template_id) {
-                            $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
-                            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('A4', 'portrait');
-                            $pdfContent = $pdf->output();
+                        // Finalisasi: Render HTML ke PDF resmi (Mendukung Template maupun Scratch)
+                        $renderedHtml = ($surat->template_id && $surat->template)
+                            ? app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat)
+                            : app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
 
-                            $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat);
-                            $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+                        $suratHtml = view('filament.exports.surat.surat', [
+                            'surat'        => $surat,
+                            'isArsip'      => false,
+                            'renderedHtml' => $renderedHtml,
+                        ])->render();
 
-                            $surat->addMediaFromString($pdfContent)
-                                ->usingName('Dokumen Final Resmi')
-                                ->usingFileName($fileName)
-                                ->toMediaCollection('dokumen-final');
-                        }
+                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($suratHtml)->setPaper('A4', 'portrait');
+                        $pdfContent = $pdf->output();
+
+                        $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat);
+                        $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+
+                        $surat->clearMediaCollection('dokumen-final');
+                        $surat->addMediaFromString($pdfContent)
+                            ->usingName('Dokumen Final Resmi')
+                            ->usingFileName($fileName)
+                            ->toMediaCollection('dokumen-final');
+                            
+                        // if ($surat->template_id) {
+                        //     $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
+                        //     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('A4', 'portrait');
+                        //     $pdfContent = $pdf->output();
+
+                        //     $safeNomor = str_replace(['/', '\\'], '_', $surat->nomor_surat);
+                        //     $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+
+                        //     $surat->addMediaFromString($pdfContent)
+                        //         ->usingName('Dokumen Final Resmi')
+                        //         ->usingFileName($fileName)
+                        //         ->toMediaCollection('dokumen-final');
+                        // }
 
                         // Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
                         if ($surat->terbitan_for_surat_id) {
