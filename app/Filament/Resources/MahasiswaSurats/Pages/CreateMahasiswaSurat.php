@@ -62,7 +62,16 @@ class CreateMahasiswaSurat extends CreateRecord
             if (!empty($data['content_scratch'])) {
                 $content['isi_surat'] = $data['content_scratch'];
             }
+
             $data['content'] = $content;
+
+
+            // Hapus field form yang bukan kolom fisik tabel surats
+            unset(
+                $data['pengirim_telp'],
+                $data['content_scratch'],
+                $data['unit_tujuan']
+            );
         }
         return $data;
     }

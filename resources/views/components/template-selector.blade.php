@@ -38,10 +38,8 @@
 
 
 
-
-
     <!-- Filter Pills -->
-    <div class="flex flex-wrap gap-2 mb-6">
+    <div style="margin-bottom: 2.75rem !important;" class="flex flex-wrap gap-2 mb-6">
         @foreach($categories as $filter)
         <button @click="activeFilter = '{{ $filter }}'"
             type="button"
