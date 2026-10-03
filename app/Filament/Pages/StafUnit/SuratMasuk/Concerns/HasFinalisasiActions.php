@@ -211,23 +211,50 @@ trait HasFinalisasiActions
                         $this->surat->status_surat = 'SELESAI';
                         $this->surat->save();
 
-                        if ($this->surat->template_id) {
-                            $html = app(PlaceholderService::class)->renderHtml(
+                        // Terbitkan Dokumen Final Resmi (Mendukung Template maupun Scratch)
+                        $renderedHtml = ($this->surat->template_id && $this->surat->template)
+                            ? app(PlaceholderService::class)->renderHtml(
                                 $this->surat->template,
                                 $this->surat->content ?? [],
                                 $this->surat
-                            );
+                            )
+                            : app(PlaceholderService::class)->renderScratchHtml($this->surat);
 
-                            $pdf = Pdf::loadHTML($html)->setPaper('A4', 'portrait');
-                            $pdfContent = $pdf->output();
+                        $suratHtml = view('filament.exports.surat.surat', [
+                            'surat'        => $this->surat,
+                            'isArsip'      => false,
+                            'renderedHtml' => $renderedHtml,
+                        ])->render();
 
-                            $safeNomor = str_replace(['/', '\\'], '_', $nomorAkhir);
-                            $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+                        $pdf = Pdf::loadHTML($suratHtml)->setPaper('A4', 'portrait');
+                        $pdfContent = $pdf->output();
 
-                            $this->surat->addMediaFromString($pdfContent)
-                                ->usingFileName($fileName)
-                                ->toMediaCollection('dokumen-final');
-                        }
+                        $safeNomor = str_replace(['/', '\\'], '_', $nomorAkhir);
+                        $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+
+                        $this->surat->clearMediaCollection('dokumen-final');
+                        $this->surat->addMediaFromString($pdfContent)
+                            ->usingName('Dokumen Final Resmi')
+                            ->usingFileName($fileName)
+                            ->toMediaCollection('dokumen-final');
+                            
+                        // if ($this->surat->template_id) {
+                        //     $html = app(PlaceholderService::class)->renderHtml(
+                        //         $this->surat->template,
+                        //         $this->surat->content ?? [],
+                        //         $this->surat
+                        //     );
+
+                        //     $pdf = Pdf::loadHTML($html)->setPaper('A4', 'portrait');
+                        //     $pdfContent = $pdf->output();
+
+                        //     $safeNomor = str_replace(['/', '\\'], '_', $nomorAkhir);
+                        //     $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+
+                        //     $this->surat->addMediaFromString($pdfContent)
+                        //         ->usingFileName($fileName)
+                        //         ->toMediaCollection('dokumen-final');
+                        // }
 
                         // Jika surat ini rujukan atas pengajuan pemohon, selesaikan pengajuan & notifikasi pemohon
                         if ($this->surat->terbitan_for_surat_id) {

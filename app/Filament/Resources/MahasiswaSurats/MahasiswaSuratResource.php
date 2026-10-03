@@ -20,9 +20,13 @@ class MahasiswaSuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
-    protected static ?string $slug = 'mahasiswa-surats';
+       protected static ?string $slug = 'mahasiswa-surats';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static ?string $navigationLabel = 'Pengajuan';
+
+    protected static ?string $modelLabel = 'Pengajuan Surat';
+
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-envelope';
 
     public static function canViewAny(): bool
     {

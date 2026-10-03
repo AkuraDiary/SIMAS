@@ -322,6 +322,31 @@ class SuratForm
                                 ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
 
 
+                            TextEntry::make('lampiran_pengajuan_rujukan')
+                                ->label('Lampiran Berkas dari Surat Pengajuan Asal')
+                                ->state(function (Get $get) {
+                                    $pengajuanId = $get('terbitan_for_surat_id');
+                                    if (!$pengajuanId) return null;
+                                    $pengajuan = \App\Models\Surat::with('media')->find($pengajuanId);
+                                    if (!$pengajuan) return null;
+                                    $mediaItems = $pengajuan->getMedia('lampiran-surat');
+                                    if ($mediaItems->isEmpty()) {
+                                        return new \Illuminate\Support\HtmlString('<p class="text-xs text-gray-500 italic">Tidak ada berkas lampiran yang diunggah pada pengajuan ini.</p>');
+                                    }
+                                    $html = '<div class="flex flex-wrap gap-2 mt-1">';
+                                    foreach ($mediaItems as $item) {
+                                        $url = route('media.download', $item->id);
+                                        $size = number_format($item->size / 1024, 1) . ' KB';
+                                        $html .= "<a href='{$url}' target='_blank' class='inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium transition border border-gray-300 dark:border-gray-600'>
+                                            <svg class='w-4 h-4 text-emerald-600 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'/></svg>
+                                            <span class='truncate max-w-[200px]'>{$item->file_name}</span>
+                                            <span class='text-gray-400'>({$size})</span>
+                                        </a>";
+                                    }
+                                    $html .= '</div>';
+                                    return new \Illuminate\Support\HtmlString($html);
+                                })
+                                ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
 
                             Select::make('unitTujuan')
                                 ->label(fn(Get $get) => filled($get('terbitan_for_surat_id')) ? 'Tembusan Unit Internal (Opsional)' : 'Penerima Surat (Unit Tujuan)')
