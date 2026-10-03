@@ -1,7 +1,7 @@
 <div class="space-y-8">
     {{-- Header Overview --}}
     <div>
-        <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Overview</h2>
+        <!-- <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Overview</h2> -->
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Statistik persuratan dan aktivitas terkini untuk <strong>{{ $namaUnit }}</strong> ({{ $namaJabatan }}).
         </p>
@@ -61,7 +61,7 @@
         </a>
 
         {{-- 4. Selesai (Bulan Ini) --}}
-        <a href="{{ \App\Filament\Resources\Surats\SuratResource::getUrl('index', ['scope' => 'arsip']) }}" class="block p-6 bg-white rounded-2xl border border-gray-100 shadow-sm transition hover:shadow-md hover:border-emerald-200 dark:bg-gray-900 dark:border-gray-800 dark:hover:border-emerald-900">
+        <a href="#" class="block p-6 bg-white rounded-2xl border border-gray-100 shadow-sm transition hover:shadow-md hover:border-emerald-200 dark:bg-gray-900 dark:border-gray-800 dark:hover:border-emerald-900">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     SELESAI (BULAN INI)
