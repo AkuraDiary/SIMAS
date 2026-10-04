@@ -12,6 +12,7 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Livewire\WithFileUploads;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ViewMahasiswaSurat extends ViewRecord
 {
@@ -24,6 +25,10 @@ class ViewMahasiswaSurat extends ViewRecord
     public ?Surat $surat = null;
     public string $catatanPerbaikan = '';
     public $lampiranBaru = [];
+    public ?string $previewUrl = null;
+    public ?string $downloadUrl = null;
+    public bool $previewIsImage = false;
+
 
     public function mount(int | string $record): void
     {
@@ -34,6 +39,25 @@ class ViewMahasiswaSurat extends ViewRecord
     public function getTitle(): string
     {
         return ($this->record->perihal ?? 'Surat');
+    }
+
+    /**
+     * Membuka modal pratinjau berkas (PDF / Gambar) seperti di halaman pegawai
+     */
+    public function openPreview(int $mediaId): void
+    {
+        $media = Media::findOrFail($mediaId);
+        $this->previewIsImage = str_starts_with($media->mime_type, 'image/');
+
+        if (str_starts_with($media->mime_type, 'image/') || $media->mime_type === 'application/pdf') {
+            $this->previewUrl = route('media.file', $media->id);
+            $this->downloadUrl = route('media.download', $media->id);
+        } else {
+            $this->previewUrl = null;
+            $this->downloadUrl = route('media.download', $media->id);
+        }
+
+        $this->dispatch('open-modal', id: 'preview-modal');
     }
 
     public function getRenderedHtmlProperty(): string
