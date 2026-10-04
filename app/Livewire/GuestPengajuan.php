@@ -758,83 +758,87 @@ class GuestPengajuan extends Component implements HasForms
 
     public function downloadDraft()
     {
-        $state = $this->form->getRawState();
-
-        // Extract lampiran names from TemporaryUploadedFile or file array if lampiran_names is missing
-        if (empty($state['lampiran_names']) && !empty($state['lampiran'])) {
-            $lampiranNames = [];
-            foreach ($state['lampiran'] as $file) {
-                if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
-                    $lampiranNames[] = $file->getClientOriginalName();
-                } elseif (is_string($file)) {
-                    $lampiranNames[] = basename($file);
-                }
-            }
-            $state['lampiran_names'] = $lampiranNames;
-        }
-
-        $isScratch = ($state['template_id'] ?? '') === 'scratch';
-
-        $pengirim = $state['pengirim_nama'] ?? 'Guest';
-        $tujuan = '-';
-        $perihal = $state['perihal'] ?? '-';
-        $renderedHtml = '';
-
-        if ($isScratch) {
-            $unitId = $state['unit_tujuan'] ?? null;
-            if ($unitId) {
-                $tujuan = \App\Models\UnitKerja::find($unitId)?->nama_unit ?? '-';
-            }
-            $renderedHtml = $state['content_scratch'] ?? '';
-        } else {
-            $templateId = $state['template_id'] ?? null;
-            if ($templateId) {
-                $template = \App\Models\Template::with('entryPointUnit')->find($templateId);
-                $perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
-                $tujuan = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
-
-                $service = app(\App\Services\PlaceholderService::class);
-                $renderedHtml = $service->renderHtml($template, $state['content'] ?? []);
-            }
-        }
-
-        // Setup mock Surat for the surat view to prevent relation null errors
-        $mockSurat = new \App\Models\Surat([
-            'nomor_surat' => 'DRAF',
-            'nomor_agenda' => '-',
-            'perihal' => $perihal,
-            'tanggal_kirim' => now(),
-        ]);
-
-        $mockUnit = new \App\Models\UnitKerja(['nama_unit' => $tujuan]);
-        $mockPembuat = new \App\Models\User(['nama_lengkap' => $pengirim]);
-
-        $mockSurat->setRelation('unitPengirim', $mockUnit);
-        $mockSurat->setRelation('pembuat', $mockPembuat);
-
-        // Generate the HTML for the main letter (reusing the clean, watermark-free view)
-        $suratHtml = view('filament.exports.surat.surat', [
-            'surat' => $mockSurat,
-            'isArsip' => false,
-            'renderedHtml' => $renderedHtml
-        ])->render();
-
-        // Generate the separate metadata page
-        $metadataHtml = view('filament.exports.surat.metadata', [
-            'state' => $state,
-            'tujuan' => $tujuan,
-
-        ])->render();
-
-        // Inject metadata at the end of the surat HTML with a page break
-        $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
-
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
+        return app(\App\Services\SuratExportService::class)->downloadDraftPdf($this->form->getRawState());
     }
+    // public function downloadDraft()
+    // {
+    //     $state = $this->form->getRawState();
+
+    //     // Extract lampiran names from TemporaryUploadedFile or file array if lampiran_names is missing
+    //     if (empty($state['lampiran_names']) && !empty($state['lampiran'])) {
+    //         $lampiranNames = [];
+    //         foreach ($state['lampiran'] as $file) {
+    //             if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
+    //                 $lampiranNames[] = $file->getClientOriginalName();
+    //             } elseif (is_string($file)) {
+    //                 $lampiranNames[] = basename($file);
+    //             }
+    //         }
+    //         $state['lampiran_names'] = $lampiranNames;
+    //     }
+
+    //     $isScratch = ($state['template_id'] ?? '') === 'scratch';
+
+    //     $pengirim = $state['pengirim_nama'] ?? 'Guest';
+    //     $tujuan = '-';
+    //     $perihal = $state['perihal'] ?? '-';
+    //     $renderedHtml = '';
+
+    //     if ($isScratch) {
+    //         $unitId = $state['unit_tujuan'] ?? null;
+    //         if ($unitId) {
+    //             $tujuan = \App\Models\UnitKerja::find($unitId)?->nama_unit ?? '-';
+    //         }
+    //         $renderedHtml = $state['content_scratch'] ?? '';
+    //     } else {
+    //         $templateId = $state['template_id'] ?? null;
+    //         if ($templateId) {
+    //             $template = \App\Models\Template::with('entryPointUnit')->find($templateId);
+    //             $perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
+    //             $tujuan = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
+
+    //             $service = app(\App\Services\PlaceholderService::class);
+    //             $renderedHtml = $service->renderHtml($template, $state['content'] ?? []);
+    //         }
+    //     }
+
+    //     // Setup mock Surat for the surat view to prevent relation null errors
+    //     $mockSurat = new \App\Models\Surat([
+    //         'nomor_surat' => 'DRAF',
+    //         'nomor_agenda' => '-',
+    //         'perihal' => $perihal,
+    //         'tanggal_kirim' => now(),
+    //     ]);
+
+    //     $mockUnit = new \App\Models\UnitKerja(['nama_unit' => $tujuan]);
+    //     $mockPembuat = new \App\Models\User(['nama_lengkap' => $pengirim]);
+
+    //     $mockSurat->setRelation('unitPengirim', $mockUnit);
+    //     $mockSurat->setRelation('pembuat', $mockPembuat);
+
+    //     // Generate the HTML for the main letter (reusing the clean, watermark-free view)
+    //     $suratHtml = view('filament.exports.surat.surat', [
+    //         'surat' => $mockSurat,
+    //         'isArsip' => false,
+    //         'renderedHtml' => $renderedHtml
+    //     ])->render();
+
+    //     // Generate the separate metadata page
+    //     $metadataHtml = view('filament.exports.surat.metadata', [
+    //         'state' => $state,
+    //         'tujuan' => $tujuan,
+
+    //     ])->render();
+
+    //     // Inject metadata at the end of the surat HTML with a page break
+    //     $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
+
+    //     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
+
+    //     return response()->streamDownload(function () use ($pdf) {
+    //         echo $pdf->output();
+    //     }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
+    // }
 
     public function render(): View
     {

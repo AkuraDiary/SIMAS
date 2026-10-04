@@ -6,6 +6,8 @@ use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use App\Models\Template;
 use App\Models\UnitKerja;
 use App\Services\FormSchemaService;
+use App\Services\PlaceholderService;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
@@ -23,7 +25,7 @@ use Illuminate\Support\HtmlString;
 
 class SuratForm
 {
-     public static function configure(Schema $schema): Schema
+    public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
@@ -78,7 +80,7 @@ class SuratForm
                             ];
                         }),
                     // -------------------------------------------------------------
-                    // LANGKAH 3: ISI DOKUMEN & LAMPIRAN (Reuse FormSchemaService)
+                    // LANGKAH 3: ISI DOKUMEN & LAMPIRAN
                     // -------------------------------------------------------------
                     Step::make('Isi Dokumen & Berkas')
                         ->description('Lengkapi variabel surat & dokumen pendukung')
@@ -96,7 +98,7 @@ class SuratForm
                                     ->searchable()
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch')
                                     ->columnSpanFull(),
-                                 TinyEditor::make('content_scratch')
+                                TinyEditor::make('content_scratch')
                                     ->label('Isi Surat Permohonan')
                                     ->setCustomConfigs([
                                         'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
@@ -106,7 +108,7 @@ class SuratForm
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch')
                                     ->columnSpanFull(),
                             ])
-                            ->visible(fn(Get $get) => $get('template_id') === 'scratch' || empty($get('template_id'))),
+                                ->visible(fn(Get $get) => $get('template_id') === 'scratch' || empty($get('template_id'))),
                             // B. JIKA MEMILIH TEMPLATE RESMI (Dynamic Schema dari FormSchemaService)
                             Group::make()->schema(function (Get $get) {
                                 $templateId = $get('template_id');
@@ -128,7 +130,7 @@ class SuratForm
                                 $dynamicFields = app(FormSchemaService::class)->generateFilamentSchema($template->field_variables ?? []);
                                 return array_merge($components, $dynamicFields);
                             })
-                            ->visible(fn(Get $get) => filled($get('template_id')) && $get('template_id') !== 'scratch'),
+                                ->visible(fn(Get $get) => filled($get('template_id')) && $get('template_id') !== 'scratch'),
                             // C. DOKUMEN PENDUKUNG (Spatie Media Library Upload)
                             Section::make('Dokumen Pendukung / Lampiran')
                                 ->schema([
@@ -143,11 +145,71 @@ class SuratForm
                                         ->columnSpanFull(),
                                 ]),
                         ]),
+                    // -------------------------------------------------------------
+                    // LANGKAH 4: PRATINJAU DRAF SURAT
+                    // -------------------------------------------------------------
+                    Step::make('Pratinjau')
+                        ->description('Tinjau kembali permohonan surat Anda')
+                        ->schema([
+                            TextEntry::make('summary')
+                                ->hiddenLabel()
+                                ->state(function (Get $get) {
+                                    $isScratch = ($get('template_id') ?? '') === 'scratch';
+                                    $renderedHtml = '';
+
+                                    if ($isScratch) {
+                                        $renderedHtml = $get('content_scratch') ?? '';
+                                        $fakeTemplate = new Template();
+                                        $fakeTemplate->content_html = $renderedHtml;
+                                        $renderedHtml = app(PlaceholderService::class)->renderHtml($fakeTemplate, $get('content') ?? []);
+                                    } else {
+                                        $templateId = $get('template_id');
+                                        if ($templateId) {
+                                            $template = Template::find($templateId);
+                                            if ($template) {
+                                                $renderedHtml = app(PlaceholderService::class)->renderHtml($template, $get('content') ?? []);
+                                            }
+                                        }
+                                    }
+
+                                    $user = Auth::user();
+                                    $mhs = $user?->mahasiswa;
+
+                                    return view('components.pengajuan-summary', [
+                                        'data' => [
+                                            'template_id'       => $get('template_id'),
+                                            'tipe_pengirim'     => 'mahasiswa',
+                                            'pengirim_nama'     => $get('pengirim_nama') ?? $mhs?->nama_lengkap ?? $user?->nama_lengkap,
+                                            'pengirim_nim'      => $get('pengirim_nim') ?? $mhs?->nim ?? '-',
+                                            'pengirim_fakultas' => $mhs?->fakultas_id,
+                                            'pengirim_prodi'    => $mhs?->prodi_id,
+                                            'pengirim_email'    => $get('pengirim_email') ?? $user?->email,
+                                            'pengirim_telp'     => $get('pengirim_telp') ?? $user?->phone,
+                                            'unit_tujuan'       => $get('unit_tujuan'),
+                                            'perihal'           => $get('perihal'),
+                                            'content'           => $get('content'),
+                                            'lampiran'          => $get('lampiran'),
+                                        ],
+                                        'renderedHtml' => $renderedHtml
+                                    ]);
+                                })
+                                ->columnSpanFull(),
+
+                            Section::make()
+                                ->schema([
+                                    Checkbox::make('konfirmasi')
+                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
+                                        ->required()
+                                        ->accepted()
+                                        ->dehydrated(false),
+                                ])
+                                ->columnSpanFull(),
+                        ]),
                 ])
-                ->columnSpanFull()
-                ->submitAction(
-                    new HtmlString('<button type="submit" class="filament-button px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">Kirim Pengajuan Sekarang &rarr;</button>')
-                ),
+                    ->columnSpanFull()
+                    ->submitAction(
+                        new HtmlString('<button type="submit" class="filament-button px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">Kirim Pengajuan Sekarang &rarr;</button>')
+                    ),
             ]);
     }
 }

@@ -24,6 +24,12 @@ class CreateMahasiswaSurat extends CreateRecord
     {
         return [];
     }
+
+
+    public function downloadDraft()
+    {
+        return app(\App\Services\SuratExportService::class)->downloadDraftPdf($this->form->getRawState());
+    }
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $user = auth()->user();
@@ -64,15 +70,14 @@ class CreateMahasiswaSurat extends CreateRecord
             }
 
             $data['content'] = $content;
-
-
-            // Hapus field form yang bukan kolom fisik tabel surats
-            unset(
-                $data['pengirim_telp'],
-                $data['content_scratch'],
-                $data['unit_tujuan']
-            );
         }
+
+        // Hapus field form yang bukan kolom fisik tabel surats
+        unset(
+            $data['pengirim_telp'],
+            $data['content_scratch'],
+            $data['unit_tujuan']
+        );
         return $data;
     }
     protected function afterCreate(): void
