@@ -73,7 +73,7 @@
                 <thead>
                     <tr class="border-b border-gray-100 dark:border-gray-800 text-[11px] font-bold uppercase tracking-wider text-gray-400">
                         <th class="py-3 px-4">KODE PELACAKAN</th>
-                        <th class="py-3 px-4">JENIS DOKUMEN</th>
+                        <th class="py-3 px-4">PERIHAL</th>
                         <th class="py-3 px-4">TANGGAL</th>
                         <th class="py-3 px-4">STATUS</th>
                         <th class="py-3 px-4 text-center">AKSI</th>
@@ -94,7 +94,7 @@
                     ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800'
                     : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800');
 
-                    $namaDokumen = $item->template?->nama_template ?? $item->perihal;
+                    $namaDokumen =  $item->perihal;
                     $trackingCode = $item->tracking_code ?: ('REQ-' . $item->id);
                     @endphp
                     <tr class="hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition">
