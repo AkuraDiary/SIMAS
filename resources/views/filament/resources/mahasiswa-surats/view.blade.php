@@ -61,7 +61,7 @@
                         <x-filament::icon icon="heroicon-o-check-badge" class="w-7 h-7" />
                     </div>
                     <div>
-                        <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Resmi Telah Diterbitkan</h4>
+                        <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Balasan Telah Diterbitkan</h4>
                         <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
                             No. Surat: <span class="font-semibold">{{ $nomorResmi }}</span>
                         </p>
