@@ -42,56 +42,138 @@
         <div class="col-span-1 md:col-span-2 space-y-6">
 
 
-            {{-- HASIL TERBITAN RESMI (JIKA SUDAH SELESAI) --}}
+            {{-- HASIL AKHIR: SURAT BALASAN RESMI ATAU DOKUMEN PENGESAHAN --}}
             @php
-            $terbitan = $this->record->terbitans()->latest()->first();
-            $finalMedia = $terbitan?->getFirstMedia('dokumen-final')
-            ?? $this->record->getFirstMedia('dokumen-final')
-            ?? $terbitan?->getFirstMedia('lampiran-surat');
-            $nomorResmi = $terbitan?->nomor_surat
-            ?? $this->record->nomorSuratLogs->last()?->nomor_lengkap
-            ?? $this->record->nomor_surat
-            ?? '-';
-            $isSelesai = in_array(strtoupper($this->record->status_surat), ['SELESAI', 'TERBIT']) || $finalMedia !== null;
+            $terbitan = $this->record->terbitans->sortByDesc('created_at')->first();
+            $terbitanMedia = $terbitan?->getFirstMedia('dokumen-final') ?? $terbitan?->getFirstMedia('lampiran-surat');
+            $terbitanNomor = $terbitan?->nomorSuratLogs->last()?->nomor_lengkap ?? $terbitan?->nomor_surat;
+            $terbitanUnit = $terbitan?->unitPengirim?->nama_unit ?? 'Unit Terkait';
+            $isTerbitanSelesai = $terbitan && (in_array(strtoupper($terbitan->status_surat), ['SELESAI', 'TERBIT']) || $terbitanMedia !== null);
+
+            $pengajuanMedia = $this->record->getFirstMedia('dokumen-final');
+            $pengajuanNomor = $this->record->nomorSuratLogs->last()?->nomor_lengkap ?? $this->record->nomor_surat;
+            $isPengajuanSelesai = in_array(strtoupper($this->record->status_surat), ['SELESAI', 'TERBIT']) || $pengajuanMedia !== null;
             @endphp
-            @if($isSelesai && $finalMedia)
-            <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
+
+            {{-- KASUS 1: SURAT BALASAN RESMI TELAH TERBIT --}}
+            @if($terbitan && $isTerbitanSelesai && $terbitanMedia)
+            <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                <div class="flex items-start sm:items-center gap-4">
                     <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
                         <x-filament::icon icon="heroicon-o-check-badge" class="w-7 h-7" />
                     </div>
                     <div>
-                        <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Balasan Telah Diterbitkan</h4>
-                        <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
-                            No. Surat: <span class="font-semibold">{{ $nomorResmi }}</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Balasan Resmi Telah Diterbitkan</h4>
+                            <span class="inline-flex items-center text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
+                                Output Resmi
+                            </span>
+                        </div>
+                        <p class="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                            No. Surat: <span class="font-mono font-semibold">{{ $terbitanNomor ?: '-' }}</span>
+                            <span class="text-emerald-400 dark:text-emerald-600 mx-1">•</span>
+                            Perihal: <span class="font-medium">{{ $terbitan->perihal }}</span>
+                            @if($terbitanUnit)
+                            <span class="text-emerald-400 dark:text-emerald-600 mx-1">•</span>
+                            Oleh: <span class="font-medium">{{ $terbitanUnit }}</span>
+                            @endif
                         </p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    {{-- Tombol Pratinjau Langsung (Modal) --}}
+                <div class="flex items-center gap-2 shrink-0">
+                    {{-- Tombol Lihat Surat Balasan Resmi --}}
                     <button type="button"
-                        wire:click="openPreview({{ $finalMedia->id }})"
-                        class="px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer">
-                        Lihat Dokumen
+                        wire:click="openPreview({{ $terbitanMedia->id }})"
+                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-2 cursor-pointer">
+                        <x-filament::icon icon="heroicon-o-eye" class="w-4 h-4" />
+                        <span>Lihat Surat Balasan</span>
                     </button>
-                    {{-- Tombol Unduh via MediaController
-                    <a href="{{ route('media.download', $finalMedia->id) }}"
-                        target="_blank"
-                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-1.5">
-                        <x-filament::icon icon="heroicon-o-arrow-down-tray" class="w-4 h-4" />
-                        <span>Unduh PDF Resmi</span>
-                    </a>
 
-                     --}}
+                    {{-- Jika naskah pengajuan awal juga sempat memiliki dokumen-final --}}
+                    @if($pengajuanMedia)
+                    <button type="button"
+                        wire:click="openPreview({{ $pengajuanMedia->id }})"
+                        class="px-3.5 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer"
+                        title="Lihat Naskah Pengajuan Awal">
+                        Naskah Awal
+                    </button>
+                    @endif
+                </div>
+            </div>
+
+            {{-- KASUS 2: SURAT BALASAN SEDANG DALAM PROSES PENYIAPAN --}}
+            @elseif($terbitan && !$isTerbitanSelesai)
+            <div class="p-5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <x-filament::icon icon="heroicon-o-arrow-path" class="w-6 h-6 animate-spin" />
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-blue-900 dark:text-blue-200">Surat Balasan Resmi Sedang Disiapkan</h4>
+                        <p class="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                            Permohonan Anda telah disetujui. {{ $terbitanUnit }} sedang menyiapkan dokumen balasan/keputusan resmi.
+                        </p>
+                    </div>
+                </div>
+                @if($pengajuanMedia)
+                <button type="button"
+                    wire:click="openPreview({{ $pengajuanMedia->id }})"
+                    class="px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer shrink-0">
+                    Lihat Dokumen Pengajuan
+                </button>
+                @endif
+            </div>
+
+            {{-- KASUS 3: DOKUMEN PENGAJUAN DISAHKAN LANGSUNG (SELF-SERVICE / SURAT KETERANGAN RESMI) --}}
+            @elseif($isPengajuanSelesai && $pengajuanMedia)
+            <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                <div class="flex items-start sm:items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <x-filament::icon icon="heroicon-o-check-badge" class="w-7 h-7" />
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Dokumen Resmi Telah Disahkan</h4>
+                            <span class="inline-flex items-center text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
+                                Selesai
+                            </span>
+                        </div>
+                        <p class="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                            No. Dokumen: <span class="font-mono font-semibold">{{ $pengajuanNomor ?: '-' }}</span>
+                            <span class="text-emerald-400 dark:text-emerald-600 mx-1">•</span>
+                            Permohonan Anda telah disetujui dan dokumen resmi telah diterbitkan.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button"
+                        wire:click="openPreview({{ $pengajuanMedia->id }})"
+                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-2 cursor-pointer">
+                        <x-filament::icon icon="heroicon-o-arrow-down-tray" class="w-4 h-4" />
+                        <span>Unduh / Lihat Dokumen</span>
+                    </button>
                 </div>
             </div>
             @endif
 
             {{-- 1. KERTAS DOKUMEN DIGITAL --}}
-            <div class="rounded-2xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
-                <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5 rounded-xl">
-                    <div class="prose max-w-none prose-sm sm:prose-base dark:prose-invert">
-                        {!! $this->renderedHtml !!}
+            <div class="space-y-2">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-xs font-semibold tracking-wider text-gray-500 uppercase flex items-center gap-1.5">
+                        <x-filament::icon icon="heroicon-o-document-text" class="w-4 h-4 text-gray-400" />
+                        Naskah Pengajuan Mahasiswa
+                    </span>
+                    @if($this->record->nomor_surat)
+                    <span class="text-xs font-mono text-gray-500 dark:text-gray-400">
+                        No. {{ $this->record->nomor_surat }}
+                    </span>
+                    @endif
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
+                    <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5 rounded-xl">
+                        <div class="prose max-w-none prose-sm sm:prose-base dark:prose-invert">
+                            {!! $this->renderedHtml !!}
+                        </div>
                     </div>
                 </div>
             </div>
