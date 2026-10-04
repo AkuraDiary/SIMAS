@@ -72,7 +72,7 @@
                     <button type="button"
                         wire:click="openPreview({{ $finalMedia->id }})"
                         class="px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer">
-                        Pratinjau PDF
+                        Lihat Dokumen
                     </button>
                     {{-- Tombol Unduh via MediaController
                     <a href="{{ route('media.download', $finalMedia->id) }}"
