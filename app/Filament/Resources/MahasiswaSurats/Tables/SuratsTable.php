@@ -43,11 +43,17 @@ class SuratsTable
             ])
             ->recordActions([
                 // 1. Aksi Lacak Langsung ke Halaman Tracking
-                \Filament\Actions\Action::make('lacak')
-                    ->label('Lacak')
-                    ->icon('heroicon-o-eye')
-                    ->url(fn(\App\Models\Surat $record) => url('/lacak?code=' . ($record->tracking_code ?: 'REQ-' . $record->id)))
-                    ->openUrlInNewTab(),
+                // \Filament\Actions\Action::make('lacak')
+                //     ->label('Lacak')
+                //     ->icon('heroicon-o-eye')
+                //     ->url(fn(\App\Models\Surat $record) => url('/lacak?code=' . ($record->tracking_code ?: 'REQ-' . $record->id)))
+                //     ->openUrlInNewTab(),
+
+                \Filament\Actions\EditAction::make()
+                    ->label('Perbaiki')
+                    ->icon('heroicon-m-pencil-square')
+                    ->color('warning')
+                    ->visible(fn(\App\Models\Surat $record) => $record->status_surat === 'REVISI'),
 
                 // 2. Aksi Lihat Modal Detail Internal
                 \Filament\Actions\ViewAction::make(),

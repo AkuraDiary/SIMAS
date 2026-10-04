@@ -102,6 +102,14 @@ class SuratForm
 
                             Select::make('template_id')
                                 ->label('Pilih Template Surat')
+                                ->suffixAction(
+                                    \Filament\Actions\Action::make('download_template_blank')
+                                        ->icon('heroicon-o-arrow-down-tray')
+                                        ->tooltip('Unduh Template Asli (.docx)')
+                                        ->color('primary')
+                                        ->visible(fn(Get $get) => filled($get('template_id')))
+                                        ->url(fn(Get $get) => filled($get('template_id')) ? route('template.download-blank', $get('template_id')) : null, shouldOpenInNewTab: true)
+                                )
                                 ->options(function (Get $get) {
                                     $unitId = null;
                                     $upjId = $get('user_pegawai_jabatan_id');
@@ -143,30 +151,38 @@ class SuratForm
                                                 if (($field['type'] ?? '') === 'signature') {
                                                     $content[$key . '_method'] = 'draw';
                                                     $content[$key . '_draw'] = null;
-                                                    $content[$key . '_upload'] = null;
                                                 } else {
                                                     $content[$key] = null;
                                                 }
                                             }
                                         }
                                         $set('content', $content);
-
-                                        // isi Unit Penerima jika template memiliki Entry Point
-                                        if ($template->entry_point_unit_id) {
-                                            $set('unitTujuan', [(int) $template->entry_point_unit_id]);
-                                        }
-                                        // isi Alur Persetujuan jika template memiliki Approval Path bawaan
-                                        if (!empty($template->approval_path)) {
-                                            $set('approval_path', $template->approval_path);
-                                        }
-                                        // Sinkronkan Tipe Surat bawaan template
-                                        if ($template->tipe_surat) {
-                                            $set('tipe_surat', $template->tipe_surat);
-                                        }
-                                    } else {
-                                        $set('content', []);
                                     }
                                 }),
+
+                            // Banner Interaktif Template Terpilih dengan Tombol Unduh Langsung
+                            TextEntry::make('info_template_terpilih')
+                                ->hiddenLabel()
+                                ->visible(fn(Get $get) => filled($get('template_id')) && $get('metode_pembuatan') === 'template')
+                                ->state(function (Get $get) {
+                                    $template = \App\Models\Template::find($get('template_id'));
+                                    if (!$template) return '';
+                                    $downloadUrl = route('template.download-blank', $template->id);
+                                    return new \Illuminate\Support\HtmlString("
+                                        <div class='p-4 bg-primary-50/70 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800 rounded-xl my-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3'>
+                                            <div>
+                                                <span class='text-[10px] font-bold uppercase tracking-wider text-primary-700 dark:text-primary-400'>Template Terpilih</span>
+                                                <h5 class='text-sm font-bold text-gray-900 dark:text-white mt-0.5'>{$template->nama_template}</h5>
+                                                <p class='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>{$template->deskripsi}</p>
+                                            </div>
+                                            <a href='{$downloadUrl}' target='_blank' class='inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-lg shadow-sm transition shrink-0'>
+                                                <svg class='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'></path></svg>
+                                                <span>Unduh File Word (.docx)</span>
+                                            </a>
+                                        </div>
+                                    ");
+                                }),
+
 
                             Select::make('user_pegawai_jabatan_id')
                                 ->label('Kirim Sebagai (Peran / Jabatan)')

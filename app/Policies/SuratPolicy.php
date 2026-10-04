@@ -9,12 +9,23 @@ use Illuminate\Auth\Access\Response;
 class SuratPolicy
 {
     /**
+     * Perform pre-authorization checks.
+     */
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->tipe_entitas === 'ADMIN') {
+            return true;
+        }
+
+        return null;
+    }
+
+    /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
     {
-        
-        return in_array($user->tipe_entitas, ['STAF', 'MAHASISWA']);
+        return in_array($user->tipe_entitas, ['ADMIN', 'STAF', 'MAHASISWA']);
     }
 
     /**
@@ -25,12 +36,12 @@ class SuratPolicy
         $unitId = $user->unit_kerja_id;
 
         // 1. Surat keluar unit sendiri
-        if ($surat->unit_pengirim_id === $unitId) {
+        if ($unitId && $surat->unit_pengirim_id === $unitId) {
             return true;
         }
 
         // 2. Surat masuk langsung
-        if ($surat->suratUnits()
+        if ($unitId && $surat->suratUnits()
             ->where('unit_kerja_id', $unitId)
             ->exists()
         ) {
@@ -38,14 +49,30 @@ class SuratPolicy
         }
 
         // 3. Surat via disposisi
-        if ($surat->disposisis()
+        if ($unitId && $surat->disposisis()
             ->where('unit_tujuan_id', $unitId)
             ->exists()
         ) {
             return true;
         }
 
-        // 4. Mahasiswa melihat surat mereka sendiri
+        // 4. Surat dalam riwayat approval / workflow unit ini
+        if ($unitId && $surat->riwayats()
+            ->where(function ($q) use ($unitId) {
+                $q->where('unit_tujuan_id', $unitId)
+                    ->orWhere('unit_asal_id', $unitId);
+            })
+            ->exists()
+        ) {
+            return true;
+        }
+
+        // 5. Cek izin akses unit melalui UnitAksesService
+        if ($unitId && app(\App\Services\UnitAksesService::class)->canUserAccessSurat($user, $surat, $unitId)) {
+            return true;
+        }
+
+        // 6. Mahasiswa melihat surat mereka sendiri
         if ($user->tipe_entitas === 'MAHASISWA' && $surat->user_pembuat_id === $user->id) {
             return true;
         }

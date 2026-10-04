@@ -198,35 +198,32 @@ class DetailSurat extends Page implements HasForms
 
         $unitId = Auth::user()->unit_kerja_id;
 
-        // Inject Finalisasi Actions (Generate Nomor & Download PDF)
-        $primaryActions = array_merge($primaryActions, $this->getFinalisasiActions());
-
-        // Download Template Action
-        if ($this->surat->template_id) {
-            $secondaryActions[] = ActionGroup::make([
-                Action::make('download_blank')
-                    ->label('Unduh Template Asli (Kosong)')
-                    ->icon('heroicon-o-document')
-                    ->action(function () {
-                        $path = app(\App\Services\DocxTemplateService::class)->downloadBlankDocx($this->surat->template);
-                        return response()->download($path, 'Template_Kosong_' . $this->surat->template->nama_template . '.docx');
-                    }),
-
-                Action::make('download_filled')
-                    ->label('Unduh Draft Surat (.docx)')
-                    ->icon('heroicon-o-document-text')
-                    ->action(function () {
-                        $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->surat);
-                        return response()->download($path, 'Draft_Surat_' . $this->surat->perihal . '.docx');
-                    }),
-            ])
-                ->label('Unduh Dokumen (Word)')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->button()
-                ->color('gray');
+        // 1. Actions Finalisasi (Beri Nomor Surat & Unduh PDF Resmi) -> masuk ke Kelola Surat
+        $finalisasiActions = $this->getFinalisasiActions();
+        foreach ($finalisasiActions as $act) {
+            $secondaryActions[] = $act;
         }
 
-        // 1. TAMPILKAN TOMBOL PERBAIKI UNTUK PEMBUAT AWAL (Ubah === menjadi == agar kebal tipe data)
+        // 2. Download Template Word (.docx)
+        if ($this->surat->template_id) {
+            $secondaryActions[] = Action::make('download_blank')
+                ->label('Unduh Template Asli (Kosong)')
+                ->icon('heroicon-o-document')
+                ->action(function () {
+                    $path = app(\App\Services\DocxTemplateService::class)->downloadBlankDocx($this->surat->template);
+                    return response()->download($path, 'Template_Kosong_' . $this->surat->template->nama_template . '.docx');
+                });
+
+            $secondaryActions[] = Action::make('download_filled')
+                ->label('Unduh Draft Surat (.docx)')
+                ->icon('heroicon-o-document-text')
+                ->action(function () {
+                    $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->surat);
+                    return response()->download($path, 'Draft_Surat_' . $this->surat->perihal . '.docx');
+                });
+        }
+
+        // 3. Tombol Perbaiki (jika status REVISI dan unit pengirim pembuat)
         if ($this->surat->status_surat === 'REVISI' && $this->surat->unit_pengirim_id == $unitId) {
             $primaryActions[] = Action::make('edit')
                 ->label('Perbaiki Surat')
@@ -235,21 +232,19 @@ class DetailSurat extends Page implements HasForms
                 ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
         }
 
+        // 4. Export Surat (.zip)
         $secondaryActions[] = Action::make('export')
-            ->label('Export Surat')
+            ->label('Export Surat (.zip)')
             ->icon('heroicon-o-arrow-down-tray')
             ->action(fn() => redirect()->route('surat.export', $this->surat));
 
+        // 5. Arsip
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
             $secondaryActions[] = $this->getActionArsipInfo();
         }
 
-        // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK
-
-
-
-        // 2. TAMPILKAN GRUP PERSETUJUAN & BACKTRACK (Aktif untuk PENGAJUAN dan TERBITAN)
+        // 6. Grup Persetujuan & Backtrack
         $isApprovalType = in_array($this->surat->tipe_surat, ['PENGAJUAN', 'TERBITAN']) || !empty($this->surat->approval_path);
         if ($isApprovalType) {
             $hasPendingPersetujuan = $this->surat->riwayats
@@ -258,18 +253,22 @@ class DetailSurat extends Page implements HasForms
                 ->isNotEmpty();
             $persetujuan = $this->getActionPersetujuan();
             if ($hasPendingPersetujuan) {
-                // Tombol Proses Surat (Setujui & Teruskan / Setujui & Selesai dengan TTD Digital)
-                $primaryActions[] = $persetujuan['group_proses'] ?? null;
-                // Tombol Kembalikan / Tolak (Backtrack / Reset)
-                $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
+                // Tombol Utama: Proses Surat (Setujui & Teruskan / Setujui & Selesai)
+                if (isset($persetujuan['group_proses'])) {
+                    $primaryActions[] = $persetujuan['group_proses'];
+                }
+                // Tombol Sekunder/Kembalikan: Outlined Danger
+                if (isset($persetujuan['group_kembalikan'])) {
+                    $primaryActions[] = $persetujuan['group_kembalikan'];
+                }
             }
+            // Terbitkan Surat Balasan dipindahkan ke secondaryActions (Kelola Surat)
             if (isset($persetujuan['terbitan']) && $this->surat->tipe_surat === 'PENGAJUAN') {
-                $primaryActions[] = $persetujuan['terbitan'];
+                $secondaryActions[] = $persetujuan['terbitan'];
             }
         }
 
-
-
+        // 7. Selesai Internal
         if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
             $hasPendingTugas = $this->surat->riwayats
                 ->where('status', 'MENUNGGU')
@@ -277,50 +276,28 @@ class DetailSurat extends Page implements HasForms
                 ->isNotEmpty();
             if ($hasPendingTugas) {
                 $internalActions = $this->getActionSelesaiInternal();
-                if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
+                if (isset($internalActions[0])) {
+                    $primaryActions[] = $internalActions[0];
+                }
             }
         }
-        // if ($this->surat->tipe_surat === 'PENGAJUAN') {
-        //     $hasPendingPersetujuan = $this->surat->riwayats()
-        //         ->where('status', 'MENUNGGU')
-        //         ->where('unit_tujuan_id', $unitId)
-        //         ->exists();
 
-        //     $persetujuan = $this->getActionPersetujuan();
-
-        //     if ($hasPendingPersetujuan) {
-        //         // Jangan gunakan isset array key yang rawan error, langsung push object-nya
-        //         $primaryActions[] = $persetujuan['group_proses'] ?? null;
-        //         $primaryActions[] = $persetujuan['group_kembalikan'] ?? null;
-        //     }
-
-        //     if (isset($persetujuan['terbitan'])) {
-        //         $primaryActions[] = $persetujuan['terbitan'];
-        //     }
-        // }
-
-        // if ($this->surat->tipe_surat === 'INTERNAL' && $this->surat->unit_pengirim_id != $unitId) {
-        //     $hasPendingTugas = $this->surat->riwayats()
-        //         ->where('status', 'MENUNGGU')
-        //         ->where('unit_tujuan_id', $unitId)
-        //         ->exists();
-        //     if ($hasPendingTugas) {
-        //         $internalActions = $this->getActionSelesaiInternal();
-        //         if (isset($internalActions[0])) $primaryActions[] = $internalActions[0];
-        //     }
-        // }
-
+        // 8. Disposisi
         $disposisi = $this->getActionDisposisi();
-        if (isset($disposisi[0])) $secondaryActions[] = $disposisi[0];
-        if (isset($disposisi[1])) $primaryActions[] = $disposisi[1];
+        if (isset($disposisi[0])) {
+            $secondaryActions[] = $disposisi[0];
+        }
+        if (isset($disposisi[1])) {
+            $primaryActions[] = $disposisi[1];
+        }
 
-        // 3. RENDER SEMUA BUTTON
-        // Filter out any nulls that might have snuck into primaryActions
-        $actions = array_filter($primaryActions);
+        // Render Actions: Primary + Dropdown Kelola Surat
+        $actions = array_values(array_filter($primaryActions));
 
-        if (count($secondaryActions) > 0) {
-            $actions[] = ActionGroup::make(array_filter($secondaryActions))
-                ->label('Lainnya')
+        $filteredSecondary = array_values(array_filter($secondaryActions));
+        if (count($filteredSecondary) > 0) {
+            $actions[] = ActionGroup::make($filteredSecondary)
+                ->label('Kelola Surat')
                 ->icon('heroicon-m-ellipsis-vertical')
                 ->button()
                 ->color('gray');
