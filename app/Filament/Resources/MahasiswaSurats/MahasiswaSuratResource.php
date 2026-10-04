@@ -15,12 +15,13 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Resources\MahasiswaSurats\Pages\ViewMahasiswaSurat;
 
 class MahasiswaSuratResource extends Resource
 {
     protected static ?string $model = Surat::class;
 
-       protected static ?string $slug = 'mahasiswa-surats';
+    protected static ?string $slug = 'mahasiswa-surats';
 
     protected static ?string $navigationLabel = 'Pengajuan';
 
@@ -54,6 +55,7 @@ class MahasiswaSuratResource extends Resource
     {
         return [
             'index' => ListMahasiswaSurats::route('/'),
+            'view'   => ViewMahasiswaSurat::route('/{record}'),
             'create' => CreateMahasiswaSurat::route('/create'),
         ];
     }

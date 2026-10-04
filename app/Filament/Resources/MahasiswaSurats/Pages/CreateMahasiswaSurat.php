@@ -112,7 +112,7 @@ class CreateMahasiswaSurat extends CreateRecord
                 'unit_tujuan_id' => $targetUnitId,
                 'user_aktor_id'  => null,
                 'status'         => 'MENUNGGU',
-                'catatan'        => 'Pengajuan baru dari mahasiswa: ' . ($surat->pengirim_nama ?? 'Mahasiswa'),
+                'catatan'        => '',
                 'actioned_at'    => null,
             ]);
             // 3. Notifikasi Sistem & WhatsApp ke Petugas Unit yang Berhak
