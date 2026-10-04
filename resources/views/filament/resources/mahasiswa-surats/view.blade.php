@@ -41,6 +41,30 @@
         {{-- KOLOM KIRI: Draf Dokumen Surat & Berkas Lampiran --}}
         <div class="col-span-1 md:col-span-2 space-y-6">
 
+
+            {{-- HASIL TERBITAN RESMI (JIKA SUDAH SELESAI) --}}
+            @php
+            $terbitan = $this->record->terbitans->first();
+            @endphp
+            @if($terbitan)
+            <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <x-filament::icon icon="heroicon-o-check-badge" class="w-7 h-7" />
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Resmi Telah Diterbitkan</h4>
+                        <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">No. Surat: {{ $terbitan->nomor_surat ?? '-' }}</p>
+                    </div>
+                </div>
+                @if($terbitan->getFirstMedia('dokumen-final'))
+                <a href="{{ $terbitan->getFirstMedia('dokumen-final')->getUrl() }}" target="_blank" download class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                    Unduh Surat Resmi (.pdf) &darr;
+                </a>
+                @endif
+            </div>
+            @endif
+
             {{-- 1. KERTAS DOKUMEN DIGITAL --}}
             <div class="rounded-2xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
                 <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5 rounded-xl">
@@ -82,37 +106,16 @@
                         {{-- Tombol Langsung Unduh --}}
                         {{--
                         <a href="{{ route('media.download', $media->id) }}" target="_blank" class="p-2 text-gray-400 hover:text-primary-600 rounded-lg transition" title="Unduh Langsung">
-                            <x-filament::icon icon="heroicon-o-arrow-down-tray" class="w-4 h-4" />
+                        <x-filament::icon icon="heroicon-o-arrow-down-tray" class="w-4 h-4" />
                         </a>
-                         --}}
+                        --}}
                     </div>
                     @endforeach
                 </div>
             </x-filament::section>
             @endif
 
-            {{-- 3. HASIL TERBITAN RESMI (JIKA SUDAH SELESAI) --}}
-            @php
-            $terbitan = $this->record->terbitans->first();
-            @endphp
-            @if($terbitan)
-            <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
-                        <x-filament::icon icon="heroicon-o-check-badge" class="w-7 h-7" />
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Resmi Telah Diterbitkan</h4>
-                        <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">No. Surat: {{ $terbitan->nomor_surat ?? '-' }}</p>
-                    </div>
-                </div>
-                @if($terbitan->getFirstMedia('dokumen-final'))
-                <a href="{{ $terbitan->getFirstMedia('dokumen-final')->getUrl() }}" target="_blank" download class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
-                    Unduh Surat Resmi (.pdf) &darr;
-                </a>
-                @endif
-            </div>
-            @endif
+
         </div>
 
         {{-- KOLOM KANAN: Informasi Status, Panel Revisi, & Linimasa Perjalanan Surat --}}
@@ -162,7 +165,7 @@
                 </div>
             </x-filament::section>
 
-            {{-- 2. PANEL PERINGATAN & FORM REVISI (HANYA MUNCUL JIKA STATUS REVISI) --}}
+            {{-- 2. PANEL PERINGATAN REVISI DENGAN TOMBOL PERBAIKI LANGSUNG --}}
             @if($this->record->status_surat === 'REVISI')
             @php
             $catatanRevisi = $this->record->riwayats->where('status', 'REVISI')->last()?->catatan ?? 'Pemeriksa meminta Anda untuk melengkapi atau memperbaiki dokumen ini.';
@@ -178,28 +181,13 @@
                     </div>
                 </div>
 
-                <form wire:submit.prevent="submitRevisi" class="space-y-3 pt-3 border-t border-amber-200/60 dark:border-amber-800">
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wider">
-                            Penjelasan Perbaikan Anda <span class="text-red-500">*</span>
-                        </label>
-                        <textarea wire:model="catatanPerbaikan" rows="3" required placeholder="Jelaskan perbaikan yang Anda lakukan..." class="w-full text-xs rounded-xl border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-amber-500 focus:border-amber-500"></textarea>
-                        @error('catatanPerbaikan') <span class="text-red-500 text-[10px]">{{ $message }}</span> @enderror
-                    </div>
-
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1 uppercase tracking-wider">
-                            Unggah Lampiran Baru (Opsional)
-                        </label>
-                        <input type="file" wire:model="lampiranBaru" multiple class="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer" />
-                        @error('lampiranBaru.*') <span class="text-red-500 text-[10px]">{{ $message }}</span> @enderror
-                    </div>
-
-                    <button type="submit" wire:loading.attr="disabled" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
-                        <span wire:loading.remove>Kirim Perbaikan &rarr;</span>
-                        <span wire:loading>Mengirimkan...</span>
-                    </button>
-                </form>
+                <div class="pt-2">
+                    <a href="{{ \App\Filament\Resources\MahasiswaSurats\MahasiswaSuratResource::getUrl('edit', ['record' => $this->record]) }}"
+                        class="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+                        <x-filament::icon icon="heroicon-m-pencil-square" class="w-4 h-4" />
+                        <span>Perbaiki Surat Sekarang &rarr;</span>
+                    </a>
+                </div>
             </div>
             @endif
 

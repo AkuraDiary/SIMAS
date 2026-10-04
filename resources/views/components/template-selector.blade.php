@@ -55,7 +55,7 @@
         @forelse($templates as $template)
         <div @click="selectedTemplate = '{{ $template->id }}'"
             x-show="(activeFilter === 'Semua' || '{{ $template->kategori?->nama_kategori ?? '' }}' === activeFilter) && ('{{ strtolower(addslashes($template->nama_template)) }}'.includes(search.toLowerCase()) || '{{ strtolower(addslashes($template->deskripsi ?? '')) }}'.includes(search.toLowerCase()))"
-            :class="selectedTemplate === '{{ $template->id }}' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
+            :class="selectedTemplate == '{{ $template->id }}' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
             class="bg-white border rounded-xl p-6 flex flex-col cursor-pointer transition">
             <div class="w-12 h-12 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center mb-5">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,9 +65,9 @@
             <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $template->nama_template }}</h3>
             <p class="text-sm text-gray-500 mb-6 flex-grow">{{ $template->deskripsi ?? 'Tidak ada deskripsi.' }}</p>
             <button type="button"
-                :class="selectedTemplate === '{{ $template->id }}' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
+                :class="selectedTemplate == '{{ $template->id }}' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
                 class="w-full border-2 font-bold py-2 rounded-lg transition text-sm">
-                <span x-text="selectedTemplate === '{{ $template->id }}' ? 'Terpilih' : 'Pilih'"></span>
+                <span x-text="selectedTemplate == '{{ $template->id }}' ? 'Terpilih' : 'Pilih'"></span>
             </button>
         </div>
         @empty

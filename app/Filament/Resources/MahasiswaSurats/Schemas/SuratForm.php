@@ -29,6 +29,23 @@ class SuratForm
     {
         return $schema
             ->components([
+
+                // BANNER CATATAN REVISI (Muncul jika status surat REVISI)
+                Section::make('Catatan Revisi dari Pemeriksa')
+                    ->icon('heroicon-o-exclamation-triangle')
+                    ->schema([
+                        TextEntry::make('catatan_revisi_pemeriksa')
+                            ->hiddenLabel()
+                            ->state(function (?\App\Models\Surat $record) {
+                                $lastRevisi = $record?->riwayats()->where('status', 'REVISI')->latest()->first();
+                                return new HtmlString('<div class="text-sm text-amber-900 dark:text-amber-200 leading-relaxed font-medium">' .
+                                    nl2br(e($lastRevisi?->catatan ?? 'Silakan periksa dan perbaiki permohonan surat Anda sesuai arahan pemeriksa.')) .
+                                    '</div>');
+                            }),
+                    ])
+                    ->columnSpanFull()
+                    ->extraAttributes(['class' => 'bg-amber-50 dark:bg-amber-950/40 rounded-2xl mb-4'])
+                    ->visible(fn(?\App\Models\Surat $record) => $record && $record->status_surat === 'REVISI'),
                 Wizard::make([
                     // -------------------------------------------------------------
                     // LANGKAH 1: PILIH TEMPLATE (Reuse Component Template Selector)
@@ -195,10 +212,18 @@ class SuratForm
                                 })
                                 ->columnSpanFull(),
 
+                            // Catatan Perbaikan Mahasiswa (Wajib diisi saat mode REVISI)
+                            Textarea::make('catatan_perbaikan')
+                                ->label('Catatan Perbaikan Dokumen')
+                                ->placeholder('Contoh: Sudah melampirkan berkas KTM terbaru dan melengkapi alasan permohonan beasiswa.')
+                                ->helperText('Tuliskan ringkasan bagian apa saja yang telah Anda perbaiki untuk memudahkan petugas.')
+                                ->required(fn(?\App\Models\Surat $record) => $record && $record->status_surat === 'REVISI')
+                                ->visible(fn(?\App\Models\Surat $record) => $record && $record->status_surat === 'REVISI')
+                                ->columnSpanFull(),
                             Section::make()
                                 ->schema([
                                     Checkbox::make('konfirmasi')
-                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas. Saya bertanggung jawab sepenuhnya atas kebenaran informasi dalam pengajuan ini.')
+                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas...')
                                         ->required()
                                         ->accepted()
                                         ->dehydrated(false),
@@ -206,9 +231,11 @@ class SuratForm
                                 ->columnSpanFull(),
                         ]),
                 ])
+                    ->startOnStep(fn(?\App\Models\Surat $record) => ($record && $record->status_surat === 'REVISI') ? 2 : 1)
+
                     ->columnSpanFull()
                     ->submitAction(
-                        new HtmlString('<button type="submit" class="filament-button px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">Kirim Pengajuan Sekarang &rarr;</button>')
+                        new HtmlString('<button type="submit" class="filament-button px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">Simpan & Ajukan Dokumen &rarr;</button>')
                     ),
             ]);
     }

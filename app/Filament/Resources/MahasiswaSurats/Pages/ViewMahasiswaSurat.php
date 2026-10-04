@@ -162,13 +162,21 @@ class ViewMahasiswaSurat extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            // Action::make('lacak')
-            //     ->label('Halaman Pelacak Publik')
-            //     ->icon('heroicon-o-arrow-top-right-on-square')
-            //     ->color('gray')
-            //     ->url(fn () => url('/lacak?code=' . ($this->record->tracking_code ?: 'REQ-' . $this->record->id)))
-            //     ->openUrlInNewTab(),
-        ];
+          $actions = [];
+        // Tombol Perbaiki jika surat berstatus REVISI (sama seperti di staf)
+        if ($this->record->status_surat === 'REVISI') {
+            $actions[] = Action::make('perbaiki')
+                ->label('Perbaiki Surat')
+                ->icon('heroicon-o-pencil-square')
+                ->color('warning')
+                ->url(MahasiswaSuratResource::getUrl('edit', ['record' => $this->record]));
+        }
+        // $actions[] = Action::make('lacak')
+        //     ->label('Halaman Pelacak Publik')
+        //     ->icon('heroicon-o-arrow-top-right-on-square')
+        //     ->color('gray')
+        //     ->url(fn () => url('/lacak?code=' . ($this->record->tracking_code ?: 'REQ-' . $this->record->id)))
+        //     ->openUrlInNewTab();
+        return $actions;
     }
 }

@@ -57,6 +57,7 @@ class MahasiswaSuratResource extends Resource
             'index' => ListMahasiswaSurats::route('/'),
             'view'   => ViewMahasiswaSurat::route('/{record}'),
             'create' => CreateMahasiswaSurat::route('/create'),
+            'edit'   => EditMahasiswaSurat::route('/{record}/edit'),
         ];
     }
 
