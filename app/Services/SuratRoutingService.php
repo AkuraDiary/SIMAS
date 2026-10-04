@@ -263,7 +263,7 @@ class SuratRoutingService
                             ->usingName('Dokumen Final Resmi')
                             ->usingFileName($fileName)
                             ->toMediaCollection('dokumen-final');
-                            
+
                         // if ($surat->template_id) {
                         //     $html = app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat);
                         //     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('A4', 'portrait');
@@ -329,7 +329,7 @@ class SuratRoutingService
                         if ($surat->pembuat) {
                             \Filament\Notifications\Notification::make()
                                 ->title('Persetujuan Tuntas - Menunggu Penomoran')
-                                ->body("Surat '{$surat->perihal}' telah selesai disetujui dan menunggu penetapan nomor surat resmi oleh Staf TU.")
+                                ->body("Surat '{$surat->perihal}' telah selesai disetujui dan menunggu penetapan nomor surat resmi oleh Staf.")
                                 ->info()
                                 ->viewData([
                                     'unit_kerja_id' => (int) $surat->unit_pengirim_id,

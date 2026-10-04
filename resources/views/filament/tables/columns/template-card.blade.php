@@ -24,9 +24,8 @@
     <!-- Bottom Half: Content and Footer -->
     <div style="flex: 1 1 0%; display: flex; flex-direction: column;">
         <div style="padding: 1rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 700;color-scheme: light dark; color: light-dark(#1f2937,#ffffff); margin-bottom: 0.25rem; margin-top: 0;">
+            <h3 class="mt-0 mb-1 text-lg font-bold text-gray-800 dark:text-white">
                 {{ $getRecord()->nama_template }}
-
             </h3>
             <span style="font-size: 0.75rem; color: #64748b; font-weight: 600; ">
                 Last edit: {{ $getRecord()->updated_at->format('M d, Y') }}
