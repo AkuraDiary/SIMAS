@@ -44,9 +44,17 @@
 
             {{-- HASIL TERBITAN RESMI (JIKA SUDAH SELESAI) --}}
             @php
-            $terbitan = $this->record->terbitans->first();
+            $terbitan = $this->record->terbitans()->latest()->first();
+            $finalMedia = $terbitan?->getFirstMedia('dokumen-final')
+            ?? $this->record->getFirstMedia('dokumen-final')
+            ?? $terbitan?->getFirstMedia('lampiran-surat');
+            $nomorResmi = $terbitan?->nomor_surat
+            ?? $this->record->nomorSuratLogs->last()?->nomor_lengkap
+            ?? $this->record->nomor_surat
+            ?? '-';
+            $isSelesai = in_array(strtoupper($this->record->status_surat), ['SELESAI', 'TERBIT']) || $finalMedia !== null;
             @endphp
-            @if($terbitan)
+            @if($isSelesai && $finalMedia)
             <div class="p-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
@@ -54,14 +62,28 @@
                     </div>
                     <div>
                         <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-200">Surat Resmi Telah Diterbitkan</h4>
-                        <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">No. Surat: {{ $terbitan->nomor_surat ?? '-' }}</p>
+                        <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                            No. Surat: <span class="font-semibold">{{ $nomorResmi }}</span>
+                        </p>
                     </div>
                 </div>
-                @if($terbitan->getFirstMedia('dokumen-final'))
-                <a href="{{ $terbitan->getFirstMedia('dokumen-final')->getUrl() }}" target="_blank" download class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
-                    Unduh Surat Resmi (.pdf) &darr;
-                </a>
-                @endif
+                <div class="flex items-center gap-2">
+                    {{-- Tombol Pratinjau Langsung (Modal) --}}
+                    <button type="button"
+                        wire:click="openPreview({{ $finalMedia->id }})"
+                        class="px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 text-xs font-semibold rounded-xl shadow-sm transition cursor-pointer">
+                        Pratinjau PDF
+                    </button>
+                    {{-- Tombol Unduh via MediaController
+                    <a href="{{ route('media.download', $finalMedia->id) }}"
+                        target="_blank"
+                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition inline-flex items-center gap-1.5">
+                        <x-filament::icon icon="heroicon-o-arrow-down-tray" class="w-4 h-4" />
+                        <span>Unduh PDF Resmi</span>
+                    </a>
+
+                     --}}
+                </div>
             </div>
             @endif
 
