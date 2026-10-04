@@ -323,6 +323,7 @@ trait HasApprovalActions
                 ->icon('heroicon-m-x-circle')
                 ->button()
                 ->color('danger')
+                ->outlined()
                 ->visible(fn() => in_array($this->surat->status_surat, ['DIPROSES', 'TERKIRIM'])),
 
             'terbitan' => Action::make('buat_terbitan')
