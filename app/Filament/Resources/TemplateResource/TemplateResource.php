@@ -31,6 +31,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\Layout\View;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -145,7 +146,7 @@ class TemplateResource extends Resource
                             ])
                             ->default('INTERNAL')
                             ->required(),
-                            
+
                         Select::make('entry_point_unit_id')
                             ->label('Unit Penerima Utama (Entry Point)')
                             ->relationship('entryPointUnit', 'nama_unit')
@@ -506,11 +507,24 @@ class TemplateResource extends Resource
                 SelectFilter::make('kategori_id')
                     ->relationship('kategori', 'nama_kategori')
                     ->label('Kategori'),
-                \Filament\Tables\Filters\Filter::make('visibility_type')
-                    ->form([
+                // Filter::make('aksesibilitas')
+                //     ->schema([
+                //         Select::make('aksesibilitas')
+                //             ->options([
+
+                //                 'PUBLIK' => 'Publik',
+
+                //                 'INTERNAL' => 'Internal (Pegawai/Unit)',
+                //             ])
+                //             ->label('Aksesibilitas')
+                //     ]),
+                Filter::make('visibility_type')
+                    ->schema([
                         Select::make('visibilitas')
                             ->options([
-                                'GLOBAL' => 'Global',
+                                'PUBLIK' => 'Publik',
+                                'MAHASISWA' => 'Mahasiswa',
+                                'GLOBAL' => 'Unit Global',
                                 'SPECIFIC' => 'Unit Spesifik',
                             ])
                             ->label('Visibilitas Penggunaan')
@@ -518,11 +532,16 @@ class TemplateResource extends Resource
                     ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
                         if (empty($data['visibilitas'])) return $query;
                         if ($data['visibilitas'] === 'GLOBAL') {
-                            return $query->doesntHave('unitAkses');
+                            return $query->where('aksesibilitas', 'INTERNAL')->doesntHave('unitAkses');
                         }
                         if ($data['visibilitas'] === 'SPECIFIC') {
                             return $query->has('unitAkses');
+                        } else {
+                            return $query->where('aksesibilitas', $data['visibilitas']);
                         }
+
+
+
                         return $query;
                     }),
                 SelectFilter::make('is_active')
