@@ -74,7 +74,7 @@ trait HasSuratTimeline
             $timeline[] = [
                 'title' => 'Surat Dikirim ke ' . $totalTujuan . ' Unit Penerima',
                 'actor' => $this->surat->userPegawaiJabatan?->pegawai->nama_lengkap ?? $this->surat->pengirim_nama ?? 'Pengirim',
-                'unit' => $this->surat->unitPengirim?->nama_unit ?? 'Eksternal',
+                'unit' => $this->surat->unitPengirim?->nama_unit ?? $this->surat->pembuat->tipe_entitas ?? 'Eksternal',
                 'catatan' => null,
                 'date' => $this->surat->tanggal_kirim ?? $this->surat->created_at,
                 'color' => 'bg-blue-600 ring-blue-100 dark:ring-blue-900',
