@@ -21,15 +21,38 @@
     ];
 
     $icon = $statusIcons[$surat->status_surat] ?? 'heroicon-s-information-circle';
+
+    $tipeColors = [
+        'INTERNAL' => 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        'PENGAJUAN' => 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800',
+        'TERBITAN' => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800',
+        'EKSTERNAL' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    ];
+    $tipeColorClass = $tipeColors[$surat->tipe_surat] ?? 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+
+    $tipeIcons = [
+        'INTERNAL' => 'heroicon-m-building-office-2',
+        'PENGAJUAN' => 'heroicon-m-document-text',
+        'TERBITAN' => 'heroicon-m-document-check',
+        'EKSTERNAL' => 'heroicon-m-globe-alt',
+    ];
+    $tipeIcon = $tipeIcons[$surat->tipe_surat] ?? 'heroicon-m-envelope';
     @endphp
 
-    {{-- Row 1: Judul Surat + Inline Status Badge --}}
-    <div class="flex flex-wrap items-center gap-2.5">
+    {{-- Row 1: Judul Surat + Inline Tipe Badge + Inline Status Badge --}}
+    <div class="flex flex-wrap items-center gap-2">
         <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-950 dark:text-white leading-tight">
             {{ $surat->perihal }}
         </h1>
 
-        <span class="inline-flex items-center gap-1.5 {{ $colorClass }} text-xs font-semibold px-2.5 py-1 rounded-full border shadow-sm shrink-0">
+        {{-- Badge Tipe Surat --}}
+        <span class="inline-flex items-center gap-1.5 {{ $tipeColorClass }} text-xs font-semibold px-2.5 py-1 rounded-full border shadow-xs shrink-0">
+            <x-filament::icon :icon="$tipeIcon" class="h-3.5 w-3.5" />
+            {{ ucfirst(strtolower($surat->tipe_surat)) }}
+        </span>
+
+        {{-- Badge Status Surat --}}
+        <span class="inline-flex items-center gap-1.5 {{ $colorClass }} text-xs font-semibold px-2.5 py-1 rounded-full border shadow-xs shrink-0">
             <x-filament::icon :icon="$icon" class="h-3.5 w-3.5" />
             {{ ucfirst(strtolower($surat->status_surat)) }}
         </span>
@@ -67,21 +90,28 @@
         {{-- Pemohon / Pengirim --}}
         <span class="inline-flex items-center gap-1.5 text-gray-600 dark:text-gray-300">
             <x-filament::icon icon="heroicon-m-user" class="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-            @if ($surat->tipe_surat === 'PENGAJUAN' || filled($surat->pengirim_nama))
+            @if ($surat->userPegawaiJabatan)
+                {{-- Prioritas 1: Jika pengirim adalah Pegawai / Staf Unit --}}
+                <span class="font-medium text-gray-900 dark:text-gray-100">{{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}</span>
+                <span class="text-gray-500 dark:text-gray-400">
+                    ({{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? $surat->unitPengirim?->nama_unit ?? '' }})
+                </span>
+            @elseif ($surat->tipe_surat === 'EKSTERNAL')
+                {{-- Prioritas 2: Surat Eksternal --}}
+                <span class="font-medium text-gray-900 dark:text-gray-100">{{ $surat->pengirim_nama ?? 'Eksternal' }}</span>
+                <span class="text-gray-500 dark:text-gray-400">via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}</span>
+            @elseif (filled($surat->pengirim_nama))
+                {{-- Prioritas 3: Mahasiswa atau Pemohon Luar / Guest --}}
                 <span class="font-medium text-gray-900 dark:text-gray-100">{{ $surat->pengirim_nama }}</span>
                 @if($surat->pengirim_nim)
-                    <span class="text-gray-500 dark:text-gray-400">({{ $surat->pengirim_nim }})</span>
+                    <span class="text-gray-500 dark:text-gray-400">(NIM: {{ $surat->pengirim_nim }})</span>
                 @elseif(!empty($surat->pengirim_metadata['instansi']))
                     <span class="text-gray-500 dark:text-gray-400">({{ $surat->pengirim_metadata['instansi'] }})</span>
                 @else
                     <span class="text-gray-500 dark:text-gray-400">(Pemohon Luar / Guest)</span>
                 @endif
-            @elseif ($surat->tipe_surat === 'EKSTERNAL')
-                <span>Eksternal via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}</span>
-            @elseif ($surat->userPegawaiJabatan)
-                <span class="font-medium text-gray-900 dark:text-gray-100">{{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}</span>
-                <span class="text-gray-500 dark:text-gray-400">({{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})</span>
             @else
+                {{-- Fallback: Nama Unit Pengirim --}}
                 <span>{{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}</span>
             @endif
         </span>

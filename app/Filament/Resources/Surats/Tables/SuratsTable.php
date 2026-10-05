@@ -57,15 +57,20 @@ class SuratsTable
                         if ($scope === 'draft') {
                             return $record->nomorSuratLogs->last()?->nomor_lengkap ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
                         }
-                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
-                    })
-                    ->weight('bold')
-                    ->description(function (Surat $record, $livewire) {
-                        $scope = $livewire->scope ?? request('scope');
-                        if ($scope === 'draft') {
-                            return $record->nomorSuratLogs->last()?->nomor_lengkap ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                        if ($record->userPegawaiJabatan) {
+                            $pegawai = $record->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai';
+                            $unit = $record->userPegawaiJabatan->unitKerja->nama_unit ?? $record->unitPengirim?->nama_unit ?? '';
+                            return $pegawai . ($unit ? " - {$unit}" : '');
                         }
-                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
+                        if ($record->tipe_surat === 'EKSTERNAL') {
+                            return ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? 'Sistem');
+                        }
+                        if (filled($record->pengirim_nama)) {
+                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
+                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
+                            return $record->pengirim_nama . $nim . $instansi;
+                        }
+                        return $record->unitPengirim?->nama_unit ?? '';
                     }),
 
                 TextColumn::make('nomor_surat')
@@ -97,6 +102,25 @@ class SuratsTable
                     ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft')
                     ->getStateUsing(fn(Surat $record) => $record->userPegawaiJabatan->pegawai->nama_lengkap  ?? '-'),
 
+                TextColumn::make('tipe_surat')
+                    ->label('Tipe')
+                    ->badge()
+                    ->color(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'gray',
+                        'EKSTERNAL' => 'warning',
+                        'PENGAJUAN' => 'info',
+                        'TERBITAN' => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'Internal',
+                        'EKSTERNAL' => 'Eksternal',
+                        'PENGAJUAN' => 'Pengajuan',
+                        'TERBITAN' => 'Terbitan',
+                        default => $state ?? '-',
+                    })
+                    ->sortable(),
+
                 TextColumn::make('status_surat')
                     ->label('Status')
                     ->badge()
@@ -113,18 +137,6 @@ class SuratsTable
                         default => 'gray',
                     })
                     ->visible(fn($livewire) => !in_array($livewire->scope ?? request('scope'), ['arsip', 'draft'])),
-
-                TextColumn::make('tipe_surat')
-                    ->label('Tipe')
-                    ->badge()
-                    ->color(fn(?string $state): string => match ($state) {
-                        'INTERNAL' => 'gray',
-                        'EKSTERNAL' => 'warning',
-                        'PENGAJUAN' => 'info',
-                        'TERBITAN' => 'success',
-                        default => 'gray',
-                    })
-                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
 
                 TextColumn::make('arsip_kategori')
                     ->label('Kategori Arsip')
@@ -236,8 +248,7 @@ class SuratsTable
                         'PENGAJUAN' => 'Pengajuan',
                         'TERBITAN' => 'Terbitan',
                         'EKSTERNAL' => 'Eksternal',
-                    ])
-                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
+                    ]),
 
                 \Filament\Tables\Filters\Filter::make('tanggal_arsip')
                     ->label('Rentang Tanggal Arsip')

@@ -33,6 +33,17 @@ class ViewMahasiswaSurat extends ViewRecord
     public function mount(int | string $record): void
     {
         parent::mount($record);
+        $this->record->loadMissing([
+            'template',
+            'terbitans.media',
+            'terbitans.unitPengirim',
+            'terbitans.nomorSuratLogs',
+            'nomorSuratLogs',
+            'media',
+            'riwayats.unitTujuan',
+            'riwayats.unitAsal',
+            'riwayats.aktor',
+        ]);
         $this->surat = $this->record;
     }
 

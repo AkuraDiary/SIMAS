@@ -38,7 +38,7 @@
                             class="outline-none border-gray-300  w-full px-4 py-2.5 rounded-lg border @error('input_identifier') border-red-500 @else @enderror focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                             placeholder="Masukkan NIP atau NIM Anda" autofocus>
                          @error('input_identifier')
-                            <p class="mt-1 text-xs text-red-600"> bebek  $message </p>
+                            <p class="mt-1 text-xs text-red-600"> {{ $message }}  </p>
                          @enderror
                     </div>
 
@@ -50,7 +50,7 @@
                             class="outline-none border-gray-300  w-full px-4 py-2.5 rounded-lg border @error('new_password') border-red-500 @else @enderror focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                             placeholder="Biarkan kosong jika tetap menggunakan NIP/NIM">
                          @error('new_password')
-                            <p class="mt-1 text-xs text-red-600"> bebek goyeng  $message </p>
+                            <p class="mt-1 text-xs text-red-600">  {{ $message }} </p>
                          @enderror
                     </div>
 
