@@ -25,7 +25,11 @@ class AktivasiAkun extends Component
     {
         return [
             'input_identifier' => 'required|string',
-            'new_password'     => 'nullable|min:8|confirmed',
+            'new_password'     => [
+                'nullable',
+                'confirmed',
+                \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers(),
+            ],
         ];
     }
 

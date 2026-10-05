@@ -49,6 +49,7 @@
                         <input type="password" id="new_password" wire:model.defer="new_password"
                             class="outline-none border-gray-300  w-full px-4 py-2.5 rounded-lg border @error('new_password') border-red-500 @else @enderror focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                             placeholder="Biarkan kosong jika tetap menggunakan NIP/NIM">
+                        <p class="mt-1 text-[11px] text-gray-500">Minimal 8 karakter berupa kombinasi huruf dan angka.</p>
                          @error('new_password')
                             <p class="mt-1 text-xs text-red-600">  {{ $message }} </p>
                          @enderror
