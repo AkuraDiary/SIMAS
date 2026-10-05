@@ -29,10 +29,12 @@ return new class extends Migration
             $table->string('pengirim_email')->nullable()->comment('dapat diisi Guest atau mahasiswa');
             $table->json('pengirim_metadata')->nullable()->comment('diisi metadata pengirim eksternal baik guest maupun mahasiswa');
             $table->string('perihal');
-
+            $table->string('nomor_surat')->nullable()->index();
+            $table->string('nomor_surat_eksternal')->nullable()->comment('Nomor surat asal dari pihak luar (khusus tipe EKSTERNAL)');
             $table->timestamp('tanggal_kirim')->nullable();
             $table->enum('tipe_surat', ['INTERNAL', 'PENGAJUAN', 'TERBITAN', 'EKSTERNAL'])->default('INTERNAL');
             $table->enum('status_surat', ['DRAFT', 'DIPROSES', 'REVISI', 'TERKIRIM', 'SELESAI', 'DITOLAK', 'DIBATALKAN']);
+            $table->json('approval_path')->nullable()->comment('Actual path for this specific letter instance');
             $table->json('content')->nullable()->comment('hasil isian form field_variables, di-merge ke .docx via PHPWord');
             $table->string('tracking_code')->nullable()->unique()->comment('pelacakan untuk Guest & Mahasiswa tanpa login');
             $table->text('qr_code_payload')->nullable();
