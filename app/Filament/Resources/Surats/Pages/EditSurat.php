@@ -22,6 +22,13 @@ class EditSurat extends EditRecord
 
     public function getBreadcrumbs(): array
     {
+         // Jika sedang dalam Alur Persetujuan (DIPROSES)
+        if ($this->record->status_surat === 'DIPROSES') {
+            return [
+                DetailSurat::getUrl(['surat' => $this->record, 'record' => $this->record]) => $this->record->nomor_surat ?? $this->record->perihal,
+                'Edit Draf Naskah',
+            ];
+        }
         // Jika sedang Revisi
         if ($this->record->status_surat === 'REVISI') {
             return [
@@ -39,8 +46,12 @@ class EditSurat extends EditRecord
     }
 
 
-    public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
+       public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
+        if ($this->record->status_surat === 'DIPROSES') {
+            return 'Edit Draft Surat';
+        }
+
         return $this->record->status_surat === 'REVISI'
             ? 'Perbaiki Surat (Revisi)'
             : 'Edit Draft Surat';

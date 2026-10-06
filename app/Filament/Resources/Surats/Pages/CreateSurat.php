@@ -104,7 +104,8 @@ class CreateSurat extends CreateRecord
             // Jika merujuk ke pengajuan internal, otomatis pasang unit pemohon sebagai unit tujuan
             if ($terbitanForId) {
                 $pengajuan = \App\Models\Surat::find($terbitanForId);
-                $unitPemohonId = $pengajuan?->unit_asal_id ?? $pengajuan?->unit_pengirim_id;
+                // $unitPemohonId = $pengajuan?->unit_asal_id ?? $pengajuan?->unit_pengirim_id;
+                $unitPemohonId = $pengajuan?->unit_pengirim_id ?? $pengajuan?->pembuat?->unit_kerja_id;
                 if ($unitPemohonId) {
                     $defaultUnitTujuan = [$unitPemohonId];
                 }

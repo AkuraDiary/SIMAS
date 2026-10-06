@@ -15,6 +15,15 @@ trait HasSuratFormActions
 {
     protected function getFormActions(): array
     {
+
+        $surat = $this->record ?? null;
+        // Jika surat sedang dalam alur persetujuan aktif (DIPROSES)
+        if ($surat && $surat->status_surat === 'DIPROSES') {
+            return [
+                $this->getSavePerubahanAction(),
+                $this->getCancelToDetailAction(),
+            ];
+        }
         return [
             $this->getSaveDraftAction(),
             $this->getSubmitAction(),
@@ -140,6 +149,39 @@ trait HasSuratFormActions
             ->label('Batal')
             ->color('danger')
             ->url(SuratResource::getUrl())
+            ->outlined();
+    }
+
+    protected function getSavePerubahanAction(): Action
+    {
+        return Action::make('savePerubahan')
+            ->label('Simpan Perubahan Draf')
+            ->color('primary')
+            ->action(function () {
+                $this->save();
+
+                Notification::make()
+                    ->title('Perubahan Draf Berhasil Disimpan')
+                    ->body('Naskah surat telah diperbarui dan siap dilanjutkan pada alur persetujuan.')
+                    ->success()
+                    ->send();
+
+                $this->redirect(\App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat::getUrl([
+                    'record' => $this->record,
+                    'surat'  => $this->record,
+                ]));
+            });
+    }
+
+    protected function getCancelToDetailAction(): Action
+    {
+        return Action::make('cancelToDetail')
+            ->label('Batal')
+            ->color('gray')
+            ->url(fn() => \App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat::getUrl([
+                'record' => $this->record,
+                'surat'  => $this->record,
+            ]))
             ->outlined();
     }
 }

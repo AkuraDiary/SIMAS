@@ -329,18 +329,18 @@ class SuratForm
                                 ->state(function (Get $get) {
                                     $pengajuanId = $get('terbitan_for_surat_id');
                                     if (!$pengajuanId) return null;
-                                    $pengajuan = \App\Models\Surat::with(['unitAsal', 'pembuat.pegawai'])->find($pengajuanId);
-
+                                    $pengajuan = \App\Models\Surat::with(['unitPengirim', 'pembuat.pegawai'])->find($pengajuanId);
                                     if (!$pengajuan) return null;
                                     $nama = $pengajuan->pengirim_nama ?? 'Pemohon';
-
                                     // Deteksi apakah pemohon adalah Pegawai / Unit Internal
-                                    $isInternal = filled($pengajuan->unit_asal_id)
+                                    $isInternal = filled($pengajuan->unit_pengirim_id)
                                         || ($pengajuan->tipe_surat === 'INTERNAL')
                                         || filled($pengajuan->pengirim_nip)
                                         || filled($pengajuan->user_pembuat_id);
                                     if ($isInternal) {
-                                        $unitNama = $pengajuan->unitAsal?->nama_unit ?? 'Unit Internal';
+                                        $unitNama = $pengajuan->unitPengirim?->nama_unit
+                                            ?? $pengajuan->pembuat?->unitKerja?->nama_unit
+                                            ?? 'Unit Internal';
                                         $jabatan = $pengajuan->pengirim_jabatan ?? 'Pegawai';
                                         $identitas = "Unit Internal: {$unitNama} ({$jabatan})";
                                         $keterangan = "Surat resmi terbitan akan otomatis terdistribusi ke Surat Masuk unit {$unitNama} setelah disahkan.";
@@ -349,7 +349,7 @@ class SuratForm
                                         $keterangan = "Surat resmi akan langsung tersedia untuk diunduh oleh mahasiswa di portal setelah selesai ditandatangani.";
                                     } else {
                                         $identitas = $pengajuan->pengirim_metadata['instansi'] ?? 'Pihak Eksternal';
-                                        $keterangan = "Surat resmi akan langsung tersedia untuk diunduh oleh pemohon setelah selesai ditandatangani.";
+                                        $keterangan = "Surat resmi dapat diunduh atau dikirimkan ke pihak eksternal setelah disahkan.";
                                     }
                                     return new \Illuminate\Support\HtmlString("
                                         <div class='flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900'>
@@ -437,7 +437,7 @@ class SuratForm
                                         ->options([
                                             'auto' => 'Generate Otomatis saat Surat Dikirim',
                                             'manual' => 'Tetapkan Nomor Sekarang / Backdate',
-                                            'kosong' => 'Kosongkan Nomor (Draf Belum Bernomor)',
+                                            'kosong' => 'Kosongkan Nomor',
                                         ])
                                         ->default('auto')
                                         ->inline()

@@ -262,6 +262,14 @@ class DetailSurat extends Page implements HasForms
                 if (isset($persetujuan['group_proses'])) {
                     $primaryActions[] = $persetujuan['group_proses'];
                 }
+                // Tombol Edit Draf untuk Peninjau Aktif / Pihak Tengah
+                $primaryActions[] = Action::make('edit_draf_review')
+                    ->label('Edit Draf')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->outlined()
+                    ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
+
                 // Tombol Sekunder/Kembalikan: Outlined Danger
                 if (isset($persetujuan['group_kembalikan'])) {
                     $primaryActions[] = $persetujuan['group_kembalikan'];
