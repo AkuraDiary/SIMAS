@@ -18,10 +18,11 @@ return new class extends Migration
             $table->string('nama_unit');
             $table->string('singkatan')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->json('pengaturan_akses')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
-        
+
     }
 
     /**

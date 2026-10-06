@@ -17,6 +17,10 @@ return new class extends Migration
             $table->foreignId('format_nomor_id')->constrained('format_nomor_surats');
             $table->integer('nomor_urut');
             $table->string('nomor_lengkap')->comment('hasil render final, bisa berbeda jika user edit di form');
+            $table->boolean('is_backdate')->default(false)->comment('True jika tanggal_ditetapkan sebelum hari ini');
+            $table->boolean('is_manual')->default(false)->comment('True jika staf menggunakan nomor kustom / sisipan');
+            $table->text('alasan_backdate')->nullable()->comment('Alasan backdate / kustomisasi nomor');
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete()->comment('User yang menetapkan / menyetujui nomor ini');
             $table->date('tanggal_ditetapkan')->comment('mendukung backdate');
             $table->timestamp('created_at')->nullable();
         });

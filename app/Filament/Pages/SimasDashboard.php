@@ -81,8 +81,9 @@ class SimasDashboard extends BaseDashboard
                     ->count();
             }
             return [
-                'namaUnit'        => $user->getActiveJabatan()?->unitKerja?->nama_unit ?? 'Unit Kerja',
-                'namaJabatan'     => $user->getActiveJabatan()?->jabatan?->nama_jabatan ?? 'Pegawai',
+                'hasJabatanAktif' => (bool) $unitId,
+                'namaUnit'        => $user->getActiveJabatan()?->unitKerja?->nama_unit ?? 'Belum Ditugaskan',
+                'namaJabatan'     => $user->getActiveJabatan()?->jabatan?->nama_jabatan ?? 'Pegawai Non-Unit',
                 'perluTindakan'   => $perluTindakan,
                 'belumDibaca'     => $belumDibaca,
                 'dalamProses'     => $dalamProses,

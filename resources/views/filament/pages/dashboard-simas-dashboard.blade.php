@@ -12,6 +12,7 @@
     @elseif(auth()->user()->tipe_entitas === 'STAF')
     <!-- Staff Overview Component  Referensi -->
     @include('filament.pages.dashboard.staff-overview', [
+    'hasJabatanAktif' => $hasJabatanAktif ?? false,
     'namaUnit' => $namaUnit,
     'namaJabatan' => $namaJabatan,
     'perluTindakan' => $perluTindakan,

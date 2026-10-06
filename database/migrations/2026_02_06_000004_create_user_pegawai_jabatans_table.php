@@ -17,6 +17,8 @@ return new class extends Migration
             $table->foreignId('unit_kerja_id')->constrained('unit_kerjas')->cascadeOnDelete();
             $table->foreignId('jabatan_id')->constrained('jabatans')->cascadeOnDelete();
             $table->enum('status_jabatan', ['AKTIF', 'NONAKTIF'])->default('AKTIF');
+            $table->string('akses_surat_masuk')->default('DEFAULT')->comment('DEFAULT, SEMUA, HANYA_DISPOSISI');
+            $table->boolean('can_disposisi')->default(false)->comment('Izin delegasi membuat disposisi untuk unit');
             $table->softDeletes();
             $table->timestamps();
         });

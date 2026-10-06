@@ -27,6 +27,7 @@ return new class extends Migration
             $table->longText('content_html')->nullable()->comment('body HTML untuk template yang dibuat in-app');
             $table->enum('render_engine', ['DOCX', 'HTML'])->default('HTML');
             $table->boolean('is_ttd_enabled')->default(true)->comment('konfigurasi default apakah template ini menggunakan TTD');
+            $table->json('approval_path')->nullable()->comment('Format: [{"jabatan_id": 1, "is_signer": false, "order": 1}]');
             $table->boolean('is_active')->default(true);
             $table->softDeletes();
             $table->timestamps();

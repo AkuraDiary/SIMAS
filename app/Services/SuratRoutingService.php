@@ -284,6 +284,16 @@ class SuratRoutingService
                             if ($pengajuan) {
                                 $pengajuan->update(['status_surat' => 'SELESAI']);
 
+                                // Pastikan unit pemohon internal terhubung sebagai unit tujuan surat terbitan jika belum ada
+                                // $unitPemohonId = $pengajuan->unit_asal_id ?? $pengajuan->unit_pengirim_id;
+                                $unitPemohonId = $pengajuan->unit_pengirim_id ?? $pengajuan->pembuat?->unit_kerja_id;
+                                if ($unitPemohonId && !$surat->unitTujuan()->where('unit_kerjas.id', $unitPemohonId)->exists()) {
+                                    $surat->unitTujuan()->attach($unitPemohonId, [
+                                        'jenis_tujuan' => 'UTAMA',
+                                        'status_baca' => 'BELUM',
+                                    ]);
+                                }
+
                                 if ($pengajuan->user_pembuat_id) {
                                     $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
                                     if ($targetUser) {
@@ -325,7 +335,7 @@ class SuratRoutingService
                             }
                         }
                     } else {
-                        // Persetujuan pimpinan tuntas, menunggu penomoran oleh Staf TU
+                        // Persetujuan pimpinan tuntas, menunggu penomoran oleh Staf
                         if ($surat->pembuat) {
                             \Filament\Notifications\Notification::make()
                                 ->title('Persetujuan Tuntas - Menunggu Penomoran')

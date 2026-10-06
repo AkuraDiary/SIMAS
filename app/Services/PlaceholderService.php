@@ -75,10 +75,27 @@ class PlaceholderService
         }
         $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
 
+        if (!isset($data['qr_code']) || empty($data['qr_code'])) {
+            $data['qr_code'] = '<div class="draggable-signature" data-key="qr_code" style="text-align: center; display: inline-block; cursor: grab; position: relative; width: 80px;">' .
+                '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; height: auto; display: block;" pointer-events="none" />' .
+                '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>' .
+                '</div>';
+        }
+
         if ($surat) {
 
-            // Inject QR Code Dokumen Utama (Opsional, jika ada kebutuhan QR Global)
-            $data['qr_code'] = '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 80px; height: 80px;" />';
+            // Inject QR Code Dokumen Utama (Fleksibel & Draggable)
+            $qrX = (int) ($data['qr_code_posisi_x'] ?? ($surat->content['qr_code_posisi_x'] ?? 0));
+            $qrY = (int) ($data['qr_code_posisi_y'] ?? ($surat->content['qr_code_posisi_y'] ?? 0));
+            if (abs($qrX) > 300) $qrX = 0;
+            if (abs($qrY) > 400) $qrY = 0;
+            $qrWidth = (int) ($data['qr_code_width'] ?? ($surat->content['qr_code_width'] ?? 80));
+            $qrStyle = "text-align: center; display: inline-block; cursor: grab; position: relative; left: {$qrX}px; top: {$qrY}px; width: {$qrWidth}px;";
+            $qrResizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+            $data['qr_code'] = '<div class="draggable-signature" data-key="qr_code" style="' . $qrStyle . '">' .
+                '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; height: auto; display: block;" pointer-events="none" />' .
+                $qrResizeHandle .
+                '</div>';
 
             // Inject TTD & QR Code dari Database (surat_ttds)
             foreach ($surat->suratTtds as $ttd) {

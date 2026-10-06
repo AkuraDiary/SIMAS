@@ -1,4 +1,20 @@
 <div class="space-y-8">
+    @if(!($hasJabatanAktif ?? true))
+    <div class="p-6 rounded-2xl bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shadow-sm">
+        <div class="flex items-start gap-4">
+            <div class="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-600 dark:text-amber-400">
+                <x-heroicon-o-exclamation-triangle class="w-8 h-8" />
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-amber-900 dark:text-amber-200">Akun Belum Memiliki Penempatan Jabatan / Unit Kerja</h3>
+                <p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                    Akun pegawai Anda telah aktif, namun saat ini belum ditugaskan pada unit kerja atau formasi jabatan manapun dalam struktur organisasi universitas. Silakan hubungi <strong>Administrator Sistem</strong> untuk melakukan penugasan jabatan agar Anda dapat memproses surat masuk dan membuat surat keluar.
+                </p>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Header Overview --}}
     <div>
         <!-- <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Overview</h2> -->

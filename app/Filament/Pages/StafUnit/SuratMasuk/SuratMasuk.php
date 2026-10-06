@@ -58,14 +58,16 @@ class SuratMasuk extends Page implements HasTable
         return app(\App\Services\UnitAksesService::class)
             ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                $q->where('unit_kerja_id', $unitId);
+                if ($unitId) {
+                    $q->where('unit_kerja_id', $unitId);
+                }
             })
             ->with([
                 'unitPengirim',
-                 'userPegawaiJabatan.pegawai',
-                'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
-                'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
-                'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
+                'userPegawaiJabatan.pegawai',
+                'suratUnits' => fn($q) => $unitId ? $q->where('unit_kerja_id', $unitId) : $q->whereRaw('1 = 0'),
+                'disposisis' => fn($q) => $unitId ? $q->where('unit_tujuan_id', $unitId) : $q->whereRaw('1 = 0'),
+                'riwayats' => fn($q) => $unitId ? $q->where('unit_tujuan_id', $unitId) : $q->whereRaw('1 = 0'),
             ]);
         // ->orderByDesc('created_at');
     }

@@ -28,7 +28,7 @@ class ManageOrganisasi extends Page implements HasActions
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::BuildingOffice2;
     protected static ?string $navigationLabel = 'Organisasi';
-    protected static ?string $title           = '';//'Kelola Struktur Organisasi';
+    protected static ?string $title           = ''; //'Kelola Struktur Organisasi';
     // protected static ?string $slug            = 'organisasi';
     protected static ?int    $navigationSort  = 0;
 
@@ -134,7 +134,7 @@ class ManageOrganisasi extends Page implements HasActions
                     ->minValue(1)
                     ->placeholder('1')
                     ->helperText('Angka (1 = paling senior)'),
-                    
+
                 Select::make('user_pegawai_ids')
                     ->label('Pegawai Ditugaskan')
                     ->multiple()
@@ -354,13 +354,38 @@ class ManageOrganisasi extends Page implements HasActions
             ])
             ->action(function (array $data, array $arguments, Action $action): void {
                 try {
-                    $data['unit_kerja_id'] = $arguments['unitId'];
-                    \App\Models\UserPegawaiJabatan::create($data);
+
+                    $unitId    = $arguments['unitId'];
+                    $pegawaiId = $data['user_pegawai_id'];
+                    // 1 Pegawai Maksimal 1 Jabatan Aktif per Unit:
+                    // Nonaktifkan riwayat jabatan lama pegawai ini di unit ini
+                    \App\Models\UserPegawaiJabatan::where('unit_kerja_id', $unitId)
+                        ->where('user_pegawai_id', $pegawaiId)
+                        ->update(['status_jabatan' => 'NONAKTIF']);
+                    // Simpan / perbarui ke jabatan baru
+                    \App\Models\UserPegawaiJabatan::updateOrCreate(
+                        [
+                            'unit_kerja_id'   => $unitId,
+                            'user_pegawai_id' => $pegawaiId,
+                            'jabatan_id'      => $data['jabatan_id'],
+                        ],
+                        [
+                            'status_jabatan'  => $data['status_jabatan'] ?? 'AKTIF',
+                        ]
+                    );
                     Notification::make()->title('Pegawai berhasil ditugaskan')->success()->send();
                     $this->refreshTree();
-                    
+
                     // Re-open viewStaff to show updated list
                     $this->replaceMountedAction('viewStaff', ['unitId' => $arguments['unitId']]);
+
+                    // $data['unit_kerja_id'] = $arguments['unitId'];
+                    // \App\Models\UserPegawaiJabatan::create($data);
+                    // Notification::make()->title('Pegawai berhasil ditugaskan')->success()->send();
+                    // $this->refreshTree();
+
+                    // // Re-open viewStaff to show updated list
+                    // $this->replaceMountedAction('viewStaff', ['unitId' => $arguments['unitId']]);
                 } catch (\Throwable $e) {
                     Notification::make()->title('Gagal menugaskan pegawai')->body($e->getMessage())->danger()->send();
                     $action->halt();

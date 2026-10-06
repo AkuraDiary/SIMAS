@@ -556,6 +556,32 @@ class TemplateResource extends Resource
             ->recordAction(null)
             ->recordUrl(null)
             ->recordActions([
+                Action::make('ubah_kategori')
+                    ->visible()
+                    ->extraAttributes([
+                        'class' => 'hidden', // Hides the default button from the UI
+                    ])
+                    ->label('Pindahkan Kategori')
+                    ->icon('heroicon-o-folder-arrow-down')
+                    ->color('warning')
+                    ->modalHeading(fn($record) => 'Pindahkan Kategori: ' . $record->nama_template)
+                    ->modalDescription('Pilih kategori template baru untuk surat ini.')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('kategori_id')
+                            ->label('Kategori Template Baru')
+                            ->options(fn() => \App\Models\TemplateKategori::pluck('nama_kategori', 'id'))
+                            ->default(fn(\App\Models\Template $record) => $record->kategori_id)
+                            ->required()
+                            ->searchable()
+                            ->preload(),
+                    ])
+                    ->action(function (\App\Models\Template $record, array $data) {
+                        $record->update(['kategori_id' => $data['kategori_id']]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('Kategori Template Berhasil Diperbarui')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('preview')
                     ->visible()
                     ->extraAttributes([

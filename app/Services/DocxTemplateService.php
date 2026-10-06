@@ -84,6 +84,9 @@ class DocxTemplateService
             $bodyContent = $matches[1];
         }
 
+        // Rapikan spacing paragraf kosong berurutan agar tampilan editor tidak renggang
+        $bodyContent = preg_replace('/(<p[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/p>\s*){2,}/i', '<p style="margin: 4px 0;">&nbsp;</p>', $bodyContent);
+
         // 5. Gabungkan Kop Surat (Header) di atas, Body di tengah, dan Footer di bawah
         $fullHtml = $headerHtml . $bodyContent . $footerHtml;
 
@@ -439,7 +442,16 @@ class DocxTemplateService
                 // 4. Ganti nilai teks skalar
                 foreach ($data as $key => $value) {
                     if (is_scalar($value) && in_array($key, $docVariables)) {
-                        $processor->setValue($key, (string) $value);
+                        $valStr = (string) $value;
+                        // Rapikan multiple redundant spaces/newlines (max 2 consecutive newlines)
+                        $valStr = preg_replace("/[\r\n]{3,}/", "\n\n", $valStr);
+                        if (str_contains($valStr, "\n")) {
+                            $escaped = htmlspecialchars($valStr);
+                            $formatted = str_replace("\n", '<w:br/>', $escaped);
+                            $processor->setValue($key, $formatted);
+                        } else {
+                            $processor->setValue($key, $valStr);
+                        }
                     }
                 }
 

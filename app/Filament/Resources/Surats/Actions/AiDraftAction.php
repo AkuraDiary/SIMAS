@@ -192,7 +192,8 @@ class AiDraftAction
                                         ->body('Draft dengan format standar siap ditinjau.')
                                         ->info()
                                         ->send();
-                                }),
+                                })
+                                ->visible(false),
                         ]),
                     ]),
 

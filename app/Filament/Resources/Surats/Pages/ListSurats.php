@@ -45,7 +45,7 @@ class ListSurats extends ListRecords
     public function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->label("Buat Surat Baru")->visible(fn() => $this->scope !== 'arsip'),
+            CreateAction::make()->label("Buat Surat Baru")->visible(fn() => $this->scope !== 'arsip' && (bool) Auth::user()?->unit_kerja_id),
             \Filament\Actions\Action::make('manageKategoriArsip')
                 ->label('Kelola Kategori Arsip')
                 ->icon('heroicon-o-folder')
@@ -189,7 +189,8 @@ class ListSurats extends ListRecords
     protected function getTableQuery(): \Illuminate\Database\Eloquent\Builder | \Illuminate\Database\Eloquent\Relations\Relation | null
     {
         $query = static::getResource()::getEloquentQuery();
-        $unitId = \Illuminate\Support\Facades\Auth::user()?->unit_kerja_id;
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $unitId = $user?->unit_kerja_id;
 
         return match ($this->scope) {
             'persetujuan' => $query
@@ -201,26 +202,20 @@ class ListSurats extends ListRecords
 
             'draft' => $query
                 ->where('unit_pengirim_id', $unitId)
+                ->when($user && !$user->canViewAllSuratMasukUnit($unitId), fn($q) => $q->where('user_pembuat_id', $user->id))
                 ->where('status_surat', 'DRAFT'),
 
-            'keluar' => $query
-                ->where(function ($q) use ($unitId) {
-                    $q->where('unit_pengirim_id', $unitId)
-
-                    // manipulate this to deactivate the disposition letter from appearing in surat keluar - Seta
-                        ->orWhereHas('disposisis', function ($dq) use ($unitId) {
-                            $dq->whereHas('userPegawaiJabatan', function ($qJabatan) use ($unitId) {
-                                $qJabatan->where('unit_kerja_id', $unitId);
-                            });
-                        });
-                })
+            'keluar' => app(\App\Services\UnitAksesService::class)
+                ->applySuratKeluarFilter($query, $user, $unitId ? (int) $unitId : null)
                 ->where('status_surat', '!=', 'DRAFT')
                 ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                    $q->where('unit_kerja_id', $unitId);
+                    if ($unitId) {
+                        $q->where('unit_kerja_id', $unitId);
+                    }
                 }),
 
             'arsip' => app(\App\Services\UnitAksesService::class)
-                ->applyArsipFilter($query, \Illuminate\Support\Facades\Auth::user(), (int) $unitId)
+                ->applyArsipFilter($query, $user, $unitId ? (int) $unitId : null)
                 ->with(['arsipSurats' => fn($q) => $q->where('unit_kerja_id', $unitId), 'arsipSurats.kategoriArsip']),
 
             'pengajuan' => $query

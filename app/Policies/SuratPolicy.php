@@ -41,7 +41,8 @@ class SuratPolicy
         }
 
         // 2. Surat masuk langsung
-        if ($unitId && $surat->suratUnits()
+        if (
+            $unitId && $surat->suratUnits()
             ->where('unit_kerja_id', $unitId)
             ->exists()
         ) {
@@ -49,7 +50,8 @@ class SuratPolicy
         }
 
         // 3. Surat via disposisi
-        if ($unitId && $surat->disposisis()
+        if (
+            $unitId && $surat->disposisis()
             ->where('unit_tujuan_id', $unitId)
             ->exists()
         ) {
@@ -57,7 +59,8 @@ class SuratPolicy
         }
 
         // 4. Surat dalam riwayat approval / workflow unit ini
-        if ($unitId && $surat->riwayats()
+        if (
+            $unitId && $surat->riwayats()
             ->where(function ($q) use ($unitId) {
                 $q->where('unit_tujuan_id', $unitId)
                     ->orWhere('unit_asal_id', $unitId);
@@ -84,8 +87,12 @@ class SuratPolicy
     /**
      * Determine whether the user can create models.
      */
-    public function create(User $user): bool
+       public function create(User $user): bool
     {
+        if ($user->tipe_entitas === 'STAF') {
+            return !empty($user->unit_kerja_id);
+        }
+
         return in_array($user->tipe_entitas, ['STAF', 'MAHASISWA']);
     }
 
@@ -94,10 +101,35 @@ class SuratPolicy
      */
     public function update(User $user, Surat $surat): bool
     {
-        if ($user->tipe_entitas === 'MAHASISWA' && $surat->user_pembuat_id === $user->id) {
-            return true;
+        if ($user->tipe_entitas === 'MAHASISWA') {
+            return $surat->user_pembuat_id === $user->id && in_array($surat->status_surat, ['DRAFT', 'REVISI']);
         }
-        return $user->tipe_entitas === 'STAF';
+        if ($user->tipe_entitas === 'STAF') {
+            // Surat yang sudah selesai atau ditolak permanen tidak boleh diubah lagi
+            if (in_array($surat->status_surat, ['SELESAI', 'DITOLAK', 'DIARSIPKAN'])) {
+                return false;
+            }
+            $unitId = $user->unit_kerja_id;
+            // 1. Pembuat naskah atau unit pengirim saat DRAFT atau REVISI
+            if (($surat->unit_pengirim_id === $unitId || $surat->user_pembuat_id === $user->id)
+                && in_array($surat->status_surat, ['DRAFT', 'REVISI'])
+            ) {
+                return true;
+            }
+            // 2. Pejabat / Pihak yang saat ini memegang giliran review aktif di unitnya
+            $hasActiveReview = $surat->riwayats()
+                ->where('status', 'MENUNGGU')
+                ->where('unit_tujuan_id', $unitId)
+                ->exists();
+            if ($hasActiveReview && in_array($surat->status_surat, ['DIPROSES', 'REVISI', 'TERKIRIM'])) {
+                return true;
+            }
+            // 3. Fallback jika masih draft bagi unit pengirim
+            if ($surat->status_surat === 'DRAFT') {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -116,7 +148,7 @@ class SuratPolicy
      */
     public function restore(User $user, Surat $surat): bool
     {
-        
+
         return $user->tipe_entitas === 'STAF';
     }
 
@@ -125,7 +157,7 @@ class SuratPolicy
      */
     public function forceDelete(User $user, Surat $surat): bool
     {
-       
+
         return $user->tipe_entitas === 'STAF';
     }
 }
