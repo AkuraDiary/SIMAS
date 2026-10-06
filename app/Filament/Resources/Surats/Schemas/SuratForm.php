@@ -437,6 +437,7 @@ class SuratForm
                                         ->options([
                                             'auto' => 'Generate Otomatis saat Surat Dikirim',
                                             'manual' => 'Tetapkan Nomor Sekarang / Backdate',
+                                            'kosong' => 'Kosongkan Nomor (Draf Belum Bernomor)',
                                         ])
                                         ->default('auto')
                                         ->inline()
@@ -678,7 +679,9 @@ class SuratForm
                                         $placeholderService = app(\App\Services\PlaceholderService::class);
 
                                         $previewData = $data;
-                                        if (!empty($get('nomor_surat'))) {
+                                        if ($get('mode_penomoran') === 'kosong') {
+                                            $previewData['nomor_surat'] = '[Nomor Surat Belum Dialokasikan]';
+                                        } elseif (!empty($get('nomor_surat'))) {
                                             $previewData['nomor_surat'] = $get('nomor_surat');
                                         } else {
                                             $unitId = Auth::user()?->unit_kerja_id;
