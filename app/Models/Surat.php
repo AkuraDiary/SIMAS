@@ -257,10 +257,10 @@ class Surat extends Model implements HasMedia
                 $q->whereHas('suratUnits', fn($sq) => $sq->where('unit_kerja_id', $unitId))
                     // 2. Atau surat yang didisposisikan ke unit ini
                     ->orWhereHas('disposisis', fn($dq) => $dq->where('unit_tujuan_id', $unitId))
-                    // 3. Atau surat alur persetujuan untuk unit ini (aktif menunggu maupun sudah disetujui)
+                    // 3. Atau surat alur persetujuan untuk unit ini (aktif menunggu, diproses, maupun tuntas)
                     ->orWhereHas('riwayats', function ($rw) use ($unitId) {
                         $rw->where('unit_tujuan_id', $unitId)
-                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI']);
+                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI', 'SELESAI', 'DITERUSKAN']);
                     });
             });
     }

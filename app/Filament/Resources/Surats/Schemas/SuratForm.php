@@ -291,6 +291,8 @@ class SuratForm
                                             })
                                             ->toArray();
                                     })
+                                    ->preload()
+                                    ->live()
                                     ->searchable()
                                     ->nullable()
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {

@@ -78,6 +78,7 @@ class ManageOrganisasi extends Page implements HasActions
 
             Select::make('jenis_unit_id')
                 ->label('Jenis Unit')
+                ->preload()
                 ->options(fn() => JenisUnit::pluck('nama_jenis', 'id'))
                 ->required()
                 ->searchable()
@@ -199,6 +200,7 @@ class ManageOrganisasi extends Page implements HasActions
                         TextInput::make('nama_unit')->label('Nama Unit')->required()->maxLength(100),
                         TextInput::make('singkatan')->label('Singkatan')->required()->maxLength(20),
                         Select::make('jenis_unit_id')
+                            ->preload()
                             ->label('Jenis Unit')
                             ->options(JenisUnit::pluck('nama_jenis', 'id'))
                             ->required()
