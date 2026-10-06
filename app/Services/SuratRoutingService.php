@@ -234,7 +234,7 @@ class SuratRoutingService
                 }
 
 
-                 if ($finalIsFinalStep) {
+                if ($finalIsFinalStep) {
                     // Status resmi langsung menjadi SELESAI saat persetujuan tuntas
                     $newStatus = 'SELESAI';
                     $surat->status_surat = $newStatus;
@@ -317,7 +317,7 @@ class SuratRoutingService
                         }
                     }
                 } else {
-                    } else {
+
                     SuratRiwayat::create([
                         'surat_id'       => $surat->id,
                         'parent_id'      => $currentRiwayat->id,
