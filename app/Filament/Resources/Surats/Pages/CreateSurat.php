@@ -30,7 +30,7 @@ class CreateSurat extends CreateRecord
             $data['content'] = $content;
         }
 
-         unset($data['custom_nomor_tags']); 
+         unset($data['custom_nomor_tags']);
 
         // Jika pakai template dan Path Builder manual kosong, copy dari Template!
         if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
@@ -97,12 +97,25 @@ class CreateSurat extends CreateRecord
 
         $activeJabatan = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan();
 
-        if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
+                if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
+            $terbitanForId = Request::query('terbitan_for_surat_id');
+            $defaultUnitTujuan = [];
+
+            // Jika merujuk ke pengajuan internal, otomatis pasang unit pemohon sebagai unit tujuan
+            if ($terbitanForId) {
+                $pengajuan = \App\Models\Surat::find($terbitanForId);
+                $unitPemohonId = $pengajuan?->unit_asal_id ?? $pengajuan?->unit_pengirim_id;
+                if ($unitPemohonId) {
+                    $defaultUnitTujuan = [$unitPemohonId];
+                }
+            }
+
             $this->form->fill([
                 'user_pegawai_jabatan_id' => $activeJabatan?->id,
                 'unit_pengirim_id' => $activeJabatan?->unit_kerja_id,
                 'tipe_surat' => Request::query('tipe_surat', 'INTERNAL'),
-                'terbitan_for_surat_id' => Request::query('terbitan_for_surat_id'),
+                'terbitan_for_surat_id' => $terbitanForId,
+                'unitTujuan' => $defaultUnitTujuan,
                 'status_surat' => 'DRAFT',
             ]);
         }

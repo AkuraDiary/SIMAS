@@ -293,6 +293,19 @@ class SuratForm
                                     })
                                     ->searchable()
                                     ->nullable()
+                                    ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                        if (!$state) return;
+                                        $pengajuan = \App\Models\Surat::find($state);
+                                        $unitPemohonId = $pengajuan?->unit_asal_id ?? $pengajuan?->unit_pengirim_id;
+                                        if ($unitPemohonId) {
+                                            $currentTujuan = $get('unitTujuan') ?? [];
+                                            if (!in_array($unitPemohonId, $currentTujuan)) {
+                                                // Jadikan unit pemohon sebagai unit tujuan utama (indeks 0)
+                                                array_unshift($currentTujuan, $unitPemohonId);
+                                                $set('unitTujuan', array_unique($currentTujuan));
+                                            }
+                                        }
+                                    })
                                     ->helperText('Pilih surat pengajuan yang menjadi rujukan (hanya pengajuan selesai dan belum diterbitkan).')
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'TERBITAN'),
 
@@ -316,12 +329,28 @@ class SuratForm
                                 ->state(function (Get $get) {
                                     $pengajuanId = $get('terbitan_for_surat_id');
                                     if (!$pengajuanId) return null;
-                                    $pengajuan = \App\Models\Surat::find($pengajuanId);
+                                    $pengajuan = \App\Models\Surat::with(['unitAsal', 'pembuat.pegawai'])->find($pengajuanId);
+
                                     if (!$pengajuan) return null;
                                     $nama = $pengajuan->pengirim_nama ?? 'Pemohon';
-                                    $identitas = $pengajuan->pengirim_nim
-                                        ? "NIM: {$pengajuan->pengirim_nim} (Mahasiswa)"
-                                        : ($pengajuan->pengirim_metadata['instansi'] ?? 'Pihak Eksternal');
+
+                                  // Deteksi apakah pemohon adalah Pegawai / Unit Internal
+                                    $isInternal = filled($pengajuan->unit_asal_id)
+                                        || ($pengajuan->tipe_surat === 'INTERNAL')
+                                        || filled($pengajuan->pengirim_nip)
+                                        || filled($pengajuan->user_pembuat_id);
+                                    if ($isInternal) {
+                                        $unitNama = $pengajuan->unitAsal?->nama_unit ?? 'Unit Internal';
+                                        $jabatan = $pengajuan->pengirim_jabatan ?? 'Pegawai';
+                                        $identitas = "Unit Internal: {$unitNama} ({$jabatan})";
+                                        $keterangan = "Surat resmi terbitan akan otomatis terdistribusi ke Surat Masuk unit {$unitNama} setelah disahkan.";
+                                    } elseif ($pengajuan->pengirim_nim) {
+                                        $identitas = "NIM: {$pengajuan->pengirim_nim} (Mahasiswa)";
+                                        $keterangan = "Surat resmi akan langsung tersedia untuk diunduh oleh mahasiswa di portal setelah selesai ditandatangani.";
+                                    } else {
+                                        $identitas = $pengajuan->pengirim_metadata['instansi'] ?? 'Pihak Eksternal';
+                                        $keterangan = "Surat resmi akan langsung tersedia untuk diunduh oleh pemohon setelah selesai ditandatangani.";
+                                    }
                                     return new \Illuminate\Support\HtmlString("
                                         <div class='flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900'>
                                             <div class='w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0 text-emerald-700 font-bold'>
@@ -330,7 +359,7 @@ class SuratForm
                                             <div>
                                                 <span class='text-xs font-bold uppercase tracking-wider text-emerald-700'>Penerima Dokumen Terbitan:</span>
                                                 <p class='text-sm font-bold text-gray-900'>{$nama} <span class='text-xs font-normal text-gray-600'>({$identitas})</span></p>
-                                                <p class='text-xs text-gray-500 mt-0.5'>Surat resmi akan langsung tersedia untuk diunduh oleh pemohon setelah selesai ditandatangani.</p>
+                                                <p class='text-xs text-gray-500 mt-0.5'>{$keterangan}</p>
                                             </div>
                                         </div>
                                     ");

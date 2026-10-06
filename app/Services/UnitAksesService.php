@@ -84,13 +84,13 @@ class UnitAksesService
                             ->orWhereHas('riwayats', fn($r) => $r->where('user_aktor_id', $user->id));
                     });
             })
-            ->orWhereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId) {
-                $dq->where('unit_tujuan_id', $unitId)
-                    ->where(function (Builder $sub) use ($user, $activeJabatanId) {
-                        $sub->where('user_pegawai_jabatan_id', $activeJabatanId)
-                            ->orWhere('user_pembuat_id', $user->id);
-                    });
-            });
+                ->orWhereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId) {
+                    $dq->where('unit_tujuan_id', $unitId)
+                        ->where(function (Builder $sub) use ($user, $activeJabatanId) {
+                            $sub->where('user_pegawai_jabatan_id', $activeJabatanId)
+                                ->orWhere('user_pembuat_id', $user->id);
+                        });
+                });
         });
     }
 
@@ -151,7 +151,13 @@ class UnitAksesService
         if ($user->canViewAllSuratMasukUnit($unitId)) {
             return true;
         }
-
+        // Izinkan jika unit user adalah unit pemohon dari pengajuan yang dibalas oleh surat terbitan ini
+        if ($surat->terbitan_for_surat_id) {
+            $pengajuan = $surat->terbitanForSurat;
+            if ($pengajuan && ($pengajuan->unit_asal_id === $unitId || $pengajuan->unit_pengirim_id === $unitId)) {
+                return true;
+            }
+        }
         // If this unit is the sender unit:
         if ($surat->unit_pengirim_id === $unitId) {
             if ($surat->user_pembuat_id === $user->id) {
