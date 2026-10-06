@@ -87,8 +87,12 @@ class SuratPolicy
     /**
      * Determine whether the user can create models.
      */
-    public function create(User $user): bool
+       public function create(User $user): bool
     {
+        if ($user->tipe_entitas === 'STAF') {
+            return !empty($user->unit_kerja_id);
+        }
+
         return in_array($user->tipe_entitas, ['STAF', 'MAHASISWA']);
     }
 
