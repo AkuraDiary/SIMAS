@@ -104,36 +104,54 @@ class SuratExportService
 
     protected function collectLampiran(Surat $surat, string $lampiranDir): void
     {
-        $hasOwnMedia = $surat->getMedia('lampiran-surat')->isNotEmpty();
-        $hasParentMedia = $surat->terbitan_for_surat_id && $surat->terbitanForSurat && $surat->terbitanForSurat->getMedia('lampiran-surat')->isNotEmpty();
-
-        if (!$hasOwnMedia && !$hasParentMedia) {
+        $allLampirans = $surat->getSemuaLampiran();
+        if ($allLampirans->isEmpty()) {
             return;
         }
 
         File::makeDirectory($lampiranDir, 0755, true);
         $counter = 1;
 
-        // 1. Lampiran dari Surat ini sendiri
-        foreach ($surat->getMedia('lampiran-surat') as $media) {
+        foreach ($allLampirans as $media) {
             $source = $media->getPath();
             if (!file_exists($source)) continue;
 
             $filename = sprintf('Lampiran_%02d_%s', $counter++, $media->file_name);
             File::copy($source, $lampiranDir . '/' . $filename);
         }
-
-        // 2. Lampiran dari Surat Pengajuan Pemohon (jika ini surat terbitan rujukan)
-        if ($hasParentMedia) {
-            foreach ($surat->terbitanForSurat->getMedia('lampiran-surat') as $media) {
-                $source = $media->getPath();
-                if (!file_exists($source)) continue;
-
-                $filename = sprintf('Lampiran_Pengajuan_%02d_%s', $counter++, $media->file_name);
-                File::copy($source, $lampiranDir . '/' . $filename);
-            }
-        }
     }
+    // protected function collectLampiran(Surat $surat, string $lampiranDir): void
+    // {
+    //     $hasOwnMedia = $surat->getMedia('lampiran-surat')->isNotEmpty();
+    //     $hasParentMedia = $surat->terbitan_for_surat_id && $surat->terbitanForSurat && $surat->terbitanForSurat->getMedia('lampiran-surat')->isNotEmpty();
+
+    //     if (!$hasOwnMedia && !$hasParentMedia) {
+    //         return;
+    //     }
+
+    //     File::makeDirectory($lampiranDir, 0755, true);
+    //     $counter = 1;
+
+    //     // 1. Lampiran dari Surat ini sendiri
+    //     foreach ($surat->getMedia('lampiran-surat') as $media) {
+    //         $source = $media->getPath();
+    //         if (!file_exists($source)) continue;
+
+    //         $filename = sprintf('Lampiran_%02d_%s', $counter++, $media->file_name);
+    //         File::copy($source, $lampiranDir . '/' . $filename);
+    //     }
+
+    //     // 2. Lampiran dari Surat Pengajuan Pemohon (jika ini surat terbitan rujukan)
+    //     if ($hasParentMedia) {
+    //         foreach ($surat->terbitanForSurat->getMedia('lampiran-surat') as $media) {
+    //             $source = $media->getPath();
+    //             if (!file_exists($source)) continue;
+
+    //             $filename = sprintf('Lampiran_Pengajuan_%02d_%s', $counter++, $media->file_name);
+    //             File::copy($source, $lampiranDir . '/' . $filename);
+    //         }
+    //     }
+    // }
 
 
     /**
