@@ -19,7 +19,7 @@ class SuratRoutingService
     {
         return DB::transaction(function () use ($surat, $unitTujuanId, $targetUserAktorId, $catatan) {
             $surat->update([
-                'status_surat' => 'DIPROSES',
+                'status_surat' => 'TERKIRIM',
             ]);
 
             // [NEW] Automated Routing Engine
