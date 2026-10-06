@@ -42,6 +42,15 @@
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <button
                     type="button"
+                    wire:click="mountTableAction('ubah_kategori', '{{ $getRecord()->getKey() }}')"
+                    style="display: inline-flex; align-items: center; padding: 0.35rem 0.65rem; background-color: #fef3c7; color: #b45309; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; text-decoration: none; transition: background-color 0.2s;"
+                    onmouseover="this.style.backgroundColor='#fde68a'"
+                    onmouseout="this.style.backgroundColor='#fef3c7'">
+                    <x-heroicon-o-folder-arrow-down style="width: 1rem; height: 1rem; margin-inline-end: 0.35rem;" />
+                    Kategori
+                </button>
+                <button
+                    type="button"
                     wire:click="mountTableAction('preview', '{{ $getRecord()->getKey() }}')"
                     style="display: inline-flex; align-items: center; padding: 0.35rem 0.75rem; background-color: #e0e7ff; color: #4338ca; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; text-decoration: none; transition: background-color 0.2s;"
                     onmouseover="this.style.color='#4338ca'"
