@@ -334,7 +334,7 @@ class SuratForm
                                     if (!$pengajuan) return null;
                                     $nama = $pengajuan->pengirim_nama ?? 'Pemohon';
 
-                                  // Deteksi apakah pemohon adalah Pegawai / Unit Internal
+                                    // Deteksi apakah pemohon adalah Pegawai / Unit Internal
                                     $isInternal = filled($pengajuan->unit_asal_id)
                                         || ($pengajuan->tipe_surat === 'INTERNAL')
                                         || filled($pengajuan->pengirim_nip)
@@ -394,10 +394,24 @@ class SuratForm
                                 ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
 
                             Select::make('unitTujuan')
-                                ->label(fn(Get $get) => filled($get('terbitan_for_surat_id')) ? 'Tembusan Unit Internal (Opsional)' : 'Penerima Surat (Unit Tujuan)')
-                                ->helperText(fn(Get $get) => filled($get('terbitan_for_surat_id'))
-                                    ? 'Opsional: pilih unit internal yang perlu menerima tembusan surat terbitan ini.'
-                                    : 'Unit pertama dianggap sebagai tujuan utama, unit berikutnya sebagai tembusan.')
+                                ->label(function (Get $get) {
+                                    if (filled($get('terbitan_for_surat_id'))) {
+                                        return 'Unit Penerima Balasan & Tembusan';
+                                    }
+                                    if ($get('tipe_surat') === 'TERBITAN') {
+                                        return 'Unit Kerja Penerima Edaran / Terbitan';
+                                    }
+                                    return 'Penerima Surat (Unit Tujuan)';
+                                })
+                                ->helperText(function (Get $get) {
+                                    if (filled($get('terbitan_for_surat_id'))) {
+                                        return 'Unit pengaju otomatis menjadi penerima utama. Anda dapat menambahkan unit lain sebagai tembusan.';
+                                    }
+                                    if ($get('tipe_surat') === 'TERBITAN') {
+                                        return 'Pilih unit-unit internal kampus yang menjadi sasaran edaran/terbitan ini setelah disahkan.';
+                                    }
+                                    return 'Unit pertama dianggap sebagai tujuan utama, unit berikutnya sebagai tembusan.';
+                                })
                                 ->multiple()
                                 ->relationship(
                                     'unitTujuan',
@@ -714,7 +728,7 @@ class SuratForm
 
                             // Dynamic Path Builder
                             Section::make('Jalur Persetujuan Khusus')
-                                ->description('Atur jalur persetujuan secara manual. Jika dikosongkan, sistem akan menggunakan jalur default dari Template atau sepenuhnya bergantung ke staf.')
+                                ->description('Pilih pejabat yang bertugas memverifikasi draf secara berjenjang sebelum disahkan. Jika dikosongkan, alur default template akan digunakan.')
                                 ->schema([
                                     \Filament\Forms\Components\Repeater::make('approval_path')
                                         ->label('Alur Persetujuan & Tanda Tangan')
