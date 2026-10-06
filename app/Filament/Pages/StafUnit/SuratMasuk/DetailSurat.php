@@ -91,8 +91,13 @@ class DetailSurat extends Page implements HasForms
         $this->userUnitId = Auth::user()->unit_kerja_id;
         $this->scope = request('scope', 'masuk');
 
-        // Verify letter access authorization for incoming & archived letters
-        if (in_array($this->scope, ['masuk', 'persetujuan', 'arsip']) && $this->userUnitId) {
+        // Verify user has unit assigned (unless admin)
+        if (Auth::user()->tipe_entitas !== 'ADMIN' && !$this->userUnitId) {
+            abort(403, 'Akun Anda belum memiliki penempatan Unit Kerja / Jabatan aktif. Silakan hubungi Administrator.');
+        }
+
+        // Verify letter access authorization for all scopes
+        if (in_array($this->scope, ['masuk', 'persetujuan', 'arsip', 'keluar']) && $this->userUnitId) {
             $hasAccess = app(\App\Services\UnitAksesService::class)->canUserAccessSurat(
                 Auth::user(),
                 $surat,

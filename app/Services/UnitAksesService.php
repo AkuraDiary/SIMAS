@@ -13,8 +13,12 @@ class UnitAksesService
     /**
      * Apply letter visibility filters for a user viewing Surat Masuk in a specific unit.
      */
-    public function applySuratMasukFilter(Builder $query, User $user, int $unitId): Builder
+    public function applySuratMasukFilter(Builder $query, ?User $user, ?int $unitId): Builder
     {
+        if (!$user || !$unitId) {
+            return $query->whereRaw('1 = 0');
+        }
+
         // If user can view all letters in this unit (Kepala Unit, Admin, or granted full access)
         if ($user->canViewAllSuratMasukUnit($unitId)) {
             return $query->untukUnit($unitId);
@@ -26,7 +30,7 @@ class UnitAksesService
         return $query
             ->where('status_surat', '<>', 'DRAFT')
             ->where(function (Builder $q) use ($unitId, $user, $activeJabatanId) {
-                // 1. Letters dispositioned to this unit
+                // 1. Letters dispositioned to this unit (khususnya yang ditujukan ke jabatan user atau dibuat user)
                 $q->whereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId) {
                     $dq->where('unit_tujuan_id', $unitId)
                         ->where(function (Builder $sub) use ($user, $activeJabatanId) {
@@ -46,11 +50,59 @@ class UnitAksesService
                     });
             });
     }
+
+    /**
+     * Apply letter visibility filters for a user viewing Surat Keluar in a specific unit.
+     */
+    public function applySuratKeluarFilter(Builder $query, ?User $user, ?int $unitId): Builder
+    {
+        if (!$user || !$unitId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        // Pimpinan Unit, Admin, atau Staf dengan izin akses penuh dapat melihat seluruh surat keluar unit
+        if ($user->tipe_entitas === 'ADMIN' || $user->canViewAllSuratMasukUnit($unitId)) {
+            return $query->where(function (Builder $q) use ($unitId) {
+                $q->where('unit_pengirim_id', $unitId)
+                    ->orWhereHas('disposisis', function ($dq) use ($unitId) {
+                        $dq->whereHas('userPegawaiJabatan', function ($qJabatan) use ($unitId) {
+                            $qJabatan->where('unit_kerja_id', $unitId);
+                        });
+                    });
+            });
+        }
+
+        $activeJabatanId = $user->getActiveJabatan()?->id;
+
+        // Staf biasa: dibatasi hanya melihat surat keluar yang dibuat dirinya sendiri atau yang melibatkan dirinya
+        return $query->where(function (Builder $q) use ($unitId, $user, $activeJabatanId) {
+            $q->where(function (Builder $sub) use ($unitId, $user) {
+                $sub->where('unit_pengirim_id', $unitId)
+                    ->where(function (Builder $inner) use ($user) {
+                        $inner->where('user_pembuat_id', $user->id)
+                            ->orWhereHas('suratTtds', fn($t) => $t->where('user_id', $user->id))
+                            ->orWhereHas('riwayats', fn($r) => $r->where('user_aktor_id', $user->id));
+                    });
+            })
+            ->orWhereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId) {
+                $dq->where('unit_tujuan_id', $unitId)
+                    ->where(function (Builder $sub) use ($user, $activeJabatanId) {
+                        $sub->where('user_pegawai_jabatan_id', $activeJabatanId)
+                            ->orWhere('user_pembuat_id', $user->id);
+                    });
+            });
+        });
+    }
+
     /**
      * Apply letter visibility filters for a user viewing Arsip Surat in a specific unit.
      */
-    public function applyArsipFilter(Builder $query, User $user, int $unitId): Builder
+    public function applyArsipFilter(Builder $query, ?User $user, ?int $unitId): Builder
     {
+        if (!$user || !$unitId) {
+            return $query->whereRaw('1 = 0');
+        }
+
         // Must be archived by this unit
         $query->whereHas('arsipSurats', fn($q) => $q->where('unit_kerja_id', $unitId));
 
@@ -86,8 +138,12 @@ class UnitAksesService
     /**
      * Check if a specific user has permission to open and view a particular Surat.
      */
-    public function canUserAccessSurat(User $user, Surat $surat, int $unitId): bool
+    public function canUserAccessSurat(?User $user, Surat $surat, ?int $unitId): bool
     {
+        if (!$user || !$unitId) {
+            return false;
+        }
+
         if ($user->tipe_entitas === 'ADMIN') {
             return true;
         }
@@ -96,9 +152,18 @@ class UnitAksesService
             return true;
         }
 
-        // If this unit is the sender unit, staff of this unit can access
+        // If this unit is the sender unit:
         if ($surat->unit_pengirim_id === $unitId) {
-            return true;
+            if ($surat->user_pembuat_id === $user->id) {
+                return true;
+            }
+            if ($surat->suratTtds()->where('user_id', $user->id)->exists()) {
+                return true;
+            }
+            if ($surat->riwayats()->where('user_aktor_id', $user->id)->exists()) {
+                return true;
+            }
+            return false;
         }
 
         $activeJabatanId = $user->getActiveJabatan()?->id;
