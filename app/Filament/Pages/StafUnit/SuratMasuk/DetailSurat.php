@@ -247,6 +247,7 @@ class DetailSurat extends Page implements HasForms
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
             $secondaryActions[] = $this->getActionArsipInfo();
+             $secondaryActions[] = $this->getActionUbahKategoriArsip();
         }
 
         // 6. Grup Persetujuan & Backtrack
