@@ -166,10 +166,10 @@
             <td>: {{ $surat->created_at ? $surat->created_at->format('d/m/Y H:i') : '-' }} WIB</td>
         </tr>
         <tr>
-            <td class="label">Unit / Pengonsep Asal</td>
+            <td class="label">Unit Pembuat Asal</td>
             <td>: {{ $surat->unitPengirim?->nama_unit ?? ($surat->userPegawaiJabatan?->unitKerja?->nama_unit ?? 'Unit Internal') }}</td>
-            <td class="label">Konseptor / Pembuat</td>
-            <td>: {{ $surat->pembuat?->nama_lengkap ?? ($surat->pengirim_nama ?? '-') }}</td>
+            <td class="label"> Pembuat</td>
+            <td>: {{ $surat->userPegawaiJabatan->pegawai?->nama_lengkap ?? ($surat->pengirim_nama ?? '-') }}</td>
         </tr>
         <tr>
             <td class="label">Unit Tujuan / Sasaran</td>
