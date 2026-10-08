@@ -49,6 +49,7 @@ class SuratExportService
      * PDF GENERATORS
      * ======================= */
 
+
     protected function generateSuratPdf(Surat $surat, string $dir): void
     {
         // 1. Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut
@@ -80,6 +81,39 @@ class SuratExportService
         $pdf->save($dir . '/01_Surat_Utama.pdf');
     }
 
+    protected function generateLembarKendaliPdf(Surat $surat, string $dir): void
+    {
+        // Format TTD / QR Code pejabat ke Data URI Base64 agar DomPDF dapat merender langsung
+        $ttdsWithImages = $surat->suratTtds()->with('user.pegawai')->get()->map(function ($ttd) {
+            $base64Img = null;
+            if ($ttd->qr_code_path) {
+                $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
+                if (!file_exists($fullPath)) {
+                    $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
+                }
+                if (file_exists($fullPath)) {
+                    $mime = mime_content_type($fullPath) ?: 'image/png';
+                    $base64Img = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullPath));
+                }
+            }
+            return [
+                'model'      => $ttd,
+                'image_data' => $base64Img,
+            ];
+        });
+
+        $pdf = Pdf::loadView(
+            'filament.exports.surat.lembar-kendali-persetujuan',
+            [
+                'surat'          => $surat,
+                'riwayats'       => $surat->riwayats()->with(['unitAsal', 'unitTujuan', 'userAktor'])->orderBy('id')->get(),
+                'ttdsWithImages' => $ttdsWithImages,
+                'lampirans'      => $surat->getSemuaLampiran(),
+            ]
+        )->setPaper('A4', 'portrait');
+
+        $pdf->save($dir . '/02_Lembar_Kendali_dan_Persetujuan.pdf');
+    }
     protected function generateDisposisiPdf(Surat $surat, string $dir): void
     {
         $pdf = Pdf::loadView(
@@ -91,7 +125,7 @@ class SuratExportService
             ]
         );
 
-        $pdf->save($dir . '/02_Lembar_Disposisi.pdf');
+        $pdf->save($dir . '/03_Lembar_Disposisi.pdf');
     }
 
     /* =======================
