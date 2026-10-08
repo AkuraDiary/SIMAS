@@ -248,7 +248,7 @@ class Surat extends Model implements HasMedia
             ]);
     }
 
-       public function scopeUntukUnit(Builder $query, int $unitId): Builder
+    public function scopeUntukUnit(Builder $query, int $unitId): Builder
     {
         return $query
             ->where('status_surat', '<>', 'DRAFT')
@@ -257,32 +257,37 @@ class Surat extends Model implements HasMedia
                 $q->whereHas('suratUnits', fn($sq) => $sq->where('unit_kerja_id', $unitId))
                     // 2. Atau surat yang didisposisikan ke unit ini
                     ->orWhereHas('disposisis', fn($dq) => $dq->where('unit_tujuan_id', $unitId))
-                    // 3. Atau surat alur persetujuan untuk unit ini (aktif menunggu maupun sudah disetujui)
+                    // 3. Atau surat alur persetujuan untuk unit ini (aktif menunggu, diproses, maupun tuntas)
                     ->orWhereHas('riwayats', function ($rw) use ($unitId) {
                         $rw->where('unit_tujuan_id', $unitId)
-                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI']);
+                            ->whereIn('status', ['MENUNGGU', 'DISETUJUI', 'SELESAI', 'DITERUSKAN']);
                     });
             });
     }
-    // public function scopeUntukUnit(Builder $query, int $unitId): Builder
-    // {
-    //     return $query
-    //         ->where('status_surat', '<>', 'DRAFT')
-    //         ->where(function ($q) use ($unitId) {
-    //             $q->whereHas(
-    //                 'suratUnits',
-    //                 fn($sq) => $sq->where('unit_kerja_id', $unitId)
-    //             )
-    //                 ->orWhereHas(
-    //                     'disposisis',
-    //                     fn($dq) => $dq->where('unit_tujuan_id', $unitId)
-    //                 )
-    //                 ->orWhereHas(
-    //                     'riwayats',
-    //                     fn($rq) => $rq->where('unit_tujuan_id', $unitId)
-    //                 );
-    //         });
-    // }
+    /**
+     * Dapatkan seluruh lampiran berkas resmi untuk surat ini (By Reference).
+     * Menggabungkan lampiran milik sendiri dan lampiran pengajuan rujukan yang dipilih tanpa duplikasi fisik file.
+     */
+    public function getSemuaLampiran(): \Illuminate\Support\Collection
+    {
+        $lampirans = $this->getMedia('lampiran-surat');
+
+        if ($this->terbitan_for_surat_id && $this->terbitanForSurat) {
+            $parentMedia = $this->terbitanForSurat->getMedia('lampiran-surat');
+
+            // Jika ada filter seleksi spesifik yang dipilih pengguna saat drafting
+            if (isset($this->content['lampiran_pengajuan_terpilih_ids'])) {
+                $selectedIds = (array) $this->content['lampiran_pengajuan_terpilih_ids'];
+                $filteredParentMedia = $parentMedia->whereIn('id', $selectedIds);
+                $lampirans = $lampirans->merge($filteredParentMedia);
+            } else {
+                // Fallback untuk terbitan versi terdahulu: ambil semua
+                $lampirans = $lampirans->merge($parentMedia);
+            }
+        }
+
+        return $lampirans;
+    }
 
     public function scopeMasukLangsung(Builder $query, int $unitId): Builder
     {

@@ -3,12 +3,15 @@
 namespace App\Filament\Resources\Surats\Schemas;
 
 use AmidEsfahani\FilamentTinyEditor\TinyEditor;
+use App\Filament\Resources\Surats\Actions\AiDraftAction;
 use App\Models\Surat;
 use App\Models\Template;
 use App\Models\UnitKerja;
 use App\Services\FormSchemaService;
 use App\Services\PlaceholderService;
+use Carbon\Carbon;
 use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
@@ -20,7 +23,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
-use Carbon\Carbon;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
@@ -30,7 +32,6 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
-use App\Filament\Resources\Surats\Actions\AiDraftAction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
 use Saade\FilamentAutograph\Forms\Components\Enums\DownloadableFormat;
@@ -291,12 +292,17 @@ class SuratForm
                                             })
                                             ->toArray();
                                     })
+                                    ->preload()
+                                    ->live()
                                     ->searchable()
                                     ->nullable()
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                        if (!$state) return;
-                                        $pengajuan = \App\Models\Surat::find($state);
-                                        $unitPemohonId = $pengajuan?->unit_asal_id ?? $pengajuan?->unit_pengirim_id;
+                                        if (!$state) {
+                                            $set('lampiran_pengajuan_dipilih', []);
+                                            return;
+                                        }
+                                        $pengajuan = \App\Models\Surat::with('media')->find($state);
+                                        $unitPemohonId = $pengajuan?->unit_pengirim_id;
                                         if ($unitPemohonId) {
                                             $currentTujuan = $get('unitTujuan') ?? [];
                                             if (!in_array($unitPemohonId, $currentTujuan)) {
@@ -304,6 +310,11 @@ class SuratForm
                                                 array_unshift($currentTujuan, $unitPemohonId);
                                                 $set('unitTujuan', array_unique($currentTujuan));
                                             }
+                                        }
+                                        // Otomatis centang seluruh lampiran dari pengajuan asal sebagai pilihan default
+                                        if ($pengajuan) {
+                                            $lampiranIds = $pengajuan->getMedia('lampiran-surat')->pluck('id')->map(fn($id) => (string) $id)->toArray();
+                                            $set('lampiran_pengajuan_dipilih', $lampiranIds);
                                         }
                                     })
                                     ->helperText('Pilih surat pengajuan yang menjadi rujukan (hanya pengajuan selesai dan belum diterbitkan).')
@@ -367,31 +378,41 @@ class SuratForm
                                 ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
 
 
-                            TextEntry::make('lampiran_pengajuan_rujukan')
-                                ->label('Lampiran Berkas dari Surat Pengajuan Asal')
-                                ->state(function (Get $get) {
+                            CheckboxList::make('lampiran_pengajuan_dipilih')
+                                ->label('Lampiran Berkas dari Pengajuan Rujukan')
+                                ->helperText(function (Get $get) {
                                     $pengajuanId = $get('terbitan_for_surat_id');
                                     if (!$pengajuanId) return null;
                                     $pengajuan = \App\Models\Surat::with('media')->find($pengajuanId);
-                                    if (!$pengajuan) return null;
-                                    $mediaItems = $pengajuan->getMedia('lampiran-surat');
-                                    if ($mediaItems->isEmpty()) {
-                                        return new \Illuminate\Support\HtmlString('<p class="text-xs text-gray-500 italic">Tidak ada berkas lampiran yang diunggah pada pengajuan ini.</p>');
+                                    if (!$pengajuan || $pengajuan->getMedia('lampiran-surat')->isEmpty()) {
+                                        return 'Pengajuan ini tidak memiliki berkas lampiran yang diunggah.';
                                     }
-                                    $html = '<div class="flex flex-wrap gap-2 mt-1">';
-                                    foreach ($mediaItems as $item) {
-                                        $url = route('media.download', $item->id);
-                                        $size = number_format($item->size / 1024, 1) . ' KB';
-                                        $html .= "<a href='{$url}' target='_blank' class='inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium transition border border-gray-300 dark:border-gray-600'>
-                                            <svg class='w-4 h-4 text-emerald-600 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'/></svg>
-                                            <span class='truncate max-w-[200px]'>{$item->file_name}</span>
-                                            <span class='text-gray-400'>({$size})</span>
-                                        </a>";
-                                    }
-                                    $html .= '</div>';
-                                    return new \Illuminate\Support\HtmlString($html);
+                                    return 'Centang berkas lampiran dari pengajuan yang ingin disertakan ke dalam dokumen terbitan ini.';
                                 })
+                                ->options(function (Get $get) {
+                                    $pengajuanId = $get('terbitan_for_surat_id');
+                                    if (!$pengajuanId) return [];
+                                    $pengajuan = \App\Models\Surat::with('media')->find($pengajuanId);
+                                    if (!$pengajuan) return [];
+                                    return $pengajuan->getMedia('lampiran-surat')->mapWithKeys(function ($item) {
+                                        $size = number_format($item->size / 1024, 1) . ' KB';
+                                        return [(string) $item->id => "{$item->file_name} ({$size})"];
+                                    })->toArray();
+                                })
+                                ->descriptions(function (Get $get) {
+                                    $pengajuanId = $get('terbitan_for_surat_id');
+                                    if (!$pengajuanId) return [];
+                                    $pengajuan = \App\Models\Surat::with('media')->find($pengajuanId);
+                                    if (!$pengajuan) return [];
+                                    return $pengajuan->getMedia('lampiran-surat')->mapWithKeys(function ($item) {
+                                        $url = route('media.download', $item->id);
+                                        return [(string) $item->id => new \Illuminate\Support\HtmlString("<a href='{$url}' target='_blank' class='text-xs text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1'>Lihat / Unduh Dokumen</a>")];
+                                    })->toArray();
+                                })
+                                ->bulkToggleable()
+                                ->columns(2)
                                 ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
+
 
                             Select::make('unitTujuan')
                                 ->label(function (Get $get) {

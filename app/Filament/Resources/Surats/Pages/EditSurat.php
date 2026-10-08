@@ -22,7 +22,7 @@ class EditSurat extends EditRecord
 
     public function getBreadcrumbs(): array
     {
-         // Jika sedang dalam Alur Persetujuan (DIPROSES)
+        // Jika sedang dalam Alur Persetujuan (DIPROSES)
         if ($this->record->status_surat === 'DIPROSES') {
             return [
                 DetailSurat::getUrl(['surat' => $this->record, 'record' => $this->record]) => $this->record->nomor_surat ?? $this->record->perihal,
@@ -46,7 +46,7 @@ class EditSurat extends EditRecord
     }
 
 
-       public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
+    public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
         if ($this->record->status_surat === 'DIPROSES') {
             return 'Edit Draft Surat';
@@ -59,6 +59,15 @@ class EditSurat extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+
+        // Simpan referensi ID lampiran pengajuan yang dicentang ke kolom JSON content
+        if (isset($data['lampiran_pengajuan_dipilih'])) {
+            $content = $data['content'] ?? [];
+            $content['lampiran_pengajuan_terpilih_ids'] = array_map('intval', (array) $data['lampiran_pengajuan_dipilih']);
+            $data['content'] = $content;
+            unset($data['lampiran_pengajuan_dipilih']);
+        }
+        
         // Simpan custom_nomor_tags ke content jika ada
         if (!empty($data['custom_nomor_tags']) && is_array($data['custom_nomor_tags'])) {
             $content = $data['content'] ?? [];
@@ -120,6 +129,13 @@ class EditSurat extends EditRecord
         }
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        if (isset($this->record->content['lampiran_pengajuan_terpilih_ids'])) {
+            $data['lampiran_pengajuan_dipilih'] = array_map('strval', (array) $this->record->content['lampiran_pengajuan_terpilih_ids']);
+        }
+        return $data;
+    }
     protected function getHeaderActions(): array
     {
         return [

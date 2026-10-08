@@ -65,15 +65,9 @@
 
             {{-- Lampiran Section --}}
             @php
-            $lampirans = collect();
 
-            // 1. Inherit Attachments from Parent (Pengajuan) if this is a Terbitan
-            if ($surat->terbitan_for_surat_id && $surat->terbitanForSurat) {
-            $lampirans = $lampirans->merge($surat->terbitanForSurat->getMedia('lampiran-surat'));
-            }
+            $lampirans = $surat->getSemuaLampiran();
 
-            // 2. Add this letter's own attachments
-            $lampirans = $lampirans->merge($surat->getMedia('lampiran-surat'));
             @endphp
             @if ($lampirans->isNotEmpty())
             <x-filament::section>
