@@ -30,6 +30,7 @@ trait HasFinalisasiActions
         // 1. Download PDF Resmi dari Arsip
         if ($this->surat->tipe_surat === 'TERBITAN') {
             $actions[] = Action::make('download_pdf')
+
                 ->label('Unduh Surat Terbitan ')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('success')

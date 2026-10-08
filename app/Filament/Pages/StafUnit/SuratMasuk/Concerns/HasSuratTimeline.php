@@ -106,9 +106,8 @@ trait HasSuratTimeline
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
         foreach ($this->surat->riwayats as $riwayat) {
             $isPenomoran = str_contains($riwayat->catatan ?? '', 'Nomor surat ditetapkan');
-
             $title = match ($riwayat->status) {
-                'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DISETUJUI' => ($this->surat->tipe_surat === 'INTERNAL' ? 'Telah Ditanggapi oleh: ' : 'Disetujui oleh: ') . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DIKEMBALIKAN' => 'Dikembalikan ke ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'MENUNGGU' => 'Menunggu tindakan oleh ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
