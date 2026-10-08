@@ -81,7 +81,7 @@ class SuratExportService
             ->toMediaCollection('dokumen-final');
     }
 
-       protected function generateSuratPdf(Surat $surat, string $dir): void
+    protected function generateSuratPdf(Surat $surat, string $dir): void
     {
         // Jika belum memiliki file dokumen-final resmi, generate sekarang
         $dokumenFinal = $surat->getFirstMedia('dokumen-final');
@@ -163,38 +163,6 @@ class SuratExportService
             File::copy($source, $lampiranDir . '/' . $filename);
         }
     }
-    // protected function collectLampiran(Surat $surat, string $lampiranDir): void
-    // {
-    //     $hasOwnMedia = $surat->getMedia('lampiran-surat')->isNotEmpty();
-    //     $hasParentMedia = $surat->terbitan_for_surat_id && $surat->terbitanForSurat && $surat->terbitanForSurat->getMedia('lampiran-surat')->isNotEmpty();
-
-    //     if (!$hasOwnMedia && !$hasParentMedia) {
-    //         return;
-    //     }
-
-    //     File::makeDirectory($lampiranDir, 0755, true);
-    //     $counter = 1;
-
-    //     // 1. Lampiran dari Surat ini sendiri
-    //     foreach ($surat->getMedia('lampiran-surat') as $media) {
-    //         $source = $media->getPath();
-    //         if (!file_exists($source)) continue;
-
-    //         $filename = sprintf('Lampiran_%02d_%s', $counter++, $media->file_name);
-    //         File::copy($source, $lampiranDir . '/' . $filename);
-    //     }
-
-    //     // 2. Lampiran dari Surat Pengajuan Pemohon (jika ini surat terbitan rujukan)
-    //     if ($hasParentMedia) {
-    //         foreach ($surat->terbitanForSurat->getMedia('lampiran-surat') as $media) {
-    //             $source = $media->getPath();
-    //             if (!file_exists($source)) continue;
-
-    //             $filename = sprintf('Lampiran_Pengajuan_%02d_%s', $counter++, $media->file_name);
-    //             File::copy($source, $lampiranDir . '/' . $filename);
-    //         }
-    //     }
-    // }
 
 
     /**
@@ -249,6 +217,7 @@ class SuratExportService
         $mockSurat->setRelation('unitPengirim', new \App\Models\UnitKerja(['nama_unit' => $tujuan]));
         $mockSurat->setRelation('pembuat', new \App\Models\User(['nama_lengkap' => $pengirim]));
 
+
         // Render HTML surat utama
         $suratHtml = view('filament.exports.surat.surat', [
             'surat' => $mockSurat,
@@ -256,18 +225,33 @@ class SuratExportService
             'renderedHtml' => $renderedHtml
         ])->render();
 
-        // Render Lembar Kendali / Metadata
-        $metadataHtml = view('filament.exports.surat.metadata', [
-            'state' => $state,
-            'tujuan' => $tujuan,
-        ])->render();
-
-        $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
+        // Buat PDF draf surat bersih (tanpa lembar metadata pengajuan)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($suratHtml);
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
+
+
+        // // Render HTML surat utama
+        // $suratHtml = view('filament.exports.surat.surat', [
+        //     'surat' => $mockSurat,
+        //     'isArsip' => false,
+        //     'renderedHtml' => $renderedHtml
+        // ])->render();
+
+        // // Render Lembar Kendali / Metadata
+        // $metadataHtml = view('filament.exports.surat.metadata', [
+        //     'state' => $state,
+        //     'tujuan' => $tujuan,
+        // ])->render();
+
+        // $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
+        // $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
+
+        // return response()->streamDownload(function () use ($pdf) {
+        //     echo $pdf->output();
+        // }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
     }
 
     //  UTIL
