@@ -115,7 +115,8 @@ trait HasSuratFormActions
                 app(SuratRoutingService::class)->submitForApproval(
                     surat: $surat,
                     unitTujuanId: (int) $unitTujuan,
-                    catatan: ''
+                    catatan: '',
+                    isResubmission: $wasRevisi ?? false
                 );
 
                 Notification::make()

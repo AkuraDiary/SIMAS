@@ -50,7 +50,26 @@ trait HasSuratTimeline
         // dd($this->surat->unitTujuan);
 
         // 1.B. Surat Dikirim ke Banyak Tujuan (Tujuan Utama & Tembusan)
+        $hasApprovalPath = !empty($this->surat->approval_path) && is_array($this->surat->approval_path) && count($this->surat->approval_path) > 0;
+        $isFinishedApproval = in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']);
+
+        $shouldShowDeliveryMilestone = false;
+        $deliveryDate = $this->surat->tanggal_kirim ?? $this->surat->created_at;
+
         if ($this->surat->unitTujuan->isNotEmpty() && $this->surat->status_surat !== 'DRAFT') {
+            if ($hasApprovalPath) {
+                if ($isFinishedApproval) {
+                    $shouldShowDeliveryMilestone = true;
+                    // Tampilkan pada akhir waktu approval
+                    $lastApproval = $this->surat->riwayats->where('status', 'DISETUJUI')->sortByDesc('actioned_at')->first();
+                    $deliveryDate = $lastApproval ? $lastApproval->actioned_at : $this->surat->updated_at;
+                }
+            } else {
+                $shouldShowDeliveryMilestone = true;
+            }
+        }
+
+        if ($shouldShowDeliveryMilestone) {
             $tujuanUtama = [];
             $tembusan = [];
 
@@ -76,28 +95,12 @@ trait HasSuratTimeline
                 'actor' => $this->surat->userPegawaiJabatan?->pegawai->nama_lengkap ?? $this->surat->pengirim_nama ?? 'Pengirim',
                 'unit' => $this->surat->unitPengirim?->nama_unit ?? $this->surat->pembuat->tipe_entitas ?? 'Eksternal',
                 'catatan' => null,
-                'date' => $this->surat->tanggal_kirim ?? $this->surat->created_at,
+                'date' => $deliveryDate,
                 'color' => 'bg-blue-600 ring-blue-100 dark:ring-blue-900',
                 'icon' => 'heroicon-m-paper-airplane',
                 'tujuan_utama' => $tujuanUtama,
                 'tembusan' => $tembusan,
             ];
-
-            // 1.C. Milestone Saat Masing-Masing Unit Membuka/Menerima Surat
-            // foreach ($this->surat->unitTujuan as $unit) {
-            //     if ($unit->pivot->status_baca === 'SUDAH' && $unit->pivot->tanggal_terima) {
-            //         $jenis = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'TEMBUSAN' ? 'Tembusan' : 'Tujuan Utama';
-            //         $timeline[] = [
-            //             'title' => "Surat Dibaca & Diterima ({$jenis})",
-            //             'actor' => 'Petugas Unit',
-            //             'unit' => $unit->nama_unit,
-            //             'catatan' => null,
-            //             'date' => $unit->pivot->tanggal_terima,
-            //             'color' => 'bg-teal-500 ring-teal-100 dark:ring-teal-900',
-            //             'icon' => 'heroicon-m-envelope-open',
-            //         ];
-            //     }
-            // }
         }
 
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)

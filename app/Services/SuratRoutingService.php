@@ -15,31 +15,40 @@ class SuratRoutingService
      * Submit a draft letter into the approval workflow.
      * Creates the initial step in `surat_riwayats` and updates letter status to `DIPROSES`.
      */
-    public function submitForApproval(Surat $surat, int $unitTujuanId, ?int $targetUserAktorId = null, ?string $catatan = null): SuratRiwayat
+    public function submitForApproval(Surat $surat, int $unitTujuanId, ?int $targetUserAktorId = null, ?string $catatan = null,  bool $isResubmission = false): SuratRiwayat
     {
-        return DB::transaction(function () use ($surat, $unitTujuanId, $targetUserAktorId, $catatan) {
+        return DB::transaction(function () use ($surat, $unitTujuanId, $targetUserAktorId, $catatan, $isResubmission) {
             $surat->update([
                 'status_surat' => 'TERKIRIM',
             ]);
-
             // [NEW] Automated Routing Engine
             $finalUnitTujuanId = $unitTujuanId;
             $finalUserAktorId = $targetUserAktorId;
-
-            // Jika ada approval_path, paksa rute pertama ke Jabatan pertama di list!
-            if (!empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0) {
-                $firstStep = $surat->approval_path[0];
-                $jabatanId = $firstStep['jabatan_id'];
-
-                // Cari user aktif yang sedang memegang jabatan ini
-                $upj = \App\Models\UserPegawaiJabatan::with('pegawai.user')
-                    ->where('jabatan_id', $jabatanId)
-                    ->where('status_jabatan', 'AKTIF')
+            if ($isResubmission) {
+                // Cari aktor terakhir yang me-request REVISI
+                $lastRevisi = \App\Models\SuratRiwayat::where('surat_id', $surat->id)
+                    ->where('status', 'REVISI')
+                    ->latest()
                     ->first();
 
-                $automatedUnitId = $upj?->unit_kerja_id ?? \App\Models\Jabatan::find($jabatanId)?->unit_kerja_id;
-                if ($automatedUnitId) {
-                    $finalUnitTujuanId = $automatedUnitId;
+                if ($lastRevisi) {
+                    $finalUnitTujuanId = $lastRevisi->unit_tujuan_id;
+                    $finalUserAktorId = $lastRevisi->user_aktor_id;
+                }
+            } else {
+                // Jika ada approval_path, paksa rute pertama ke Jabatan pertama di list!
+                if (!empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0) {
+                    $firstStep = $surat->approval_path[0];
+                    $jabatanId = $firstStep['jabatan_id'];
+                    // Cari user aktif yang sedang memegang jabatan ini
+                    $upj = \App\Models\UserPegawaiJabatan::with('pegawai.user')
+                        ->where('jabatan_id', $jabatanId)
+                        ->where('status_jabatan', 'AKTIF')
+                        ->first();
+                    $automatedUnitId = $upj?->unit_kerja_id ?? \App\Models\Jabatan::find($jabatanId)?->unit_kerja_id;
+                    if ($automatedUnitId) {
+                        $finalUnitTujuanId = $automatedUnitId;
+                    }
                 }
             }
 
@@ -54,8 +63,8 @@ class SuratRoutingService
                 'actioned_at'    => null,
             ]);
 
+
             // Kirim notifikasi ke penerima di unit langkah pertama
-            // Kirim notifikasi ke penerima di unit langkah pertama (Orkestrasi Terpusat)
             $hasApprovalPath = !empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0;
             $notifTitle = $hasApprovalPath
                 ? 'Permohonan Persetujuan Surat Masuk'
