@@ -223,7 +223,7 @@ class SuratForm
                             Section::make()
                                 ->schema([
                                     Checkbox::make('konfirmasi')
-                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas...')
+                                        ->label('Saya menyatakan bahwa seluruh data yang diisi adalah benar dan sah sesuai dengan peraturan Universitas')
                                         ->required()
                                         ->accepted()
                                         ->dehydrated(false),
