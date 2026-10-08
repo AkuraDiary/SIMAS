@@ -121,7 +121,7 @@ class DetailSurat extends Page implements HasForms
             // 'terbitanForSurat.media',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
-            'disposisis.unitPembuat',
+            // 'disposisis.unitPembuat',
             'riwayats.unitTujuan',
             'riwayats.unitAsal',
             'riwayats.aktor',
@@ -206,7 +206,11 @@ class DetailSurat extends Page implements HasForms
         // 1. Actions Finalisasi (Beri Nomor Surat & Unduh PDF Resmi) -> masuk ke Kelola Surat
         $finalisasiActions = $this->getFinalisasiActions();
         foreach ($finalisasiActions as $act) {
-            $secondaryActions[] = $act;
+            if ($act->getName() === 'download_pdf') {
+                $primaryActions[] = $act;
+            } else {
+                $secondaryActions[] = $act;
+            }
         }
 
         // 2. Download Template Word (.docx)
@@ -247,7 +251,7 @@ class DetailSurat extends Page implements HasForms
         if ($this->surat->status_surat !== 'DRAFT') {
             $secondaryActions[] = $this->getActionArsipkan();
             $secondaryActions[] = $this->getActionArsipInfo();
-             $secondaryActions[] = $this->getActionUbahKategoriArsip();
+            $secondaryActions[] = $this->getActionUbahKategoriArsip();
         }
 
         // 6. Grup Persetujuan & Backtrack
@@ -264,13 +268,18 @@ class DetailSurat extends Page implements HasForms
                     $primaryActions[] = $persetujuan['group_proses'];
                 }
                 // Tombol Edit Draf untuk Peninjau Aktif / Pihak Tengah
-                $primaryActions[] = Action::make('edit_draf_review')
-                    ->label('Edit Draf')
-                    ->icon('heroicon-o-pencil-square')
-                    ->color('warning')
-                    ->outlined()
-                    ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
+                // HANYA muncul jika surat sedang dalam status REVISI atau pernah dikembalikan ke unit ini
+                $isRevisiOrDikembalikan = $this->surat->status_surat === 'REVISI'
+                    || $this->surat->riwayats->contains(fn($r) => $r->unit_tujuan_id == $unitId && in_array($r->status, ['DIKEMBALIKAN', 'REVISI']));
 
+                if ($isRevisiOrDikembalikan) {
+                    $primaryActions[] = Action::make('edit_draf_review')
+                        ->label('Edit Draf')
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning')
+                        ->outlined()
+                        ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
+                }
                 // Tombol Sekunder/Kembalikan: Outlined Danger
                 if (isset($persetujuan['group_kembalikan'])) {
                     $primaryActions[] = $persetujuan['group_kembalikan'];

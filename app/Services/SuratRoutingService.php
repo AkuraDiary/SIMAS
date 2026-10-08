@@ -15,31 +15,40 @@ class SuratRoutingService
      * Submit a draft letter into the approval workflow.
      * Creates the initial step in `surat_riwayats` and updates letter status to `DIPROSES`.
      */
-    public function submitForApproval(Surat $surat, int $unitTujuanId, ?int $targetUserAktorId = null, ?string $catatan = null): SuratRiwayat
+    public function submitForApproval(Surat $surat, int $unitTujuanId, ?int $targetUserAktorId = null, ?string $catatan = null,  bool $isResubmission = false): SuratRiwayat
     {
-        return DB::transaction(function () use ($surat, $unitTujuanId, $targetUserAktorId, $catatan) {
+        return DB::transaction(function () use ($surat, $unitTujuanId, $targetUserAktorId, $catatan, $isResubmission) {
             $surat->update([
                 'status_surat' => 'TERKIRIM',
             ]);
-
             // [NEW] Automated Routing Engine
             $finalUnitTujuanId = $unitTujuanId;
             $finalUserAktorId = $targetUserAktorId;
-
-            // Jika ada approval_path, paksa rute pertama ke Jabatan pertama di list!
-            if (!empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0) {
-                $firstStep = $surat->approval_path[0];
-                $jabatanId = $firstStep['jabatan_id'];
-
-                // Cari user aktif yang sedang memegang jabatan ini
-                $upj = \App\Models\UserPegawaiJabatan::with('pegawai.user')
-                    ->where('jabatan_id', $jabatanId)
-                    ->where('status_jabatan', 'AKTIF')
+            if ($isResubmission) {
+                // Cari aktor terakhir yang me-request REVISI
+                $lastRevisi = \App\Models\SuratRiwayat::where('surat_id', $surat->id)
+                    ->where('status', 'REVISI')
+                    ->latest()
                     ->first();
 
-                $automatedUnitId = $upj?->unit_kerja_id ?? \App\Models\Jabatan::find($jabatanId)?->unit_kerja_id;
-                if ($automatedUnitId) {
-                    $finalUnitTujuanId = $automatedUnitId;
+                if ($lastRevisi) {
+                    $finalUnitTujuanId = $lastRevisi->unit_tujuan_id;
+                    $finalUserAktorId = $lastRevisi->user_aktor_id;
+                }
+            } else {
+                // Jika ada approval_path, paksa rute pertama ke Jabatan pertama di list!
+                if (!empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0) {
+                    $firstStep = $surat->approval_path[0];
+                    $jabatanId = $firstStep['jabatan_id'];
+                    // Cari user aktif yang sedang memegang jabatan ini
+                    $upj = \App\Models\UserPegawaiJabatan::with('pegawai.user')
+                        ->where('jabatan_id', $jabatanId)
+                        ->where('status_jabatan', 'AKTIF')
+                        ->first();
+                    $automatedUnitId = $upj?->unit_kerja_id ?? \App\Models\Jabatan::find($jabatanId)?->unit_kerja_id;
+                    if ($automatedUnitId) {
+                        $finalUnitTujuanId = $automatedUnitId;
+                    }
                 }
             }
 
@@ -54,19 +63,26 @@ class SuratRoutingService
                 'actioned_at'    => null,
             ]);
 
+
             // Kirim notifikasi ke penerima di unit langkah pertama
+            $hasApprovalPath = !empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0;
+            $notifTitle = $hasApprovalPath
+                ? 'Permohonan Persetujuan Surat Masuk'
+                : 'Surat Masuk Baru';
+            $notifBody = $hasApprovalPath
+                ? "Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda."
+                : "Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal;
             $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get();
             if ($targetUsers->isNotEmpty()) {
                 \Filament\Notifications\Notification::make()
-                    ->title('Permohonan Persetujuan Surat Masuk')
-                    ->body("Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda.")
+                    ->title($notifTitle)
+                    ->body($notifBody)
                     ->info()
                     ->viewData([
                         'unit_kerja_id' => (int) $finalUnitTujuanId,
                         'surat_id'      => $surat->id,
                     ])
                     ->sendToDatabase($targetUsers);
-
                 app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
             }
 
@@ -239,26 +255,9 @@ class SuratRoutingService
                     $newStatus = 'SELESAI';
                     $surat->status_surat = $newStatus;
                     $surat->save();
-                    // Finalisasi: Render HTML ke PDF resmi (Mendukung Template maupun Scratch)
-                    $renderedHtml = ($surat->template_id && $surat->template)
-                        ? app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat)
-                        : app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
-                    $suratHtml = view('filament.exports.surat.surat', [
-                        'surat'        => $surat,
-                        'isArsip'      => false,
-                        'renderedHtml' => $renderedHtml,
-                    ])->render();
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($suratHtml)->setPaper('A4', 'portrait');
-                    $pdfContent = $pdf->output();
-                    $safeNomor = !empty($surat->nomor_surat)
-                        ? str_replace(['/', '\\'], '_', $surat->nomor_surat)
-                        : 'Disahkan_' . $surat->id;
-                    $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
-                    $surat->clearMediaCollection('dokumen-final');
-                    $surat->addMediaFromString($pdfContent)
-                        ->usingName('Dokumen Final Resmi')
-                        ->usingFileName($fileName)
-                        ->toMediaCollection('dokumen-final');
+                    // Finalisasi: Render HTML ke PDF resmi via engine terpusat
+                    app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($surat);
+
                     // Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
                     if ($surat->terbitan_for_surat_id) {
                         $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);

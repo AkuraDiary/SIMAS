@@ -151,7 +151,7 @@
     <table class="meta-table">
         <tr>
             <td class="label">Nomor Surat</td>
-            <td>: <strong>{{ $surat->nomor_surat ?? '[Nomor Surat Belum Dialokasikan]' }}</strong></td>
+            <td>: <strong>{{ $surat->nomor_surat ?? '-' }}</strong></td>
             <td class="label">Status Naskah</td>
             <td>: <span class="badge badge-success">{{ $surat->status_surat }}</span></td>
         </tr>
@@ -166,10 +166,10 @@
             <td>: {{ $surat->created_at ? $surat->created_at->format('d/m/Y H:i') : '-' }} WIB</td>
         </tr>
         <tr>
-            <td class="label">Unit / Pengonsep Asal</td>
+            <td class="label">Unit Pembuat Asal</td>
             <td>: {{ $surat->unitPengirim?->nama_unit ?? ($surat->userPegawaiJabatan?->unitKerja?->nama_unit ?? 'Unit Internal') }}</td>
-            <td class="label">Konseptor / Pembuat</td>
-            <td>: {{ $surat->pembuat?->nama_lengkap ?? ($surat->pengirim_nama ?? '-') }}</td>
+            <td class="label"> Pembuat</td>
+            <td>: {{ $surat->userPegawaiJabatan->pegawai?->nama_lengkap ?? ($surat->pengirim_nama ?? '-') }}</td>
         </tr>
         <tr>
             <td class="label">Unit Tujuan / Sasaran</td>
@@ -229,8 +229,8 @@
                     <td style="text-align: center;">{{ $idx + 1 }}</td>
                     <td>
                         <strong>{{ $rw->unitTujuan?->nama_unit ?? ($rw->unitAsal?->nama_unit ?? 'Unit Sistem') }}</strong>
-                        @if($rw->userAktor)
-                            <br><span style="color: #6b7280; font-size: 8pt;">Oleh: {{ $rw->userAktor->nama_lengkap ?? $rw->userAktor->name }}</span>
+                        @if($rw->aktor)
+                            <br><span style="color: #6b7280; font-size: 8pt;">Oleh: {{ $rw->aktor->nama_lengkap ?? $rw->aktor->name }}</span>
                         @endif
                     </td>
                     <td style="text-align: center;">
@@ -293,8 +293,7 @@
     @endif
 
     <div class="footer-note">
-        <strong>Catatan Integritas Dokumen:</strong><br>
-        Dokumen dan pengesahan ini dihasilkan secara otomatis oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS). Segala bentuk validasi dan riwayat tindakan yang tercantum di atas memiliki kekuatan pembuktian kedinasan yang sah. Keaslian tanda tangan dapat diverifikasi melalui pemindaian QR Code di atas.
+        Dokumen ini dihasilkan secara otomatis oleh Sistem Informasi Manajemen Arsip dan Surat (SIMAS).
     </div>
 
 </body>

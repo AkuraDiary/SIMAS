@@ -338,12 +338,17 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function canDisposisiUnit(?int $unitId = null): bool
     {
-        if ($this->isKepalaUnit($unitId)) {
+          if ($this->isKepalaUnit($unitId)) {
             return true;
         }
-
-        $activeJabatan = $this->getActiveJabatan();
-        return $activeJabatan?->can_disposisi === true;
+        $jabatan = null;
+        if ($unitId !== null) {
+            $jabatan = $this->pegawai?->jabatanAktif()
+                ->where('unit_kerja_id', $unitId)
+                ->first();
+        }
+        $activeJabatan = $jabatan ?? $this->getActiveJabatan();
+        return (bool) ($activeJabatan?->can_disposisi ?? false);
     }
 
     /**

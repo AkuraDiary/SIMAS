@@ -54,7 +54,7 @@ class GuestLacak extends Component
             'riwayats.unitAsal',
             'riwayats.aktor',
             'disposisis.unitTujuan',
-            'disposisis.unitPembuat',
+            // 'disposisis.unitPembuat',
             'terbitans',
             'media',
         ])

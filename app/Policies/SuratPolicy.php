@@ -87,7 +87,7 @@ class SuratPolicy
     /**
      * Determine whether the user can create models.
      */
-       public function create(User $user): bool
+    public function create(User $user): bool
     {
         if ($user->tipe_entitas === 'STAF') {
             return !empty($user->unit_kerja_id);
@@ -116,14 +116,19 @@ class SuratPolicy
             ) {
                 return true;
             }
-            // 2. Pejabat / Pihak yang saat ini memegang giliran review aktif di unitnya
+            // 2. Pejabat / Pihak yang saat ini memegang giliran review aktif saat mode revisi atau dikembalikan
             $hasActiveReview = $surat->riwayats()
                 ->where('status', 'MENUNGGU')
                 ->where('unit_tujuan_id', $unitId)
                 ->exists();
-            if ($hasActiveReview && in_array($surat->status_surat, ['DIPROSES', 'REVISI', 'TERKIRIM'])) {
-                return true;
+            if ($hasActiveReview) {
+                $isRevisiOrDikembalikan = $surat->status_surat === 'REVISI'
+                    || $surat->riwayats()->where('unit_tujuan_id', $unitId)->whereIn('status', ['DIKEMBALIKAN', 'REVISI'])->exists();
+                if ($isRevisiOrDikembalikan) {
+                    return true;
+                }
             }
+
             // 3. Fallback jika masih draft bagi unit pengirim
             if ($surat->status_surat === 'DRAFT') {
                 return true;

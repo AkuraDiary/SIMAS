@@ -107,32 +107,17 @@ trait HasSuratFormActions
                     ]);
                 }
 
-                $surat->tanggal_kirim = now();
+                if (!$surat->tanggal_kirim) {
+                    $surat->tanggal_kirim = now();
+                }
                 $unitTujuan = $this->data['unitTujuan'][0] ?? $surat->unit_pengirim_id;
 
                 app(SuratRoutingService::class)->submitForApproval(
                     surat: $surat,
                     unitTujuanId: (int) $unitTujuan,
-                    catatan: ''
+                    catatan: '',
+                    isResubmission: $wasRevisi ?? false
                 );
-
-                $unitIds = $this->data['unitTujuan'] ?? [];
-                foreach ($unitIds as $uId) {
-                    $targetUsers = \App\Models\User::ofUnitKerja($uId)->get();
-                    if ($targetUsers->isNotEmpty()) {
-                        Notification::make()
-                            ->title('Surat Masuk Baru')
-                            ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal)
-                            ->info()
-                            ->viewData([
-                                'unit_kerja_id' => (int) $uId, // Unit yang berhak melihat notifikasi ini
-                                'surat_id'      => $surat->id,
-                            ])
-                            ->sendToDatabase($targetUsers);
-
-                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
-                    }
-                }
 
                 Notification::make()
                     ->title('Surat berhasil dikirim untuk diproses')

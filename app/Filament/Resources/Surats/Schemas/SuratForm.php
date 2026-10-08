@@ -701,7 +701,7 @@ class SuratForm
 
                                         $previewData = $data;
                                         if ($get('mode_penomoran') === 'kosong') {
-                                            $previewData['nomor_surat'] = '[Nomor Surat Belum Dialokasikan]';
+                                            $previewData['nomor_surat'] = '-';
                                         } elseif (!empty($get('nomor_surat'))) {
                                             $previewData['nomor_surat'] = $get('nomor_surat');
                                         } else {
