@@ -15,29 +15,31 @@ class SuratExportService
 {
     public function export(Surat $surat): string
     {
-
         $baseDir = storage_path('app/tmp/exports');
         File::ensureDirectoryExists($baseDir);
 
         $workDir = $baseDir . '/' . Str::uuid();
         File::makeDirectory($workDir, 0755, true);
 
-        // 1. Surat utama
+        // 1. Surat utama (Naskah dokumen asli murni)
         $this->generateSuratPdf($surat, $workDir);
 
-        // 2. Lembar disposisi (kalau ada)
+        // 2. Lembar Kendali & Persetujuan (Metadata + Riwayat Alur + TTD / QR Code)
+        $this->generateLembarKendaliPdf($surat, $workDir);
+
+        // 3. Lembar disposisi (kalau ada)
         if ($surat->disposisis()->exists()) {
             $this->generateDisposisiPdf($surat, $workDir);
         }
 
-        // 3. Lampiran
+        // 4. Lampiran berkas resmi
         $this->collectLampiran($surat, $workDir . '/Lampiran');
 
-        // 4. Zip
+        // 5. Zip
         $zipPath = $baseDir . '/' . $this->buildZipName($surat);
         $this->zipDirectory($workDir, $zipPath);
 
-        // 5. Bersih-bersih
+        // 6. Bersih-bersih folder temporary
         File::deleteDirectory($workDir);
 
         return $zipPath;
@@ -49,21 +51,22 @@ class SuratExportService
 
     protected function generateSuratPdf(Surat $surat, string $dir): void
     {
-        // Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut!
+        // 1. Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut
         $dokumenFinal = $surat->getFirstMedia('dokumen-final');
         if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
             copy($dokumenFinal->getPath(), $dir . '/01_Surat_Utama.pdf');
             return;
         }
-        // 2. Fallback: generate HTML surat
+
+        // 2. Fallback: generate HTML surat murni (tanpa menyuntikkan metadata)
         $renderedHtml = null;
         if ($surat->template_id && $surat->template) {
             $service = app(\App\Services\PlaceholderService::class);
             $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? [], $surat);
         } else {
-            // $renderedHtml = $surat->content['isi_surat'] ?? '';
             $renderedHtml = app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
         }
+
         $suratHtml = view(
             'filament.exports.surat.surat',
             [
@@ -72,15 +75,8 @@ class SuratExportService
                 'renderedHtml' => $renderedHtml,
             ]
         )->render();
-        // Sertakan lembar metadata jika surat berasal dari pengajuan
-        $metadataHtml = view('filament.exports.surat.metadata', [
-            'surat' => $surat,
-        ])->render();
 
-
-        $suratHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
-        // }
-        $pdf = Pdf::loadHTML($suratHtml);
+        $pdf = Pdf::loadHTML($suratHtml)->setPaper('A4', 'portrait');
         $pdf->save($dir . '/01_Surat_Utama.pdf');
     }
 
