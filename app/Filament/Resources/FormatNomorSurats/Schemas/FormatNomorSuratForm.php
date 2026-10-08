@@ -35,10 +35,10 @@ class FormatNomorSuratForm
                 \Filament\Forms\Components\Select::make('tipe_surat')
                     ->label('Tipe Surat')
                     ->options([
-                        'ALL' => 'Semua Tipe Surat (Default / Fallback)',
-                        'INTERNAL' => 'Surat Internal (Nota Dinas / Memo)',
+                        'ALL' => 'Semua Tipe Surat',
+                        'INTERNAL' => 'Surat Internal',
                         'PENGAJUAN' => 'Surat Pengajuan',
-                        'TERBITAN' => 'Surat Terbitan Resmi (SK / ST)',
+                        'TERBITAN' => 'Surat Terbitan Resmi',
                         'EKSTERNAL' => 'Surat Eksternal',
                     ])
                     ->default('ALL')

@@ -75,21 +75,47 @@ class PlaceholderService
         }
         $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
 
+        if (!isset($data['qr_code']) || empty($data['qr_code'])) {
+            $data['qr_code'] = '<div class="draggable-signature" data-key="qr_code" style="text-align: center; display: inline-block; cursor: grab; position: relative; width: 80px;">' .
+                '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; height: auto; display: block;" pointer-events="none" />' .
+                '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>' .
+                '</div>';
+        }
+
         if ($surat) {
 
-            // Inject QR Code Dokumen Utama (Opsional, jika ada kebutuhan QR Global)
-            $data['qr_code'] = '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 80px; height: 80px;" />';
+            // Inject QR Code Dokumen Utama (Fleksibel & Draggable)
+            $qrX = (int) ($data['qr_code_posisi_x'] ?? ($surat->content['qr_code_posisi_x'] ?? 0));
+            $qrY = (int) ($data['qr_code_posisi_y'] ?? ($surat->content['qr_code_posisi_y'] ?? 0));
+            if (abs($qrX) > 300) $qrX = 0;
+            if (abs($qrY) > 400) $qrY = 0;
+            $qrWidth = (int) ($data['qr_code_width'] ?? ($surat->content['qr_code_width'] ?? 80));
+            $qrStyle = "text-align: center; display: inline-block; cursor: grab; position: relative; left: {$qrX}px; top: {$qrY}px; width: {$qrWidth}px;";
+            $qrResizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+            $data['qr_code'] = '<div class="draggable-signature" data-key="qr_code" style="' . $qrStyle . '">' .
+                '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; height: auto; display: block;" pointer-events="none" />' .
+                $qrResizeHandle .
+                '</div>';
 
             // Inject TTD & QR Code dari Database (surat_ttds)
             foreach ($surat->suratTtds as $ttd) {
                 if ($ttd->placeholder_key) {
                     $qrImg = '';
                     if ($ttd->qr_code_path) {
-                        $qrImg = '<img src="' . asset('storage/' . $ttd->qr_code_path) . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" pointer-events="none" /><br>';
+                        // Gunakan Base64 Data URI agar DomPDF dan browser dapat merender gambar dari disk private
+                        $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
+                        if (!file_exists($fullPath)) {
+                            $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
+                        }
+                        if (file_exists($fullPath)) {
+                            $mime = mime_content_type($fullPath) ?: 'image/png';
+                            $base64Data = base64_encode(file_get_contents($fullPath));
+                            $qrImg = '<img src="data:' . $mime . ';base64,' . $base64Data . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" pointer-events="none" /><br>';
+                        }
                     }
 
                     $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
-                    
+
                     // Merge coordinate and width data if available from current Livewire edit state
                     $x = (int) ($data[$ttd->placeholder_key . '_posisi_x'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_x'] ?? $ttd->posisi_x ?? 0));
                     $y = (int) ($data[$ttd->placeholder_key . '_posisi_y'] ?? ($surat->content[$ttd->placeholder_key . '_posisi_y'] ?? $ttd->posisi_y ?? 0));
@@ -99,7 +125,7 @@ class PlaceholderService
 
                     $width = $data[$ttd->placeholder_key . '_width'] ?? ($surat->content[$ttd->placeholder_key . '_width'] ?? null);
                     $widthVal = $width ? (int) $width : 160;
-                    
+
                     $style = "text-align: left; display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
                     $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
 
@@ -159,11 +185,18 @@ class PlaceholderService
             }
         }
 
-        // Handle flat vars
-        // Handle flat vars (text, date, number, etc.)
+        // // Handle flat vars
+        // // Handle flat vars (text, date, number, etc.)
+        // foreach ($data as $key => $value) {
+        //     if (!is_array($value) && $value !== null && $value !== '') {
+        //         $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', (string) $value, $html);
+        //     }
+        // }
+
+        // Handle flat vars (text, date, number, etc.) - amankan karakter '$'
         foreach ($data as $key => $value) {
             if (!is_array($value) && $value !== null && $value !== '') {
-                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', (string) $value, $html);
+                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', (string) $value), $html);
             }
         }
 
@@ -226,9 +259,9 @@ class PlaceholderService
         }
 
         // Clean up remaining un-filled placeholders to make it obvious they are missing
-        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function($m) use ($data, $surat) {
+        $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function ($m) use ($data, $surat) {
             $key = $m[1];
-            
+
             // If it's a signature placeholder (starts with ttd_)
             if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
                 // Read from live form data, or Surat JSON content
@@ -239,12 +272,12 @@ class PlaceholderService
 
                 $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
                 $widthVal = $width ? (int) $width : 140;
-                
+
                 $style = "color:#ef4444; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #ef4444; padding: 0.25rem; user-select: none; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
                 $resizeHandle = '<div class="signature-resize-handle" style="position: absolute; right: -4px; bottom: -4px; width: 10px; height: 10px; background: #ef4444; border: 1px solid white; border-radius: 50%; cursor: se-resize; z-index: 10;"></div>';
                 return '<div class="draggable-signature" data-key="' . $key . '" style="' . $style . '">[' . $key . ']' . $resizeHandle . '</div>';
             }
-            
+
             return '<span style="color:#ef4444; font-weight:bold;">[' . $key . ']</span>';
         }, $html);
 
@@ -304,5 +337,49 @@ class PlaceholderService
             }
         }
         return $html;
+    }
+
+    /**
+     * Render HTML untuk Surat Scratch / Bebas dengan menyematkan blok tanda tangan resmi di bagian bawah.
+     */
+    public function renderScratchHtml(\App\Models\Surat $surat): string
+    {
+        $content = $surat->content['isi_surat'] ?? '';
+
+        // Sematkan blok tanda tangan jika sudah ada pejabat yang menandatangani
+        $ttds = $surat->suratTtds;
+        if ($ttds->isNotEmpty()) {
+            $ttdHtml = '<div style="margin-top: 40px; page-break-inside: avoid; width: 100%;">';
+            $ttdHtml .= '<table style="width: 100%; border: none; border-collapse: collapse;"><tr>';
+
+            foreach ($ttds as $ttd) {
+                $qrImg = '';
+                if ($ttd->qr_code_path) {
+                    $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
+                    if (!file_exists($fullPath)) {
+                        $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
+                    }
+                    if (file_exists($fullPath)) {
+                        $mime = mime_content_type($fullPath) ?: 'image/png';
+                        $base64Data = base64_encode(file_get_contents($fullPath));
+                        $qrImg = '<img src="data:' . $mime . ';base64,' . $base64Data . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" /><br>';
+                    }
+                }
+
+                $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
+
+                $ttdHtml .= '<td style="vertical-align: top; text-align: left; padding: 10px; width: ' . floor(100 / max(count($ttds), 1)) . '%;">';
+                $ttdHtml .= '<p style="margin: 0 0 5px 0; font-size: 10pt;">' . htmlspecialchars($ttd->jabatan_saat_ttd ?? 'Pejabat Berwenang') . '</p>';
+                $ttdHtml .= $qrImg;
+                $ttdHtml .= '<b style="text-decoration: underline;">' . htmlspecialchars($namaTerang) . '</b><br>';
+                $ttdHtml .= '<span style="font-size: 9pt; color: #555;">' . htmlspecialchars($ttd->unit_saat_ttd ?? '') . '</span>';
+                $ttdHtml .= '</td>';
+            }
+
+            $ttdHtml .= '</tr></table></div>';
+            $content .= $ttdHtml;
+        }
+
+        return $content;
     }
 }

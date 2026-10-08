@@ -58,14 +58,16 @@ class SuratMasuk extends Page implements HasTable
         return app(\App\Services\UnitAksesService::class)
             ->applySuratMasukFilter(Surat::query(), Auth::user(), $unitId)
             ->whereDoesntHave('arsipSurats', function ($q) use ($unitId) {
-                $q->where('unit_kerja_id', $unitId);
+                if ($unitId) {
+                    $q->where('unit_kerja_id', $unitId);
+                }
             })
             ->with([
                 'unitPengirim',
-                 'userPegawaiJabatan.pegawai',
-                'suratUnits' => fn($q) => $q->where('unit_kerja_id', $unitId),
-                'disposisis' => fn($q) => $q->where('unit_tujuan_id', $unitId),
-                'riwayats' => fn($q) => $q->where('unit_tujuan_id', $unitId),
+                'userPegawaiJabatan.pegawai',
+                'suratUnits' => fn($q) => $unitId ? $q->where('unit_kerja_id', $unitId) : $q->whereRaw('1 = 0'),
+                'disposisis' => fn($q) => $unitId ? $q->where('unit_tujuan_id', $unitId) : $q->whereRaw('1 = 0'),
+                'riwayats' => fn($q) => $unitId ? $q->where('unit_tujuan_id', $unitId) : $q->whereRaw('1 = 0'),
             ]);
         // ->orderByDesc('created_at');
     }
@@ -98,17 +100,23 @@ class SuratMasuk extends Page implements HasTable
                     ->description(function (Surat $record) {
                         $nomor = $record->nomor_surat ? $record->nomor_surat . ' • ' : '';
 
-                        if ($record->tipe_surat === 'PENGAJUAN' || filled($record->pengirim_nama)) {
-                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
-                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
-                            return $nomor . ($record->pengirim_nama ?? 'Guest') . $nim . $instansi;
+                        if ($record->userPegawaiJabatan) {
+                            $pegawai = $record->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai';
+                            $unit = $record->userPegawaiJabatan->unitKerja->nama_unit ?? $record->unitPengirim?->nama_unit ?? '';
+                            return $nomor . $pegawai . ($unit ? " - {$unit}" : '');
                         }
 
-                        $pengirim = $record->tipe_surat === 'EKSTERNAL'
-                            ? ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-')
-                            : ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '-') . ' - ' . ($record->unitPengirim?->nama_unit ?? '-');
+                        if ($record->tipe_surat === 'EKSTERNAL') {
+                            return $nomor . ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? '-');
+                        }
 
-                        return $nomor . $pengirim;
+                        if (filled($record->pengirim_nama)) {
+                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
+                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
+                            return $nomor . $record->pengirim_nama . $nim . $instansi;
+                        }
+
+                        return $nomor . ($record->unitPengirim?->nama_unit ?? '-');
                     }),
 
                 TextColumn::make('tipe_surat')
@@ -118,7 +126,15 @@ class SuratMasuk extends Page implements HasTable
                         'INTERNAL' => 'gray',
                         'EKSTERNAL' => 'warning',
                         'PENGAJUAN' => 'info',
+                        'TERBITAN' => 'success',
                         default => 'gray',
+                    })
+                    ->formatStateUsing(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'Internal',
+                        'EKSTERNAL' => 'Eksternal',
+                        'PENGAJUAN' => 'Pengajuan',
+                        'TERBITAN' => 'Terbitan',
+                        default => $state ?? '-',
                     }),
 
 
@@ -212,7 +228,7 @@ class SuratMasuk extends Page implements HasTable
                     ->options([
                         'INTERNAL' => 'Internal',
                         'PENGAJUAN' => 'Pengajuan',
-                        'TERBITAN' => 'Terbitan (Surat Resmi)',
+                        'TERBITAN' => 'Terbitan',
                         'EKSTERNAL' => 'Eksternal',
                     ]),
             ])

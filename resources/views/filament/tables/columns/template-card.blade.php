@@ -24,9 +24,8 @@
     <!-- Bottom Half: Content and Footer -->
     <div style="flex: 1 1 0%; display: flex; flex-direction: column;">
         <div style="padding: 1rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 700; color: #1f2937; margin-bottom: 0.25rem; margin-top: 0;">
+            <h3 class="mt-0 mb-1 text-lg font-bold text-gray-800 dark:text-white">
                 {{ $getRecord()->nama_template }}
-
             </h3>
             <span style="font-size: 0.75rem; color: #64748b; font-weight: 600; ">
                 Last edit: {{ $getRecord()->updated_at->format('M d, Y') }}
@@ -41,6 +40,15 @@
         <!-- Footer -->
         <div style="display: flex; align-items: end; justify-content: end;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button
+                    type="button"
+                    wire:click="mountTableAction('ubah_kategori', '{{ $getRecord()->getKey() }}')"
+                    style="display: inline-flex; align-items: center; padding: 0.35rem 0.65rem; background-color: #fef3c7; color: #b45309; font-size: 0.75rem; font-weight: 600; border-radius: 0.375rem; text-decoration: none; transition: background-color 0.2s;"
+                    onmouseover="this.style.backgroundColor='#fde68a'"
+                    onmouseout="this.style.backgroundColor='#fef3c7'">
+                    <x-heroicon-o-folder-arrow-down style="width: 1rem; height: 1rem; margin-inline-end: 0.35rem;" />
+                    Kategori
+                </button>
                 <button
                     type="button"
                     wire:click="mountTableAction('preview', '{{ $getRecord()->getKey() }}')"

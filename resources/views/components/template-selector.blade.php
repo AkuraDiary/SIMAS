@@ -17,7 +17,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
             </div>
-            <input x-model="search" type="text" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition" placeholder="Cari template...">
+            <input x-model="search" type="text" style="padding-left: 2.75rem !important;" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm transition" placeholder="Cari template...">
         </div>
     </div>
 
@@ -38,10 +38,8 @@
 
 
 
-
-
     <!-- Filter Pills -->
-    <div class="flex flex-wrap gap-2 mb-6">
+    <div style="margin-bottom: 2.75rem !important;" class="flex flex-wrap gap-2 mb-6">
         @foreach($categories as $filter)
         <button @click="activeFilter = '{{ $filter }}'"
             type="button"
@@ -57,7 +55,7 @@
         @forelse($templates as $template)
         <div @click="selectedTemplate = '{{ $template->id }}'"
             x-show="(activeFilter === 'Semua' || '{{ $template->kategori?->nama_kategori ?? '' }}' === activeFilter) && ('{{ strtolower(addslashes($template->nama_template)) }}'.includes(search.toLowerCase()) || '{{ strtolower(addslashes($template->deskripsi ?? '')) }}'.includes(search.toLowerCase()))"
-            :class="selectedTemplate === '{{ $template->id }}' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
+            :class="selectedTemplate == '{{ $template->id }}' ? 'border-primary-600 ring-1 ring-primary-600 shadow-md bg-primary-50/30' : 'border-gray-200 hover:border-primary-300'"
             class="bg-white border rounded-xl p-6 flex flex-col cursor-pointer transition">
             <div class="w-12 h-12 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center mb-5">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,9 +65,9 @@
             <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $template->nama_template }}</h3>
             <p class="text-sm text-gray-500 mb-6 flex-grow">{{ $template->deskripsi ?? 'Tidak ada deskripsi.' }}</p>
             <button type="button"
-                :class="selectedTemplate === '{{ $template->id }}' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
+                :class="selectedTemplate == '{{ $template->id }}' ? 'bg-primary-600 text-white border-primary-600' : 'bg-transparent text-primary-600 border-primary-600 hover:bg-primary-50'"
                 class="w-full border-2 font-bold py-2 rounded-lg transition text-sm">
-                <span x-text="selectedTemplate === '{{ $template->id }}' ? 'Terpilih' : 'Pilih'"></span>
+                <span x-text="selectedTemplate == '{{ $template->id }}' ? 'Terpilih' : 'Pilih'"></span>
             </button>
         </div>
         @empty
@@ -79,7 +77,7 @@
         @endforelse
     </div>
 
-    <div class="flex items-center gap-4 mb-6 my-6">
+    <div class="flex items-center gap-4 mb-6 my-6" style="margin-top: 1.75rem !important; margin-bottom: 1rem !important;">
         <hr class="flex-grow border-gray-200">
         <span class="text-sm font-semibold text-gray-400 uppercase tracking-wider">ATAU BUAT SURAT DARI AWAL</span>
         <hr class="flex-grow border-gray-200">

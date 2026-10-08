@@ -192,6 +192,7 @@ class UnitKerjaService
             ->with(['pegawai.user', 'jabatan'])
             ->where('status_jabatan', 'AKTIF')
             ->join('jabatans', 'jabatans.id', '=', 'user_pegawai_jabatans.jabatan_id')
+            ->whereNull('jabatans.deleted_at') // exclude soft deleted jabatan
             ->orderByRaw('jabatans.level_jabatan IS NULL ASC')
             ->orderBy('jabatans.level_jabatan')
             ->orderBy('jabatans.nama_jabatan')
@@ -219,8 +220,11 @@ class UnitKerjaService
         $toDelete    = array_diff($existingIds, $incomingIds);
 
         // Soft-delete removed positions
-        if ($toDelete) {
+         if ($toDelete) {
             Jabatan::whereIn('id', $toDelete)->delete();
+            // Nonaktifkan seluruh penugasan pegawai pada jabatan yang dihapus ini
+            \App\Models\UserPegawaiJabatan::whereIn('jabatan_id', $toDelete)
+                ->update(['status_jabatan' => 'NONAKTIF']);
         }
 
         foreach ($rows as $row) {
@@ -241,7 +245,7 @@ class UnitKerjaService
                     'level_jabatan' => $row['level_jabatan'] ?? null,
                 ]);
             }
-            
+
             if (isset($jabatan)) {
                 $this->syncJabatanPegawais($jabatan, $unit, $row['user_pegawai_ids'] ?? []);
             }
@@ -254,7 +258,7 @@ class UnitKerjaService
     private function syncJabatanPegawais(Jabatan $jabatan, UnitKerja $unit, array $pegawaiIds): void
     {
         $existing = $jabatan->pegawaiJabatans()->where('status_jabatan', 'AKTIF')->pluck('user_pegawai_id')->all();
-        
+
         $toDeactivate = array_diff($existing, $pegawaiIds);
         $toActivate   = array_diff($pegawaiIds, $existing);
 

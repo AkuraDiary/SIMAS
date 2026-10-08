@@ -19,6 +19,8 @@ return new class extends Migration
                 ->comment('UTAMA = penandatangan primer dokumen, SEKUNDER = penandatangan pendamping');
             $table->boolean('is_visible')->default(true)
                 ->comment('false = TTD tidak dirender di dokumen final, tapi tetap terekam untuk audit trail');
+            $table->string('placeholder_key')->nullable();
+            $table->string('qr_code_path')->nullable();
             $table->string('jabatan_saat_ttd')->comment('snapshot jabatan saat dokumen ditandatangani');
             $table->string('unit_saat_ttd')->comment('snapshot unit kerja saat dokumen ditandatangani');
             $table->integer('halaman')->nullable();

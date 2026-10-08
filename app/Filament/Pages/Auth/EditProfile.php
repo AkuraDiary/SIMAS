@@ -10,11 +10,12 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Filament\Support\Components\Component;
+use Filament\Schemas\Components\Component;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rules\Password;
 use Override;
 
 class EditProfile extends BaseEditProfile
@@ -130,6 +131,14 @@ class EditProfile extends BaseEditProfile
 
 
             ]);
+    }
+
+    protected function getPasswordFormComponent(): Component
+    {
+        return parent::getPasswordFormComponent()
+            ->minLength(8)
+            ->rule(Password::min(8)->letters()->numbers())
+            ->helperText('Password minimal 8 karakter dan berisi kombinasi huruf dan angka.');
     }
 
     /**

@@ -69,12 +69,12 @@ class NomorSuratService
 
         // 5. Fallback: ambil format aktif apapun milik unit atau global
         return FormatNomorSurat::where(function ($q) use ($unitId) {
-                if ($unitId) {
-                    $q->where('unit_kerja_id', $unitId)->orWhereNull('unit_kerja_id');
-                } else {
-                    $q->whereNull('unit_kerja_id');
-                }
-            })
+            if ($unitId) {
+                $q->where('unit_kerja_id', $unitId)->orWhereNull('unit_kerja_id');
+            } else {
+                $q->whereNull('unit_kerja_id');
+            }
+        })
             ->where('is_active', true)
             ->orderBy('tahun', 'desc')
             ->first();
@@ -89,7 +89,7 @@ class NomorSuratService
             ->where(function ($q) use ($unitId) {
                 if ($unitId) {
                     $q->where('unit_kerja_id', $unitId)
-                      ->orWhereNull('unit_kerja_id');
+                        ->orWhereNull('unit_kerja_id');
                 } else {
                     $q->whereNull('unit_kerja_id');
                 }
@@ -98,7 +98,7 @@ class NomorSuratService
         if ($tipeSurat) {
             $query->where(function ($q) use ($tipeSurat) {
                 $q->where('tipe_surat', $tipeSurat)
-                  ->orWhere('tipe_surat', 'ALL');
+                    ->orWhere('tipe_surat', 'ALL');
             });
         }
 
@@ -124,7 +124,7 @@ class NomorSuratService
 
         return array_values(array_unique(array_filter(
             $matches[1],
-            fn ($tag) => !in_array($tag, self::STANDARD_TAGS, true)
+            fn($tag) => !in_array($tag, self::STANDARD_TAGS, true)
         )));
     }
 
@@ -134,8 +134,18 @@ class NomorSuratService
     public function toRomanMonth(int $month): string
     {
         $romans = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
-            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+            1 => 'I',
+            2 => 'II',
+            3 => 'III',
+            4 => 'IV',
+            5 => 'V',
+            6 => 'VI',
+            7 => 'VII',
+            8 => 'VIII',
+            9 => 'IX',
+            10 => 'X',
+            11 => 'XI',
+            12 => 'XII'
         ];
 
         return $romans[$month] ?? 'I';
@@ -305,15 +315,38 @@ class NomorSuratService
                 $catatanTimeline .= " [Kustomisasi Manual/Sisipan]";
             }
 
+            // Tentukan unit penanggung jawab aksi (fallback jika surat eksternal/pengajuan yang unit_pengirim_id = null)
+            $unitAksiId = $surat->unit_pengirim_id;
+            if (!$unitAksiId && $userId) {
+                $unitAksiId = \App\Models\UserPegawaiJabatan::whereHas('pegawai', fn($q) => $q->where('user_id', $userId))
+                    ->where('status_jabatan', 'AKTIF')
+                    ->first()?->unit_kerja_id ?? \App\Models\User::find($userId)?->unit_kerja_id;
+            }
+            if (!$unitAksiId) {
+                $unitAksiId = $format->unit_kerja_id
+                    ?? $surat->unitTujuan->first()?->id
+                    ?? \App\Models\UnitKerja::first()?->id;
+            }
+
             SuratRiwayat::create([
-                'surat_id' => $surat->id,
-                'unit_asal_id' => $surat->unit_pengirim_id,
-                'unit_tujuan_id' => $surat->unit_pengirim_id,
-                'user_aktor_id' => $userId,
-                'status' => 'DIPERBARUI',
-                'catatan' => $catatanTimeline,
-                'actioned_at' => Carbon::now(),
+                'surat_id'       => $surat->id,
+                'unit_asal_id'   => $unitAksiId,
+                'unit_tujuan_id' => $unitAksiId,
+                'user_aktor_id'  => $userId,
+                'status'         => 'DIPERBARUI',
+                'catatan'        => $catatanTimeline,
+                'actioned_at'    => Carbon::now(),
             ]);
+
+            // SuratRiwayat::create([
+            //     'surat_id' => $surat->id,
+            //     'unit_asal_id' => $surat->unit_pengirim_id,
+            //     'unit_tujuan_id' => $surat->unit_pengirim_id,
+            //     'user_aktor_id' => $userId,
+            //     'status' => 'DIPERBARUI',
+            //     'catatan' => $catatanTimeline,
+            //     'actioned_at' => Carbon::now(),
+            // ]);
 
             return $nomorLengkap;
         });

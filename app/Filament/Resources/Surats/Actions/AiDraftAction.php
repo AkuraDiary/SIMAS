@@ -41,7 +41,7 @@ class AiDraftAction
             ->color('primary')
             ->visible(fn() => static::isAccessible())
             ->modalHeading('Asisten AI - Pembuat Draft Surat')
-            ->modalDescription('Gunakan AI untuk membuat atau menyempurnakan draft isi surat resmi sesuai kaidah Tata Naskah Dinas.')
+            ->modalDescription('Gunakan AI untuk membuat surat.')
             ->modalIcon('heroicon-o-sparkles')
             ->modalWidth('4xl')
             ->modalSubmitActionLabel('Terapkan ke Surat')
@@ -192,7 +192,8 @@ class AiDraftAction
                                         ->body('Draft dengan format standar siap ditinjau.')
                                         ->info()
                                         ->send();
-                                }),
+                                })
+                                ->visible(false),
                         ]),
                     ]),
 

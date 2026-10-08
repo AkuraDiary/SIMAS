@@ -16,9 +16,10 @@ class SwitchRole extends Page
     protected static bool $shouldRegisterNavigation = false;
 
 
-    public static function canAccess(): bool
+       public static function canAccess(): bool
     {
-        return Auth::user()?->tipe_entitas !== 'ADMIN';
+        $user = Auth::user();
+        return $user?->tipe_entitas === 'STAF' && ($user?->pegawai?->jabatanAktif()->exists() ?? false);
     }
     protected string $view = 'filament.pages.switch-role';
 

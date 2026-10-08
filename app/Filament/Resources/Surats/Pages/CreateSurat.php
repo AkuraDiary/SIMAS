@@ -23,12 +23,22 @@ class CreateSurat extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Simpan referensi ID lampiran pengajuan yang dicentang ke kolom JSON content
+        if (isset($data['lampiran_pengajuan_dipilih'])) {
+            $content = $data['content'] ?? [];
+            $content['lampiran_pengajuan_terpilih_ids'] = array_map('intval', (array) $data['lampiran_pengajuan_dipilih']);
+            $data['content'] = $content;
+            unset($data['lampiran_pengajuan_dipilih']);
+        }
+
         // Simpan custom_nomor_tags ke content jika ada
         if (!empty($data['custom_nomor_tags']) && is_array($data['custom_nomor_tags'])) {
             $content = $data['content'] ?? [];
             $content['nomor_surat_tags'] = array_merge($content['nomor_surat_tags'] ?? [], $data['custom_nomor_tags']);
             $data['content'] = $content;
         }
+
+        unset($data['custom_nomor_tags']);
 
         // Jika pakai template dan Path Builder manual kosong, copy dari Template!
         if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
@@ -62,7 +72,7 @@ class CreateSurat extends CreateRecord
                 Action::make('download_blank')
                     ->label('Unduh Template Asli (Kosong)')
                     ->icon('heroicon-o-document')
-                    ->visible(fn () => isset($this->data['template_id']))
+                    ->visible(fn() => isset($this->data['template_id']))
                     ->action(function () {
                         $template = Template::find($this->data['template_id']);
                         if (!$template) return;
@@ -76,16 +86,16 @@ class CreateSurat extends CreateRecord
                 Action::make('download_filled')
                     ->label('Unduh Draft Surat (.docx)')
                     ->icon('heroicon-o-document-text')
-                    ->visible(fn () => $this->record !== null)
+                    ->visible(fn() => $this->record !== null)
                     ->action(function () {
                         $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->record);
                         return response()->download($path, 'Draft_Surat_' . $this->record->perihal . '.docx');
                     }),
             ])
-            ->label('Unduh Dokumen')
-            ->icon('heroicon-o-arrow-down-tray')
-            ->button()
-            ->color('gray'),
+                ->label('Unduh Dokumen')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->button()
+                ->color('gray'),
         ];
     }
 
@@ -96,11 +106,27 @@ class CreateSurat extends CreateRecord
         $activeJabatan = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan();
 
         if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
+              $terbitanForId = Request::query('terbitan_for_surat_id');
+            $defaultUnitTujuan = [];
+            $defaultLampiranDipilih = [];
+            // Jika merujuk ke pengajuan internal, otomatis pasang unit pemohon sebagai unit tujuan
+            if ($terbitanForId) {
+                $pengajuan = \App\Models\Surat::with('media')->find($terbitanForId);
+                $unitPemohonId = $pengajuan?->unit_pengirim_id ?? $pengajuan?->pembuat?->unit_kerja_id;
+                if ($unitPemohonId) {
+                    $defaultUnitTujuan = [$unitPemohonId];
+                }
+                if ($pengajuan) {
+                    $defaultLampiranDipilih = $pengajuan->getMedia('lampiran-surat')->pluck('id')->map(fn($id) => (string) $id)->toArray();
+                }
+            }
             $this->form->fill([
                 'user_pegawai_jabatan_id' => $activeJabatan?->id,
                 'unit_pengirim_id' => $activeJabatan?->unit_kerja_id,
                 'tipe_surat' => Request::query('tipe_surat', 'INTERNAL'),
-                'terbitan_for_surat_id' => Request::query('terbitan_for_surat_id'),
+                'terbitan_for_surat_id' => $terbitanForId,
+                'unitTujuan' => $defaultUnitTujuan,
+                'lampiran_pengajuan_dipilih' => $defaultLampiranDipilih,
                 'status_surat' => 'DRAFT',
             ]);
         }

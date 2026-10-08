@@ -80,6 +80,60 @@ trait HasArsipActions
             ->visible(fn() => $this->sudahDiarsipkan());
     }
 
+    protected function getActionUbahKategoriArsip(): Action
+    {
+        return Action::make('ubah_kategori_arsip')
+            ->label('Ubah Kategori Arsip')
+            ->icon('heroicon-o-folder-arrow-down')
+            ->color('gray')
+            ->visible(fn() => $this->sudahDiarsipkan())
+            ->modalHeading('Ubah Kategori Arsip Surat')
+            ->modalDescription('Pindahkan surat ini ke kategori arsip lain dalam unit kerja Anda.')
+            ->schema([
+                Select::make('kategori_arsip_id')
+                    ->label('Kategori Arsip Baru')
+                    ->options(
+                        fn() => KategoriArsip::where('unit_kerja_id', Auth::user()?->unit_kerja_id)
+                            ->pluck('nama', 'id')
+                    )
+                    ->default(fn() => $this->getArsipSurat()?->kategori_arsip_id)
+                    ->searchable()
+                    ->preload()
+                    ->required()
+                    ->createOptionForm([
+                        TextInput::make('nama')
+                            ->label('Nama Kategori')
+                            ->required()
+                            ->maxLength(100)
+                            ->rule(function () {
+                                return Rule::unique('kategori_arsips', 'nama')
+                                    ->where('unit_kerja_id', Auth::user()?->unit_kerja_id);
+                            }),
+                    ])
+                    ->createOptionUsing(function (array $data) {
+                        return KategoriArsip::create([
+                            'unit_kerja_id' => Auth::user()?->unit_kerja_id,
+                            'nama' => trim($data['nama']),
+                        ])->id;
+                    }),
+
+                Textarea::make('catatan')
+                    ->label('Catatan Arsip (Opsional)')
+                    ->default(fn() => $this->getArsipSurat()?->catatan)
+                    ->rows(3),
+            ])
+            ->action(function (array $data) {
+                $arsip = $this->getArsipSurat();
+                if ($arsip) {
+                    $arsip->update([
+                        'kategori_arsip_id' => $data['kategori_arsip_id'],
+                        'catatan' => $data['catatan'] ?? $arsip->catatan,
+                    ]);
+                    $this->refreshPage('Kategori Arsip Diperbarui', 'Surat berhasil dipindahkan ke kategori arsip baru.');
+                }
+            });
+    }
+
     protected function handleArsipkanSurat(array $data): void
     {
         $unitId = Auth::user()->unit_kerja_id;

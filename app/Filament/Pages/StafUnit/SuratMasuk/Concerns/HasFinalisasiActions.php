@@ -30,7 +30,8 @@ trait HasFinalisasiActions
         // 1. Download PDF Resmi dari Arsip
         if ($this->surat->tipe_surat === 'TERBITAN') {
             $actions[] = Action::make('download_pdf')
-                ->label('Unduh PDF Resmi')
+
+                ->label('Unduh Surat Terbitan ')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('success')
                 ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']) && $this->surat->hasMedia('dokumen-final'))
@@ -43,15 +44,20 @@ trait HasFinalisasiActions
                 });
         }
 
-        // 2. Generate Nomor Action
-        // Berlaku untuk:
-        // a. TERBITAN yang belum bernomor
-        // b. Atau INTERNAL / PENGAJUAN / EKSTERNAL yang belum bernomor dan user berasal dari unit pengirim / admin
-        $canGenerateNomor = empty($this->surat->nomor_surat) && (
-            $this->surat->tipe_surat === 'TERBITAN' ||
-            $this->surat->unit_pengirim_id == $unitId ||
-            Auth::user()?->tipe_entitas === 'ADMIN'
-        );
+        $unitId = Auth::user()->unit_kerja_id;
+        $sudahBernomor = filled($this->surat->nomor_surat);
+        $isUnitPengirim = $this->surat->unit_pengirim_id == $unitId;
+        // $isUnitPenerima = $this->surat->suratUnits()->where('unit_kerja_id', $unitId)->exists()
+        //     || $this->surat->disposisis()->where('unit_tujuan_id', $unitId)->exists()
+        //     || $this->surat->riwayats()->where('unit_tujuan_id', $unitId)->exists();
+        $isAdmin = Auth::user()?->tipe_entitas === 'ADMIN';
+        // Aturan Hak Penomoran:
+        // 1. Jika BELUM bernomor: Unit Pengirim, Unit Penerima (Eksternal/Pengajuan), atau Terbitan boleh menomori.
+        // 2. Jika SUDAH bernomor: HANYA Unit Pengirim atau Admin yang boleh mengubah/mengoreksi nomor.
+        $canGenerateNomor = $sudahBernomor
+            ? ($isUnitPengirim || $isAdmin)
+            : ($this->surat->tipe_surat === 'TERBITAN' || $isUnitPengirim );
+
 
         if ($canGenerateNomor) {
             $actions[] = Action::make('generate_nomor')
@@ -197,34 +203,51 @@ trait HasFinalisasiActions
                         'user_id' => Auth::id(),
                     ]);
 
-                    // Jika tipe TERBITAN, finalisasikan surat dan generate PDF
-                    if ($this->surat->tipe_surat === 'TERBITAN') {
-                        $this->surat->status_surat = 'SELESAI';
-                        $this->surat->save();
+                    $hasPendingSteps = $this->surat->riwayats()
+                        ->where('status', 'MENUNGGU')
+                        ->exists();
 
-                        if ($this->surat->template_id) {
-                            $html = app(PlaceholderService::class)->renderHtml(
-                                $this->surat->template,
-                                $this->surat->content ?? [],
-                                $this->surat
-                            );
+                    // Terbitkan Dokumen Final Resmi via engine terpusat
+                    app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat, $nomorAkhir);
 
-                            $pdf = Pdf::loadHTML($html)->setPaper('A4', 'portrait');
-                            $pdfContent = $pdf->output();
 
-                            $safeNomor = str_replace(['/', '\\'], '_', $nomorAkhir);
-                            $fileName = 'Surat_Resmi_' . $safeNomor . '.pdf';
+                    // Jika surat ini rujukan atas pengajuan pemohon, selesaikan pengajuan & notifikasi pemohon
+                    if ($this->surat->terbitan_for_surat_id) {
+                        $pengajuan = \App\Models\Surat::find($this->surat->terbitan_for_surat_id);
+                        if ($pengajuan) {
+                            $pengajuan->update(['status_surat' => 'SELESAI']);
 
-                            $this->surat->addMediaFromString($pdfContent)
-                                ->usingFileName($fileName)
-                                ->toMediaCollection('dokumen-final');
+                            if ($pengajuan->user_pembuat_id) {
+                                $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
+                                if ($targetUser) {
+                                    Notification::make()
+                                        ->title('Surat Terbitan Selesai')
+                                        ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
+                                        ->success()
+                                        ->viewData([
+                                            'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $this->surat->unit_pengirim_id),
+                                            'surat_id'      => $this->surat->id,
+                                        ])
+                                        ->sendToDatabase($targetUser);
+
+                                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                        $this->surat,
+                                        $targetUser,
+                                        'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
+                                    );
+                                }
+                            }
                         }
                     }
 
-                    $this->refreshPage(
-                        'Nomor Surat Berhasil Ditetapkan!',
-                        "Nomor surat: {$nomorAkhir}" . ($this->surat->tipe_surat === 'TERBITAN' ? '. Surat kini resmi SELESAI dan siap diunduh.' : '.')
-                    );
+
+                    $pesanSukses = "Nomor surat {$nomorAkhir} berhasil ditetapkan.";
+                    if ($this->surat->status_surat === 'SELESAI') {
+                        $pesanSukses .= ' Surat kini resmi SELESAI dan diterbitkan.';
+                    } else {
+                        $pesanSukses .= ' Nomor tercatat pada draf, alur persetujuan berlanjut ke tahap berikutnya.';
+                    }
+                    $this->refreshPage('Nomor Surat Ditetapkan!', $pesanSukses);
                 });
         }
 

@@ -65,15 +65,9 @@
 
             {{-- Lampiran Section --}}
             @php
-            $lampirans = collect();
 
-            // 1. Inherit Attachments from Parent (Pengajuan) if this is a Terbitan
-            if ($surat->terbitan_for_surat_id && $surat->terbitanForSurat) {
-            $lampirans = $lampirans->merge($surat->terbitanForSurat->getMedia('lampiran-surat'));
-            }
+            $lampirans = $surat->getSemuaLampiran();
 
-            // 2. Add this letter's own attachments
-            $lampirans = $lampirans->merge($surat->getMedia('lampiran-surat'));
             @endphp
             @if ($lampirans->isNotEmpty())
             <x-filament::section>
@@ -118,7 +112,17 @@
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Informasi Pengirim</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            @if ($surat->tipe_surat === 'PENGAJUAN' || filled($surat->pengirim_nama))
+                            @if ($surat->userPegawaiJabatan)
+                            {{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}<br>
+                            <span class="text-xs text-gray-500 font-normal">
+                                {{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? $surat->unitPengirim?->nama_unit ?? '' }}
+                            </span>
+                            @elseif ($surat->tipe_surat === 'EKSTERNAL')
+                            {{ $surat->pengirim_nama ?? 'Eksternal' }}<br>
+                            <span class="text-xs text-gray-500 font-normal">
+                                via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
+                            </span>
+                            @elseif (filled($surat->pengirim_nama))
                             {{ $surat->pengirim_nama }}<br>
                             <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">
                                 @if($surat->pengirim_nim)
@@ -129,21 +133,11 @@
                                 Pemohon Luar (Guest)
                                 @endif
                                 @if($surat->pengirim_email)
-                                {{ $surat->pengirim_email }}
+                                • {{ $surat->pengirim_email }}
                                 @endif
                                 @if(!empty($surat->pengirim_metadata['telp']))
-                                {{ $surat->pengirim_metadata['telp'] }}
+                                • {{ $surat->pengirim_metadata['telp'] }}
                                 @endif
-                            </span>
-                            @elseif ($surat->tipe_surat === 'EKSTERNAL')
-                            {{ $surat->pengirim_nama ?? 'Eksternal' }}<br>
-                            <span class="text-xs text-gray-500 font-normal">
-                                via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
-                            </span>
-                            @elseif ($surat->userPegawaiJabatan)
-                            {{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}<br>
-                            <span class="text-xs text-gray-500 font-normal">
-                                {{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? '' }}
                             </span>
                             @else
                             {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
@@ -151,17 +145,23 @@
                         </p>
                     </div>
                     <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tipe / Jenis Surat</p>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                            {{ ucfirst(strtolower($surat->tipe_surat)) }}
+                        </p>
+                    </div>
+
+                    <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Surat</p>
                         <p class="text-sm font-medium text-gray-900 dark:text-white">
                             {{ $surat->created_at->format('d M Y') }}
                         </p>
                     </div>
 
-
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Nomor Surat</p>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $surat->nomor_surat }}
+                        <p class="text-sm font-medium text-gray-900 dark:text-white font-mono">
+                            {{ $surat->nomor_surat ?: '-' }}
                         </p>
                     </div>
                     <div>
@@ -229,7 +229,8 @@
 
                             {{-- Date & Sender --}}
                             <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->name ?? ''}}
+                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai->nama_lengkap ?? ''}}
+                                
                                 @if ($d?->userPegawaiJabatan)
                                 ({{ $d->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $d->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})
                                 @endif

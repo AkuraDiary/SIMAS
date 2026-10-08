@@ -73,13 +73,11 @@ class SimasPanelProvider extends PanelProvider
             ])
             ->userMenuItems(
                 [
-                    Action::make('Switch')
+                   Action::make('Switch')
                         ->label('Ganti Peran (Unit)')
                         ->url(fn(): string => \App\Filament\Pages\SwitchRole::getUrl())
                         ->icon('heroicon-o-arrow-path-rounded-square')
-                        ->visible(fn(): bool => auth()->check() && auth()->user()->tipe_entitas !== 'ADMIN'),
-
-
+                        ->visible(fn(): bool => auth()->check() && auth()->user()->tipe_entitas === 'STAF' && (auth()->user()->pegawai?->jabatanAktif()->exists() ?? false)),
                 ]
             )
 

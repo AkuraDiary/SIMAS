@@ -25,7 +25,7 @@ trait HasSuratTimeline
             'riwayats.aktor',
             'disposisis.unitTujuan',
             'disposisis.pembuat',
-            'disposisis.unitPembuat',
+            // 'disposisis.unitPembuat',
             'komentars.user',
             'komentars.unitKerja',
             'arsipSurats.kategoriArsip',
@@ -50,7 +50,26 @@ trait HasSuratTimeline
         // dd($this->surat->unitTujuan);
 
         // 1.B. Surat Dikirim ke Banyak Tujuan (Tujuan Utama & Tembusan)
+        $hasApprovalPath = !empty($this->surat->approval_path) && is_array($this->surat->approval_path) && count($this->surat->approval_path) > 0;
+        $isFinishedApproval = in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']);
+
+        $shouldShowDeliveryMilestone = false;
+        $deliveryDate = $this->surat->tanggal_kirim ?? $this->surat->created_at;
+
         if ($this->surat->unitTujuan->isNotEmpty() && $this->surat->status_surat !== 'DRAFT') {
+            if ($hasApprovalPath) {
+                if ($isFinishedApproval) {
+                    $shouldShowDeliveryMilestone = true;
+                    // Tampilkan pada akhir waktu approval
+                    $lastApproval = $this->surat->riwayats->where('status', 'DISETUJUI')->sortByDesc('actioned_at')->first();
+                    $deliveryDate = $lastApproval ? $lastApproval->actioned_at : $this->surat->updated_at;
+                }
+            } else {
+                $shouldShowDeliveryMilestone = true;
+            }
+        }
+
+        if ($shouldShowDeliveryMilestone) {
             $tujuanUtama = [];
             $tembusan = [];
 
@@ -74,43 +93,26 @@ trait HasSuratTimeline
             $timeline[] = [
                 'title' => 'Surat Dikirim ke ' . $totalTujuan . ' Unit Penerima',
                 'actor' => $this->surat->userPegawaiJabatan?->pegawai->nama_lengkap ?? $this->surat->pengirim_nama ?? 'Pengirim',
-                'unit' => $this->surat->unitPengirim?->nama_unit ?? 'Eksternal',
+                'unit' => $this->surat->unitPengirim?->nama_unit ?? $this->surat->pembuat->tipe_entitas ?? 'Eksternal',
                 'catatan' => null,
-                'date' => $this->surat->tanggal_kirim ?? $this->surat->created_at,
+                'date' => $deliveryDate,
                 'color' => 'bg-blue-600 ring-blue-100 dark:ring-blue-900',
                 'icon' => 'heroicon-m-paper-airplane',
                 'tujuan_utama' => $tujuanUtama,
                 'tembusan' => $tembusan,
             ];
-
-            // 1.C. Milestone Saat Masing-Masing Unit Membuka/Menerima Surat
-            // foreach ($this->surat->unitTujuan as $unit) {
-            //     if ($unit->pivot->status_baca === 'SUDAH' && $unit->pivot->tanggal_terima) {
-            //         $jenis = strtoupper($unit->pivot->jenis_tujuan ?? '') === 'TEMBUSAN' ? 'Tembusan' : 'Tujuan Utama';
-            //         $timeline[] = [
-            //             'title' => "Surat Dibaca & Diterima ({$jenis})",
-            //             'actor' => 'Petugas Unit',
-            //             'unit' => $unit->nama_unit,
-            //             'catatan' => null,
-            //             'date' => $unit->pivot->tanggal_terima,
-            //             'color' => 'bg-teal-500 ring-teal-100 dark:ring-teal-900',
-            //             'icon' => 'heroicon-m-envelope-open',
-            //         ];
-            //     }
-            // }
         }
 
         // 2. Riwayat Persetujuan (Includes DISETUJUI, DITOLAK, DIKEMBALIKAN, DITERUSKAN)
         foreach ($this->surat->riwayats as $riwayat) {
-
-
+            $isPenomoran = str_contains($riwayat->catatan ?? '', 'Nomor surat ditetapkan');
             $title = match ($riwayat->status) {
-                'DISETUJUI' => 'Disetujui oleh: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DISETUJUI' => ($this->surat->tipe_surat === 'INTERNAL' ? 'Telah Ditanggapi oleh: ' : 'Disetujui oleh: ') . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITERUSKAN' => 'Diteruskan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
-                'DIKEMBALIKAN' => 'Dikembalikan ke: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
-                'MENUNGGU' => 'Menunggu tindakan: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DIKEMBALIKAN' => 'Dikembalikan ke ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'MENUNGGU' => 'Menunggu tindakan oleh ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
                 'DITOLAK' => 'Ditolak permanen oleh: ' . ($riwayat->unitAsal?->nama_unit ?? '-'),
-                'REVISI' => 'Dikembalikan ke pembuat: ' . ($riwayat->unitTujuan?->nama_unit ?? '-'),
+                'DIPERBARUI'   => $isPenomoran ? 'Penetapan Nomor Surat' : 'Dokumen Diperbarui oleh Pemohon',
                 default => $riwayat->status,
             };
 
@@ -134,6 +136,15 @@ trait HasSuratTimeline
                 default => 'bg-gray-400 ring-gray-100 dark:ring-gray-900',
             };
 
+            $actor = $riwayat->aktor?->nama_lengkap ?? '';
+            $unit  = $riwayat->unitTujuan?->nama_unit;
+            if ($riwayat->status === 'DIPERBARUI') {
+                $actor = $actor ?: ($this->surat->pengirim_nama ?? 'Pemohon');
+                $unit  = $this->surat->unitPengirim?->nama_unit
+                    ?? ($this->surat->pengirim_metadata['instansi'] ?? null)
+                    ?? ($this->surat->pengirim_nim ? 'Mahasiswa' : 'Eksternal');
+            }
+
             $timeline[] = [
                 'title' =>  $title,
                 'actor' => $riwayat->aktor?->nama_lengkap ?? '',
@@ -151,7 +162,8 @@ trait HasSuratTimeline
                 'title' => 'Disposisi ke: ' . ($disposisi->unitTujuan?->nama_unit ?? ''),
                 'instruksi' => $disposisi->jenis_instruksi,
                 'actor' => $disposisi->pembuat?->nama_lengkap ?? 'Sistem',
-                'unit' => $disposisi->unitPembuat?->nama_unit ?? '',
+                // 'unit' => $disposisi->unitPembuat?->nama_unit ?? '',
+                'unit' => $disposisi->pembuat?->jabatanAktif->unitKerja->nama_unit ?? '',
                 'catatan' => $disposisi->catatan,
                 'date' => $disposisi->created_at,
                 'color' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',

@@ -31,6 +31,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\Layout\View;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -145,7 +146,7 @@ class TemplateResource extends Resource
                             ])
                             ->default('INTERNAL')
                             ->required(),
-                            
+
                         Select::make('entry_point_unit_id')
                             ->label('Unit Penerima Utama (Entry Point)')
                             ->relationship('entryPointUnit', 'nama_unit')
@@ -506,11 +507,24 @@ class TemplateResource extends Resource
                 SelectFilter::make('kategori_id')
                     ->relationship('kategori', 'nama_kategori')
                     ->label('Kategori'),
-                \Filament\Tables\Filters\Filter::make('visibility_type')
-                    ->form([
+                // Filter::make('aksesibilitas')
+                //     ->schema([
+                //         Select::make('aksesibilitas')
+                //             ->options([
+
+                //                 'PUBLIK' => 'Publik',
+
+                //                 'INTERNAL' => 'Internal (Pegawai/Unit)',
+                //             ])
+                //             ->label('Aksesibilitas')
+                //     ]),
+                Filter::make('visibility_type')
+                    ->schema([
                         Select::make('visibilitas')
                             ->options([
-                                'GLOBAL' => 'Global',
+                                'PUBLIK' => 'Publik',
+                                'MAHASISWA' => 'Mahasiswa',
+                                'GLOBAL' => 'Unit Global',
                                 'SPECIFIC' => 'Unit Spesifik',
                             ])
                             ->label('Visibilitas Penggunaan')
@@ -518,11 +532,16 @@ class TemplateResource extends Resource
                     ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
                         if (empty($data['visibilitas'])) return $query;
                         if ($data['visibilitas'] === 'GLOBAL') {
-                            return $query->doesntHave('unitAkses');
+                            return $query->where('aksesibilitas', 'INTERNAL')->doesntHave('unitAkses');
                         }
                         if ($data['visibilitas'] === 'SPECIFIC') {
                             return $query->has('unitAkses');
+                        } else {
+                            return $query->where('aksesibilitas', $data['visibilitas']);
                         }
+
+
+
                         return $query;
                     }),
                 SelectFilter::make('is_active')
@@ -537,6 +556,32 @@ class TemplateResource extends Resource
             ->recordAction(null)
             ->recordUrl(null)
             ->recordActions([
+                Action::make('ubah_kategori')
+                    ->visible()
+                    ->extraAttributes([
+                        'class' => 'hidden', // Hides the default button from the UI
+                    ])
+                    ->label('Pindahkan Kategori')
+                    ->icon('heroicon-o-folder-arrow-down')
+                    ->color('warning')
+                    ->modalHeading(fn($record) => 'Pindahkan Kategori: ' . $record->nama_template)
+                    ->modalDescription('Pilih kategori template baru untuk surat ini.')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('kategori_id')
+                            ->label('Kategori Template Baru')
+                            ->options(fn() => \App\Models\TemplateKategori::pluck('nama_kategori', 'id'))
+                            ->default(fn(\App\Models\Template $record) => $record->kategori_id)
+                            ->required()
+                            ->searchable()
+                            ->preload(),
+                    ])
+                    ->action(function (\App\Models\Template $record, array $data) {
+                        $record->update(['kategori_id' => $data['kategori_id']]);
+                        \Filament\Notifications\Notification::make()
+                            ->title('Kategori Template Berhasil Diperbarui')
+                            ->success()
+                            ->send();
+                    }),
                 Action::make('preview')
                     ->visible()
                     ->extraAttributes([

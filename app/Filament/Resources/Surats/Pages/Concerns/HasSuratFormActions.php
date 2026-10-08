@@ -15,6 +15,15 @@ trait HasSuratFormActions
 {
     protected function getFormActions(): array
     {
+
+        $surat = $this->record ?? null;
+        // Jika surat sedang dalam alur persetujuan aktif (DIPROSES)
+        if ($surat && $surat->status_surat === 'DIPROSES') {
+            return [
+                $this->getSavePerubahanAction(),
+                $this->getCancelToDetailAction(),
+            ];
+        }
         return [
             $this->getSaveDraftAction(),
             $this->getSubmitAction(),
@@ -58,9 +67,12 @@ trait HasSuratFormActions
             ])
             ->before(function (Action $action) {
                 $unitIds = $this->data['unitTujuan'] ?? [];
-                if (empty($unitIds)) {
+                $hasRujukanPengajuan = !empty($this->data['terbitan_for_surat_id']);
+                // 🟢 Hanya wajibkan unitTujuan jika BUKAN surat balasan atas pengajuan pemohon
+                if (empty($unitIds) && !$hasRujukanPengajuan) {
                     Notification::make()
                         ->title('Tujuan Unit Tidak Boleh Kosong')
+                        ->body('Silakan pilih minimal satu unit kerja tujuan penerima surat.')
                         ->danger()
                         ->send();
                     $action->halt();
@@ -95,32 +107,17 @@ trait HasSuratFormActions
                     ]);
                 }
 
-                $surat->tanggal_kirim = now();
+                if (!$surat->tanggal_kirim) {
+                    $surat->tanggal_kirim = now();
+                }
                 $unitTujuan = $this->data['unitTujuan'][0] ?? $surat->unit_pengirim_id;
 
                 app(SuratRoutingService::class)->submitForApproval(
                     surat: $surat,
                     unitTujuanId: (int) $unitTujuan,
-                    catatan: ''
+                    catatan: '',
+                    isResubmission: $wasRevisi ?? false
                 );
-
-                $unitIds = $this->data['unitTujuan'] ?? [];
-                foreach ($unitIds as $uId) {
-                    $targetUsers = \App\Models\User::ofUnitKerja($uId)->get();
-                    if ($targetUsers->isNotEmpty()) {
-                        Notification::make()
-                            ->title('Surat Masuk Baru')
-                            ->body("Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal)
-                            ->info()
-                            ->viewData([
-                                'unit_kerja_id' => (int) $uId, // Unit yang berhak melihat notifikasi ini
-                                'surat_id'      => $surat->id,
-                            ])
-                            ->sendToDatabase($targetUsers);
-
-                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
-                    }
-                }
 
                 Notification::make()
                     ->title('Surat berhasil dikirim untuk diproses')
@@ -137,6 +134,39 @@ trait HasSuratFormActions
             ->label('Batal')
             ->color('danger')
             ->url(SuratResource::getUrl())
+            ->outlined();
+    }
+
+    protected function getSavePerubahanAction(): Action
+    {
+        return Action::make('savePerubahan')
+            ->label('Simpan Perubahan Draf')
+            ->color('primary')
+            ->action(function () {
+                $this->save();
+
+                Notification::make()
+                    ->title('Perubahan Draf Berhasil Disimpan')
+                    ->body('Naskah surat telah diperbarui dan siap dilanjutkan pada alur persetujuan.')
+                    ->success()
+                    ->send();
+
+                $this->redirect(\App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat::getUrl([
+                    'record' => $this->record,
+                    'surat'  => $this->record,
+                ]));
+            });
+    }
+
+    protected function getCancelToDetailAction(): Action
+    {
+        return Action::make('cancelToDetail')
+            ->label('Batal')
+            ->color('gray')
+            ->url(fn() => \App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat::getUrl([
+                'record' => $this->record,
+                'surat'  => $this->record,
+            ]))
             ->outlined();
     }
 }

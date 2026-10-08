@@ -22,6 +22,13 @@ class EditSurat extends EditRecord
 
     public function getBreadcrumbs(): array
     {
+        // Jika sedang dalam Alur Persetujuan (DIPROSES)
+        if ($this->record->status_surat === 'DIPROSES') {
+            return [
+                DetailSurat::getUrl(['surat' => $this->record, 'record' => $this->record]) => $this->record->nomor_surat ?? $this->record->perihal,
+                'Edit Draf Naskah',
+            ];
+        }
         // Jika sedang Revisi
         if ($this->record->status_surat === 'REVISI') {
             return [
@@ -41,6 +48,10 @@ class EditSurat extends EditRecord
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
     {
+        if ($this->record->status_surat === 'DIPROSES') {
+            return 'Edit Draft Surat';
+        }
+
         return $this->record->status_surat === 'REVISI'
             ? 'Perbaiki Surat (Revisi)'
             : 'Edit Draft Surat';
@@ -48,12 +59,22 @@ class EditSurat extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+
+        // Simpan referensi ID lampiran pengajuan yang dicentang ke kolom JSON content
+        if (isset($data['lampiran_pengajuan_dipilih'])) {
+            $content = $data['content'] ?? [];
+            $content['lampiran_pengajuan_terpilih_ids'] = array_map('intval', (array) $data['lampiran_pengajuan_dipilih']);
+            $data['content'] = $content;
+            unset($data['lampiran_pengajuan_dipilih']);
+        }
+        
         // Simpan custom_nomor_tags ke content jika ada
         if (!empty($data['custom_nomor_tags']) && is_array($data['custom_nomor_tags'])) {
             $content = $data['content'] ?? [];
             $content['nomor_surat_tags'] = array_merge($content['nomor_surat_tags'] ?? [], $data['custom_nomor_tags']);
             $data['content'] = $content;
         }
+        unset($data['custom_nomor_tags']);
 
         // Jika form menyembunyikan template_id (karena mode 'scratch'),
         // pastikan nilainya di-set ke null agar menimpa ID lama di database.
@@ -108,6 +129,13 @@ class EditSurat extends EditRecord
         }
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        if (isset($this->record->content['lampiran_pengajuan_terpilih_ids'])) {
+            $data['lampiran_pengajuan_dipilih'] = array_map('strval', (array) $this->record->content['lampiran_pengajuan_terpilih_ids']);
+        }
+        return $data;
+    }
     protected function getHeaderActions(): array
     {
         return [
@@ -119,7 +147,7 @@ class EditSurat extends EditRecord
                 Action::make('download_blank')
                     ->label('Unduh Template Asli (Kosong)')
                     ->icon('heroicon-o-document')
-                    ->visible(fn () => isset($this->data['template_id']))
+                    ->visible(fn() => isset($this->data['template_id']))
                     ->action(function () {
                         $template = Template::find($this->data['template_id']);
                         if (!$template) return;
@@ -133,16 +161,16 @@ class EditSurat extends EditRecord
                 Action::make('download_filled')
                     ->label('Unduh Draft Surat (.docx)')
                     ->icon('heroicon-o-document-text')
-                    ->visible(fn () => $this->record !== null)
+                    ->visible(fn() => $this->record !== null)
                     ->action(function () {
                         $path = app(\App\Services\DocxTemplateService::class)->downloadFilledDocx($this->record);
                         return response()->download($path, 'Draft_Surat_' . $this->record->perihal . '.docx');
                     }),
             ])
-            ->label('Unduh Dokumen')
-            ->icon('heroicon-o-arrow-down-tray')
-            ->button()
-            ->color('gray'),
+                ->label('Unduh Dokumen')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->button()
+                ->color('gray'),
 
             DeleteAction::make(),
 

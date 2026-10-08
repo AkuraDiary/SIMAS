@@ -2,22 +2,29 @@
 
 namespace App\Filament\Resources\Surats\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
-use App\Models\Surat;
 use App\Filament\Pages\StafUnit\SuratMasuk\DetailSurat;
 use App\Filament\Resources\Surats\Pages\CreateSurat;
 use App\Filament\Resources\Surats\Pages\EditSurat;
 use App\Models\KategoriArsip;
+use App\Models\Surat;
+use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Validation\Rule;
 use PHPUnit\TextUI\Configuration\SourceFilter;
 
 class SuratsTable
@@ -57,15 +64,20 @@ class SuratsTable
                         if ($scope === 'draft') {
                             return $record->nomorSuratLogs->last()?->nomor_lengkap ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
                         }
-                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
-                    })
-                    ->weight('bold')
-                    ->description(function (Surat $record, $livewire) {
-                        $scope = $livewire->scope ?? request('scope');
-                        if ($scope === 'draft') {
-                            return $record->nomorSuratLogs->last()?->nomor_lengkap ?? 'DRAFT-' . date('Y-m-') . str_pad($record->id, 4, '0', STR_PAD_LEFT);
+                        if ($record->userPegawaiJabatan) {
+                            $pegawai = $record->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai';
+                            $unit = $record->userPegawaiJabatan->unitKerja->nama_unit ?? $record->unitPengirim?->nama_unit ?? '';
+                            return $pegawai . ($unit ? " - {$unit}" : '');
                         }
-                        return ($record->userPegawaiJabatan->pegawai->nama_lengkap ?? '') . ' - ' . ($record->unitPengirim?->nama_unit ?? '');
+                        if ($record->tipe_surat === 'EKSTERNAL') {
+                            return ($record->pengirim_nama ?? 'Eksternal') . ' via ' . ($record->unitPengirim?->nama_unit ?? 'Sistem');
+                        }
+                        if (filled($record->pengirim_nama)) {
+                            $nim = $record->pengirim_nim ? " ({$record->pengirim_nim})" : '';
+                            $instansi = !empty($record->pengirim_metadata['instansi']) ? " ({$record->pengirim_metadata['instansi']})" : '';
+                            return $record->pengirim_nama . $nim . $instansi;
+                        }
+                        return $record->unitPengirim?->nama_unit ?? '';
                     }),
 
                 TextColumn::make('nomor_surat')
@@ -97,6 +109,25 @@ class SuratsTable
                     ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'draft')
                     ->getStateUsing(fn(Surat $record) => $record->userPegawaiJabatan->pegawai->nama_lengkap  ?? '-'),
 
+                TextColumn::make('tipe_surat')
+                    ->label('Tipe')
+                    ->badge()
+                    ->color(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'gray',
+                        'EKSTERNAL' => 'warning',
+                        'PENGAJUAN' => 'info',
+                        'TERBITAN' => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn(?string $state): string => match ($state) {
+                        'INTERNAL' => 'Internal',
+                        'EKSTERNAL' => 'Eksternal',
+                        'PENGAJUAN' => 'Pengajuan',
+                        'TERBITAN' => 'Terbitan',
+                        default => $state ?? '-',
+                    })
+                    ->sortable(),
+
                 TextColumn::make('status_surat')
                     ->label('Status')
                     ->badge()
@@ -113,18 +144,6 @@ class SuratsTable
                         default => 'gray',
                     })
                     ->visible(fn($livewire) => !in_array($livewire->scope ?? request('scope'), ['arsip', 'draft'])),
-
-                TextColumn::make('tipe_surat')
-                    ->label('Tipe')
-                    ->badge()
-                    ->color(fn(?string $state): string => match ($state) {
-                        'INTERNAL' => 'gray',
-                        'EKSTERNAL' => 'warning',
-                        'PENGAJUAN' => 'info',
-                        'TERBITAN' => 'success',
-                        default => 'gray',
-                    })
-                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
 
                 TextColumn::make('arsip_kategori')
                     ->label('Kategori Arsip')
@@ -236,8 +255,7 @@ class SuratsTable
                         'PENGAJUAN' => 'Pengajuan',
                         'TERBITAN' => 'Terbitan',
                         'EKSTERNAL' => 'Eksternal',
-                    ])
-                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip'),
+                    ]),
 
                 \Filament\Tables\Filters\Filter::make('tanggal_arsip')
                     ->label('Rentang Tanggal Arsip')
@@ -294,7 +312,126 @@ class SuratsTable
                 );
             })
 
-            ->toolbarActions([])
+            ->recordActions([
+                Action::make('ubah_kategori')
+                    ->label('Ubah Kategori')
+                    ->icon('heroicon-o-folder-arrow-down')
+                    ->color('warning')
+                    ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
+                    ->modalHeading('Pindahkan / Ubah Kategori Arsip')
+                    ->modalDescription('Pilih kategori arsip tujuan untuk surat ini.')
+                    ->schema([
+                        Select::make('kategori_arsip_id')
+                            ->label('Kategori Arsip Baru')
+                            ->options(
+                                fn() => KategoriArsip::where('unit_kerja_id', Auth::user()?->unit_kerja_id)
+                                    ->pluck('nama', 'id')
+                            )
+                            ->default(function (Surat $record) {
+                                $unitId = Auth::user()?->unit_kerja_id;
+                                return $record->arsipSurats->firstWhere('unit_kerja_id', $unitId)?->kategori_arsip_id;
+                            })
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                TextInput::make('nama')
+                                    ->label('Nama Kategori Baru')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule(fn() => Rule::unique('kategori_arsips', 'nama')->where('unit_kerja_id', Auth::user()?->unit_kerja_id)),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                return KategoriArsip::create([
+                                    'unit_kerja_id' => Auth::user()?->unit_kerja_id,
+                                    'nama' => trim($data['nama']),
+                                ])->id;
+                            }),
+
+                        Textarea::make('catatan')
+                            ->label('Catatan Arsip (Opsional)')
+                            ->default(function (Surat $record) {
+                                $unitId = Auth::user()?->unit_kerja_id;
+                                return $record->arsipSurats->firstWhere('unit_kerja_id', $unitId)?->catatan;
+                            })
+                            ->rows(3),
+                    ])
+                    ->action(function (Surat $record, array $data) {
+                        $unitId = Auth::user()?->unit_kerja_id;
+                        if (!$unitId) return;
+
+                        $arsip = \App\Models\ArsipSurat::where('surat_id', $record->id)
+                            ->where('unit_kerja_id', $unitId)
+                            ->first();
+
+                        if ($arsip) {
+                            $arsip->update([
+                                'kategori_arsip_id' => $data['kategori_arsip_id'],
+                                'catatan' => $data['catatan'] ?? $arsip->catatan,
+                            ]);
+
+                            Notification::make()
+                                ->title('Kategori Arsip Berhasil Diubah')
+                                ->success()
+                                ->send();
+                        }
+                    }),
+            ])
+
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('ubah_kategori_massal')
+                        ->label('Pindahkan Kategori Terpilih')
+                        ->icon('heroicon-o-folder-arrow-down')
+                        ->color('warning')
+                        ->visible(fn($livewire) => ($livewire->scope ?? request('scope')) === 'arsip')
+                        ->modalHeading('Pindahkan Kategori Arsip Massal')
+                        ->modalDescription('Pilih kategori arsip tujuan untuk seluruh surat yang dipilih.')
+                        ->schema([
+                            Select::make('kategori_arsip_id')
+                                ->label('Kategori Arsip Baru')
+                                ->options(
+                                    fn() => KategoriArsip::where('unit_kerja_id', Auth::user()?->unit_kerja_id)
+                                        ->pluck('nama', 'id')
+                                )
+                                ->required()
+                                ->searchable()
+                                ->preload()
+                                ->createOptionForm([
+                                    TextInput::make('nama')
+                                        ->label('Nama Kategori Baru')
+                                        ->required()
+                                        ->maxLength(100)
+                                        ->rule(fn() => Rule::unique('kategori_arsips', 'nama')->where('unit_kerja_id', Auth::user()?->unit_kerja_id)),
+                                ])
+                                ->createOptionUsing(function (array $data) {
+                                    return KategoriArsip::create([
+                                        'unit_kerja_id' => Auth::user()?->unit_kerja_id,
+                                        'nama' => trim($data['nama']),
+                                    ])->id;
+                                }),
+                        ])
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records, array $data) {
+                            $unitId = Auth::user()?->unit_kerja_id;
+                            if (!$unitId) return;
+
+                            $suratIds = $records->pluck('id')->toArray();
+                            \App\Models\ArsipSurat::whereIn('surat_id', $suratIds)
+                                ->where('unit_kerja_id', $unitId)
+                                ->update([
+                                    'kategori_arsip_id' => $data['kategori_arsip_id'],
+                                ]);
+
+                            Notification::make()
+                                ->title(count($suratIds) . ' Surat Berhasil Dipindahkan')
+                                ->body('Kategori arsip surat terpilih telah diperbarui.')
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                ]),
+            ])
+
             ->emptyStateHeading('TIdak Ada Data Surat')
             ->emptyStateDescription('')
             ->persistSearchInSession()

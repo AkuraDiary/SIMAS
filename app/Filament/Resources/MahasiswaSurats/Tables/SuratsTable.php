@@ -16,7 +16,7 @@ class SuratsTable
     public static function configure(Table $table): Table
     {
         return $table
-        // ->poll('7s')
+            // ->poll('7s')
             ->columns([
                 TextColumn::make('perihal')
                     ->label('Perihal')
@@ -42,7 +42,21 @@ class SuratsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                \Filament\Tables\Actions\ViewAction::make(),
+                // 1. Aksi Lacak Langsung ke Halaman Tracking
+                // \Filament\Actions\Action::make('lacak')
+                //     ->label('Lacak')
+                //     ->icon('heroicon-o-eye')
+                //     ->url(fn(\App\Models\Surat $record) => url('/lacak?code=' . ($record->tracking_code ?: 'REQ-' . $record->id)))
+                //     ->openUrlInNewTab(),
+
+                \Filament\Actions\EditAction::make()
+                    ->label('Perbaiki')
+                    ->icon('heroicon-m-pencil-square')
+                    ->color('warning')
+                    ->visible(fn(\App\Models\Surat $record) => $record->status_surat === 'REVISI'),
+
+                // 2. Aksi Lihat Modal Detail Internal
+                \Filament\Actions\ViewAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

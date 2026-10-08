@@ -14,7 +14,7 @@ trait HasInternalActions
     {
         return [
             Action::make('selesai_internal')
-                ->label('Tandai Selesai & Balas')
+                ->label('Tanggapi & Selesaikan')
                 ->icon('heroicon-o-chat-bubble-bottom-center-text')
                 ->color('gray')
                 ->visible(fn() => $this->surat->status_surat === 'DIPROSES')
