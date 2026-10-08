@@ -1,10 +1,10 @@
-name: Deploy Dev via SSH
+name: Deploy Prod via SSH
 
 # This tells GitHub to only run this script when you push code to the "dev" branch
 on:
   push:
     branches:
-      - dev
+      - main
 
 jobs:
   build-and-deploy:
@@ -48,5 +48,5 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "."
-          target: "/home/${{ secrets.SERVER_USERNAME }}/dev.elsimas.my.id/simasdev/"
+          target: "/home/${{ secrets.SERVER_USERNAME }}/elsimas.my.id/github_actions/"
           rm: false
