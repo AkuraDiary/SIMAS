@@ -95,9 +95,9 @@ trait HasApprovalActions
                 ->label('Sumber QR Code TTD')
                 ->options([
                     'generate' => 'Generate Otomatis dari Sistem (Verifikasi Internal)',
-                    'upload'   => 'Unggah QR Code Eksternal (BSrE, Privy, dll)',
-                    'draw'     => 'Goreskan Tanda Tangan Langsung (Canvas TTD)',
-                    'none'     => 'Tanpa QR Code (Hanya Nama Terang)',
+                    'upload'   => 'Unggah QR Code Eksternal',
+                    'draw'     => 'Goreskan Tanda Tangan Langsung',
+                    'none'     => 'Mengetahui Saja (Nama)',
                 ])
                 ->default('generate')
                 ->reactive()

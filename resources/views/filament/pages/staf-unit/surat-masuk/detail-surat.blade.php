@@ -230,7 +230,7 @@
                             {{-- Date & Sender --}}
                             <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
                                 {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai->nama_lengkap ?? ''}}
-                                
+
                                 @if ($d?->userPegawaiJabatan)
                                 ({{ $d->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $d->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})
                                 @endif
@@ -238,12 +238,14 @@
 
                             {{-- Content Card --}}
                             <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-                                <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
-                                    {!! nl2br($d->catatan ?? 'Tidak ada catatan.') !!}
-                                </p>
+
                                 <div class="text-xs font-medium text-gray-700 dark:text-gray-300">
                                     <span class="text-gray-400">Instruksi:</span> {{ $d->jenis_instruksi }}
                                 </div>
+                                <br>
+                                <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                                    {!! nl2br($d->catatan ?? '') !!}
+                                </p>
                             </div>
 
                             {{-- Bukti Media --}}

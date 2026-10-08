@@ -484,10 +484,12 @@ class SuratRoutingService
                 'unit_asal_id'   => $currentRiwayat->unit_tujuan_id,
                 'unit_tujuan_id' => $currentRiwayat->unit_asal_id, // Pantulkan kembali ke pengirim sebelumnya
                 'user_aktor_id'  => null,
-                'status'         => 'MENUNGGU',
+                'status'         => 'REVISI',
                 'catatan'        => 'Dikembalikan dengan catatan: ' . $catatan,
                 'actioned_at'    => null,
             ]);
+            $surat->status_surat = 'REVISI';
+            $surat->save();
 
             // Notifikasi ke unit sebelumnya bahwa surat dikembalikan
             $prevUnitUsers = \App\Models\User::ofUnitKerja($currentRiwayat->unit_asal_id)->get();
