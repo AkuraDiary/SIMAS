@@ -206,7 +206,11 @@ class DetailSurat extends Page implements HasForms
         // 1. Actions Finalisasi (Beri Nomor Surat & Unduh PDF Resmi) -> masuk ke Kelola Surat
         $finalisasiActions = $this->getFinalisasiActions();
         foreach ($finalisasiActions as $act) {
-            $secondaryActions[] = $act;
+            if ($act->getName() === 'download_pdf') {
+                $primaryActions[] = $act;
+            } else {
+                $secondaryActions[] = $act;
+            }
         }
 
         // 2. Download Template Word (.docx)
