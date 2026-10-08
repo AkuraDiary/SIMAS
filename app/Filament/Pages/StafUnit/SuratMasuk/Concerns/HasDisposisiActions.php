@@ -331,10 +331,21 @@ trait HasDisposisiActions
 
     protected function canRespondDisposisi(): bool
     {
-        $unitId = Auth::user()->unit_kerja_id;
+        $user = Auth::user();
+        $unitId = $user->unit_kerja_id;
+        $myUpjId = $user->getActiveJabatan()?->id;
+
         return $this->surat->disposisis
-            ->where('unit_tujuan_id', $unitId)
             ->where('status_disposisi', '!=', 'SELESAI')
+            ->where('user_pembuat_id', '!=', $user->id)
+            ->filter(function ($d) use ($unitId, $myUpjId) {
+                // Jika disposisi internal, hanya staf dengan UPJ target yang bisa respon
+                if ($d->user_pegawai_jabatan_id) {
+                    return $d->user_pegawai_jabatan_id == $myUpjId;
+                }
+                // Jika disposisi eksternal antar-unit, unit tujuan yang cocok
+                return $d->unit_tujuan_id == $unitId;
+            })
             ->isNotEmpty();
     }
 
@@ -343,10 +354,19 @@ trait HasDisposisiActions
      */
     protected function getActiveDisposisi()
     {
-        $unitId = \Illuminate\Support\Facades\Auth::user()->unit_kerja_id;
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $unitId = $user->unit_kerja_id;
+        $myUpjId = $user->getActiveJabatan()?->id;
 
         return $this->surat->disposisis
-            ->where('unit_tujuan_id', $unitId)
+            ->where('status_disposisi', '!=', 'SELESAI')
+            ->where('user_pembuat_id', '!=', $user->id)
+            ->filter(function ($d) use ($unitId, $myUpjId) {
+                if ($d->user_pegawai_jabatan_id) {
+                    return $d->user_pegawai_jabatan_id == $myUpjId;
+                }
+                return $d->unit_tujuan_id == $unitId;
+            })
             ->sortByDesc('tanggal_disposisi')
             ->first();
     }

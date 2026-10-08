@@ -215,11 +215,19 @@
                             <span class="absolute flex items-center justify-center w-4 h-4 rounded-full -left-[9px] top-1 {{ $d->status_disposisi === 'selesai' ? 'bg-green-500 ring-4 ring-green-100 dark:ring-green-900' : 'bg-blue-500 ring-4 ring-blue-100 dark:ring-blue-900' }}">
                             </span>
 
-                            {{-- Target Unit & Status Badge --}}
+                            {{-- Target Unit / Staf & Status Badge --}}
                             <div class="flex flex-wrap gap-2 items-center mb-1">
-                                <h3 class="text-sm font-bold text-gray-900 dark:text-white">
-                                    Ke {{ $d->unitTujuan->nama_unit }}
+                                @if($d->user_pegawai_jabatan_id && $d->userPegawaiJabatan)
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Disposisi Internal</span>
+                                    Ke: {{ $d->userPegawaiJabatan->pegawai?->nama_lengkap ?? 'Staf' }} ({{ $d->userPegawaiJabatan->jabatan?->nama_jabatan ?? '' }})
                                 </h3>
+                                @else
+                                <h3 class="text-sm font-bold text-gray-900 dark:text-white">
+                                    Ke {{ $d->unitTujuan->nama_unit ?? 'Unit' }}
+                                </h3>
+                                @endif
+
                                 @if($d->status_disposisi === 'SELESAI')
                                 <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Selesai</span>
                                 @else
@@ -229,10 +237,13 @@
 
                             {{-- Date & Sender --}}
                             <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai->nama_lengkap ?? ''}}
+                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai?->nama_lengkap ?? $d?->pembuat?->nama_lengkap ?? 'Pimpinan' }}
 
-                                @if ($d?->userPegawaiJabatan)
-                                ({{ $d->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $d->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})
+                                @php
+                                $pembuatJabatan = $d?->pembuat?->getActiveJabatan();
+                                @endphp
+                                @if ($pembuatJabatan)
+                                ({{ $pembuatJabatan->jabatan->nama_jabatan ?? '' }} - {{ $pembuatJabatan->unitKerja->nama_unit ?? '' }})
                                 @endif
                             </time>
 

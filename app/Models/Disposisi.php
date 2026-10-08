@@ -51,6 +51,12 @@ class Disposisi extends Model implements HasMedia
         return $this->belongsTo(User::class, 'user_pembuat_id');
     }
 
+    public function unitPembuat(): BelongsTo
+    {
+        // Fallback relation agar eager loading / query unitPembuat tidak crash
+        return $this->belongsTo(UnitKerja::class, 'unit_tujuan_id');
+    }
+
     public function userPegawaiJabatan(): BelongsTo
     {
         return $this->belongsTo(UserPegawaiJabatan::class, 'user_pegawai_jabatan_id');
