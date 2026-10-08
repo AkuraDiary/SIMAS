@@ -55,18 +55,25 @@ class SuratRoutingService
             ]);
 
             // Kirim notifikasi ke penerima di unit langkah pertama
+            // Kirim notifikasi ke penerima di unit langkah pertama (Orkestrasi Terpusat)
+            $hasApprovalPath = !empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0;
+            $notifTitle = $hasApprovalPath
+                ? 'Permohonan Persetujuan Surat Masuk'
+                : 'Surat Masuk Baru';
+            $notifBody = $hasApprovalPath
+                ? "Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda."
+                : "Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal;
             $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get();
             if ($targetUsers->isNotEmpty()) {
                 \Filament\Notifications\Notification::make()
-                    ->title('Permohonan Persetujuan Surat Masuk')
-                    ->body("Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda.")
+                    ->title($notifTitle)
+                    ->body($notifBody)
                     ->info()
                     ->viewData([
                         'unit_kerja_id' => (int) $finalUnitTujuanId,
                         'surat_id'      => $surat->id,
                     ])
                     ->sendToDatabase($targetUsers);
-
                 app(\App\Services\WhatsAppNotificationService::class)->notifySuratMasuk($surat, $targetUsers);
             }
 
