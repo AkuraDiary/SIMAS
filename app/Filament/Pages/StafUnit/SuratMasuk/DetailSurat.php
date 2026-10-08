@@ -267,19 +267,19 @@ class DetailSurat extends Page implements HasForms
                 if (isset($persetujuan['group_proses'])) {
                     $primaryActions[] = $persetujuan['group_proses'];
                 }
-                // Tombol Edit Draf untuk Peninjau Aktif / Pihak Tengah
+                // Tombol Perbaiki surat untuk Peninjau Aktif / Pihak Tengah
                 // HANYA muncul jika surat sedang dalam status REVISI atau pernah dikembalikan ke unit ini
                 $isRevisiOrDikembalikan = $this->surat->status_surat === 'REVISI'
                     || $this->surat->riwayats->contains(fn($r) => $r->unit_tujuan_id == $unitId && in_array($r->status, ['DIKEMBALIKAN', 'REVISI']));
 
                 if ($isRevisiOrDikembalikan) {
                     $primaryActions[] = Action::make('edit_draf_review')
-                        ->label('Edit Draf')
-                        ->icon('heroicon-o-pencil-square')
-                        ->color('warning')
-                        ->outlined()
+                        ->label('Perbaiki Surat')
+                        ->icon('heroicon-o-pencil')
+                        ->color('secondary')
                         ->url(\App\Filament\Resources\Surats\Pages\EditSurat::getUrl(['record' => $this->surat]));
                 }
+
                 // Tombol Sekunder/Kembalikan: Outlined Danger
                 if (isset($persetujuan['group_kembalikan'])) {
                     $primaryActions[] = $persetujuan['group_kembalikan'];
