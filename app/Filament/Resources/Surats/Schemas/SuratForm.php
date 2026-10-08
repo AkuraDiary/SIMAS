@@ -406,7 +406,7 @@ class SuratForm
                                     if (!$pengajuan) return [];
                                     return $pengajuan->getMedia('lampiran-surat')->mapWithKeys(function ($item) {
                                         $url = route('media.download', $item->id);
-                                        return [(string) $item->id => new \Illuminate\Support\HtmlString("<a href='{$url}' target='_blank' class='text-xs text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1'>Lihat / Unduh Dokumen</a>")];
+                                        return [(string) $item->id => new \Illuminate\Support\HtmlString("<a href='{$url}' target='_blank' class='text-xs text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1'>Unduh Dokumen</a>")];
                                     })->toArray();
                                 })
                                 ->bulkToggleable()
