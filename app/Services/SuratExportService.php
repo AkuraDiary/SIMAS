@@ -49,38 +49,51 @@ class SuratExportService
      * PDF GENERATORS
      * ======================= */
 
-
-    protected function generateSuratPdf(Surat $surat, string $dir): void
+    /**
+     * Engine Terpusat: Generate naskah resmi PDF murni (Template / Scratch)
+     * dan lampirkan ke koleksi media 'dokumen-final' milik model Surat.
+     */
+    public function generateAndAttachDokumenFinal(Surat $surat, ?string $nomor = null): void
     {
-        // 1. Jika surat sudah memiliki file dokumen-final resmi (dengan TTD & QR), gunakan file tersebut
-        $dokumenFinal = $surat->getFirstMedia('dokumen-final');
-        if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
-            copy($dokumenFinal->getPath(), $dir . '/01_Surat_Utama.pdf');
-            return;
-        }
+        $renderedHtml = ($surat->template_id && $surat->template)
+            ? app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat)
+            : app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
 
-        // 2. Fallback: generate HTML surat murni (tanpa menyuntikkan metadata)
-        $renderedHtml = null;
-        if ($surat->template_id && $surat->template) {
-            $service = app(\App\Services\PlaceholderService::class);
-            $renderedHtml = $service->renderHtml($surat->template, $surat->content ?? [], $surat);
-        } else {
-            $renderedHtml = app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
-        }
-
-        $suratHtml = view(
-            'filament.exports.surat.surat',
-            [
-                'surat'        => $surat,
-                'isArsip'      => $surat->status_surat === 'ARSIP',
-                'renderedHtml' => $renderedHtml,
-            ]
-        )->render();
+        $suratHtml = view('filament.exports.surat.surat', [
+            'surat'        => $surat,
+            'isArsip'      => $surat->status_surat === 'ARSIP',
+            'renderedHtml' => $renderedHtml,
+        ])->render();
 
         $pdf = Pdf::loadHTML($suratHtml)->setPaper('A4', 'portrait');
-        $pdf->save($dir . '/01_Surat_Utama.pdf');
+        $pdfContent = $pdf->output();
+
+        $nomorFinal = $nomor ?? $surat->nomor_surat;
+        $safeNomor = !empty($nomorFinal)
+            ? str_replace(['/', '\\'], '_', $nomorFinal)
+            : 'Disahkan_' . $surat->id;
+        $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
+
+        $surat->clearMediaCollection('dokumen-final');
+        $surat->addMediaFromString($pdfContent)
+            ->usingName('Dokumen Final Resmi')
+            ->usingFileName($fileName)
+            ->toMediaCollection('dokumen-final');
     }
 
+       protected function generateSuratPdf(Surat $surat, string $dir): void
+    {
+        // Jika belum memiliki file dokumen-final resmi, generate sekarang
+        $dokumenFinal = $surat->getFirstMedia('dokumen-final');
+        if (!$dokumenFinal || !file_exists($dokumenFinal->getPath())) {
+            $this->generateAndAttachDokumenFinal($surat);
+            $dokumenFinal = $surat->fresh()->getFirstMedia('dokumen-final');
+        }
+
+        if ($dokumenFinal && file_exists($dokumenFinal->getPath())) {
+            copy($dokumenFinal->getPath(), $dir . '/01_Surat_Utama.pdf');
+        }
+    }
     protected function generateLembarKendaliPdf(Surat $surat, string $dir): void
     {
         // Format TTD / QR Code pejabat ke Data URI Base64 agar DomPDF dapat merender langsung

@@ -239,26 +239,9 @@ class SuratRoutingService
                     $newStatus = 'SELESAI';
                     $surat->status_surat = $newStatus;
                     $surat->save();
-                    // Finalisasi: Render HTML ke PDF resmi (Mendukung Template maupun Scratch)
-                    $renderedHtml = ($surat->template_id && $surat->template)
-                        ? app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat)
-                        : app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
-                    $suratHtml = view('filament.exports.surat.surat', [
-                        'surat'        => $surat,
-                        'isArsip'      => false,
-                        'renderedHtml' => $renderedHtml,
-                    ])->render();
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($suratHtml)->setPaper('A4', 'portrait');
-                    $pdfContent = $pdf->output();
-                    $safeNomor = !empty($surat->nomor_surat)
-                        ? str_replace(['/', '\\'], '_', $surat->nomor_surat)
-                        : 'Disahkan_' . $surat->id;
-                    $fileName = 'Surat_Utama_' . $safeNomor . '.pdf';
-                    $surat->clearMediaCollection('dokumen-final');
-                    $surat->addMediaFromString($pdfContent)
-                        ->usingName('Dokumen Final Resmi')
-                        ->usingFileName($fileName)
-                        ->toMediaCollection('dokumen-final');
+                    // Finalisasi: Render HTML ke PDF resmi via engine terpusat
+                    app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($surat);
+
                     // Jika ini balasan untuk Pengajuan, tutup Pengajuan dan Notifikasi pemohon!
                     if ($surat->terbitan_for_surat_id) {
                         $pengajuan = \App\Models\Surat::find($surat->terbitan_for_surat_id);
