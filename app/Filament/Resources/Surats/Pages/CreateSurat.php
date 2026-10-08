@@ -106,7 +106,7 @@ class CreateSurat extends CreateRecord
         $activeJabatan = \Illuminate\Support\Facades\Auth::user()?->getActiveJabatan();
 
         if (Request::has('tipe_surat') || Request::has('terbitan_for_surat_id')) {
-              $terbitanForId = Request::query('terbitan_for_surat_id');
+            $terbitanForId = Request::query('terbitan_for_surat_id');
             $defaultUnitTujuan = [];
             $defaultLampiranDipilih = [];
             // Jika merujuk ke pengajuan internal, otomatis pasang unit pemohon sebagai unit tujuan
@@ -144,8 +144,24 @@ class CreateSurat extends CreateRecord
             ]);
         }
 
-        // Penanganan jika nomor_surat ditetapkan saat pembuatan
-        if (!empty($surat->nomor_surat) && $surat->nomorSuratLogs()->doesntExist()) {
+        // Penanganan alokasi nomor surat saat pembuatan
+        $modePenomoran = $this->data['mode_penomoran'] ?? 'auto';
+
+        // Jika mode auto dan nomor masih kosong, alokasikan nomor surat resmi dari format unit
+        if ($modePenomoran === 'auto' && empty($surat->nomor_surat)) {
+            $format = app(\App\Services\NomorSuratService::class)->resolveFormat(
+                $surat->unit_pengirim_id,
+                $surat->tipe_surat
+            );
+            if ($format) {
+                app(\App\Services\NomorSuratService::class)->assignNomorSurat($surat, $format, [
+                    'tanggal_surat' => now(),
+                    'is_manual' => false,
+                    'increment_counter' => true,
+                    'user_id' => auth()->id(),
+                ]);
+            }
+        } elseif (!empty($surat->nomor_surat) && $surat->nomorSuratLogs()->doesntExist()) { // Penanganan jika nomor_surat ditetapkan saat pembuatan
             $formatId = $this->data['format_id_input'] ?? null;
             $format = $formatId ? \App\Models\FormatNomorSurat::find($formatId) : null;
             if (!$format) {

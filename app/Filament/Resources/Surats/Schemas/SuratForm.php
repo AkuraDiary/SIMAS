@@ -158,6 +158,11 @@ class SuratForm
                                             }
                                         }
                                         $set('content', $content);
+
+                                        // Auto-fill alur persetujuan jika template memiliki default approval_path
+                                        if (!empty($template->approval_path) && is_array($template->approval_path)) {
+                                            $set('approval_path', $template->approval_path);
+                                        }
                                     }
                                 }),
 
@@ -439,6 +444,18 @@ class SuratForm
                                     'nama_unit',
                                     modifyQueryUsing: fn($query) => $query->where('unit_kerjas.id', '<>', Auth::user()->unit_kerja_id)
                                 )
+                                ->required(function (Get $get) {
+                                    // Tidak wajib jika balasan pengajuan
+                                    if (filled($get('terbitan_for_surat_id'))) {
+                                        return false;
+                                    }
+                                    // Tidak wajib jika surat memiliki alur persetujuan (pemeriksa pertama adalah entry point)
+                                    $path = $get('approval_path');
+                                    if (!empty($path) && is_array($path) && count($path) > 0) {
+                                        return false;
+                                    }
+                                    return true;
+                                })
                                 ->searchable()
                                 ->preload(),
 

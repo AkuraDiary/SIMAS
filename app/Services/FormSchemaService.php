@@ -248,17 +248,20 @@ class FormSchemaService
                 case 'long_text':
                     $schema[] = \Filament\Forms\Components\Textarea::make($contentKey)
                         ->label($label)
+                        ->live(onBlur: true)
                         ->required();
                     break;
                 case 'number':
                     $schema[] = \Filament\Forms\Components\TextInput::make($contentKey)
                         ->label($label)
+                        ->live(onBlur: true)
                         ->numeric()
                         ->required();
                     break;
                 case 'date':
                     $schema[] = \Filament\Forms\Components\DatePicker::make($contentKey)
                         ->label($label)
+                        ->live(onBlur: true)
                         ->required();
                     break;
                 case 'repeater':
@@ -270,6 +273,7 @@ class FormSchemaService
                         if ($subKey) {
                             $subSchema[] = \Filament\Forms\Components\TextInput::make($subKey)
                                 ->label($subLabel)
+                                // ->live(onBlur: true)
                                 ->required();
                         }
                     }
@@ -331,6 +335,7 @@ class FormSchemaService
                 default:
                     $schema[] = TextInput::make($contentKey)
                         ->label($label)
+                        ->live(onBlur: true)
                         ->required();
                     break;
             }
