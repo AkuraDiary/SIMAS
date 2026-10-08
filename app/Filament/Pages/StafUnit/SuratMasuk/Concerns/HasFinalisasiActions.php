@@ -30,7 +30,7 @@ trait HasFinalisasiActions
         // 1. Download PDF Resmi dari Arsip
         if ($this->surat->tipe_surat === 'TERBITAN') {
             $actions[] = Action::make('download_pdf')
-                ->label('Unduh PDF Resmi')
+                ->label('Unduh Surat Terbitan ')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('success')
                 ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']) && $this->surat->hasMedia('dokumen-final'))
@@ -206,35 +206,34 @@ trait HasFinalisasiActions
                         ->where('status', 'MENUNGGU')
                         ->exists();
 
-                        // Terbitkan Dokumen Final Resmi via engine terpusat
-                        app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat, $nomorAkhir);
+                    // Terbitkan Dokumen Final Resmi via engine terpusat
+                    app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat, $nomorAkhir);
 
 
-                        // Jika surat ini rujukan atas pengajuan pemohon, selesaikan pengajuan & notifikasi pemohon
-                        if ($this->surat->terbitan_for_surat_id) {
-                            $pengajuan = \App\Models\Surat::find($this->surat->terbitan_for_surat_id);
-                            if ($pengajuan) {
-                                $pengajuan->update(['status_surat' => 'SELESAI']);
+                    // Jika surat ini rujukan atas pengajuan pemohon, selesaikan pengajuan & notifikasi pemohon
+                    if ($this->surat->terbitan_for_surat_id) {
+                        $pengajuan = \App\Models\Surat::find($this->surat->terbitan_for_surat_id);
+                        if ($pengajuan) {
+                            $pengajuan->update(['status_surat' => 'SELESAI']);
 
-                                if ($pengajuan->user_pembuat_id) {
-                                    $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
-                                    if ($targetUser) {
-                                        Notification::make()
-                                            ->title('Surat Terbitan Selesai')
-                                            ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
-                                            ->success()
-                                            ->viewData([
-                                                'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $this->surat->unit_pengirim_id),
-                                                'surat_id'      => $this->surat->id,
-                                            ])
-                                            ->sendToDatabase($targetUser);
+                            if ($pengajuan->user_pembuat_id) {
+                                $targetUser = \App\Models\User::find($pengajuan->user_pembuat_id);
+                                if ($targetUser) {
+                                    Notification::make()
+                                        ->title('Surat Terbitan Selesai')
+                                        ->body('Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.')
+                                        ->success()
+                                        ->viewData([
+                                            'unit_kerja_id' => (int) ($pengajuan->unit_pengirim_id ?? $this->surat->unit_pengirim_id),
+                                            'surat_id'      => $this->surat->id,
+                                        ])
+                                        ->sendToDatabase($targetUser);
 
-                                        app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
-                                            $this->surat,
-                                            $targetUser,
-                                            'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
-                                        );
-                                    }
+                                    app(\App\Services\WhatsAppNotificationService::class)->notifySuratSelesai(
+                                        $this->surat,
+                                        $targetUser,
+                                        'Pengajuan Anda telah diproses dan Surat Balasan/Rekomendasi telah diterbitkan.'
+                                    );
                                 }
                             }
                         }

@@ -119,7 +119,7 @@ class SuratExportService
             'filament.exports.surat.lembar-kendali-persetujuan',
             [
                 'surat'          => $surat,
-                'riwayats'       => $surat->riwayats()->with(['unitAsal', 'unitTujuan', 'userAktor'])->orderBy('id')->get(),
+                'riwayats'       => $surat->riwayats()->with(['unitAsal', 'unitTujuan', 'aktor'])->orderBy('id')->get(),
                 'ttdsWithImages' => $ttdsWithImages,
                 'lampirans'      => $surat->getSemuaLampiran(),
             ]
