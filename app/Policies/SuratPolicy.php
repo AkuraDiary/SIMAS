@@ -129,9 +129,6 @@ class SuratPolicy
                 }
             }
 
-            if ($hasActiveReview && in_array($surat->status_surat, ['DIPROSES', 'REVISI', 'TERKIRIM'])) {
-                return true;
-            }
             // 3. Fallback jika masih draft bagi unit pengirim
             if ($surat->status_surat === 'DRAFT') {
                 return true;
