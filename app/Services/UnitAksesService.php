@@ -13,6 +13,9 @@ class UnitAksesService
     /**
      * Apply letter visibility filters for a user viewing Surat Masuk in a specific unit.
      */
+       /**
+     * Apply letter visibility filters for a user viewing Surat Masuk in a specific unit.
+     */
     public function applySuratMasukFilter(Builder $query, ?User $user, ?int $unitId): Builder
     {
         if (!$user || !$unitId) {
@@ -25,29 +28,44 @@ class UnitAksesService
         }
 
         $activeJabatanId = $user->getActiveJabatan()?->id;
+        $canDelegasiDisposisi = $user->canDisposisiUnit($unitId);
 
         // Restricted Mode (Disposisi & Workflow yang ditugaskan ke user/unit):
         return $query
             ->where('status_surat', '<>', 'DRAFT')
-            ->where(function (Builder $q) use ($unitId, $user, $activeJabatanId) {
-                // 1. Letters dispositioned to this unit (khususnya yang ditujukan ke jabatan user atau dibuat user)
-                $q->whereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId) {
+            ->where(function (Builder $q) use ($unitId, $user, $activeJabatanId, $canDelegasiDisposisi) {
+                // 1. Surat yang didisposisikan ke user ini (atau ke unit jika memegang delegasi disposisi)
+                $q->whereHas('disposisis', function (Builder $dq) use ($unitId, $user, $activeJabatanId, $canDelegasiDisposisi) {
                     $dq->where('unit_tujuan_id', $unitId)
-                        ->where(function (Builder $sub) use ($user, $activeJabatanId) {
-                            $sub->whereNull('user_pegawai_jabatan_id')
-                                ->orWhere('user_pegawai_jabatan_id', $activeJabatanId)
-                                ->orWhere('user_pembuat_id', $user->id);
+                        ->where(function (Builder $sub) use ($user, $activeJabatanId, $canDelegasiDisposisi) {
+                            if ($canDelegasiDisposisi) {
+                                $sub->whereNull('user_pegawai_jabatan_id')
+                                    ->orWhere('user_pegawai_jabatan_id', $activeJabatanId)
+                                    ->orWhere('user_pembuat_id', $user->id);
+                            } else {
+                                $sub->where('user_pegawai_jabatan_id', $activeJabatanId)
+                                    ->orWhere('user_pembuat_id', $user->id);
+                            }
                         });
                 })
-                    // 2. Letters in workflow for this unit (actively waiting or approved)
-                    ->orWhereHas('riwayats', function (Builder $rw) use ($unitId, $user) {
+                    // 2. Surat alur persetujuan yang ditugaskan ke user (atau alur baru unit jika delegasi disposisi)
+                    ->orWhereHas('riwayats', function (Builder $rw) use ($unitId, $user, $canDelegasiDisposisi) {
                         $rw->where('unit_tujuan_id', $unitId)
                             ->whereIn('status', ['MENUNGGU', 'DISETUJUI'])
-                            ->where(function ($s) use ($user) {
-                                $s->whereNull('user_aktor_id')
-                                    ->orWhere('user_aktor_id', $user->id);
+                            ->where(function ($s) use ($user, $canDelegasiDisposisi) {
+                                if ($canDelegasiDisposisi) {
+                                    $s->whereNull('user_aktor_id')
+                                        ->orWhere('user_aktor_id', $user->id);
+                                } else {
+                                    $s->where('user_aktor_id', $user->id);
+                                }
                             });
                     });
+
+                // 3. Staf pemegang delegasi disposisi dapat melihat surat masuk langsung ke unit untuk ditindaklanjuti
+                if ($canDelegasiDisposisi) {
+                    $q->orWhereHas('suratUnits', fn($su) => $su->where('unit_kerja_id', $unitId));
+                }
             });
     }
 
@@ -138,6 +156,9 @@ class UnitAksesService
     /**
      * Check if a specific user has permission to open and view a particular Surat.
      */
+       /**
+     * Check if a specific user has permission to open and view a particular Surat.
+     */
     public function canUserAccessSurat(?User $user, Surat $surat, ?int $unitId): bool
     {
         if (!$user || !$unitId) {
@@ -153,7 +174,7 @@ class UnitAksesService
         }
         // Izinkan jika unit user adalah unit pemohon dari pengajuan yang dibalas oleh surat terbitan ini
         if ($surat->terbitan_for_surat_id) {
-            $pengajuan = $surat->terbitanForSurat;
+            $pengajuan = $surat->terbitanForSurat ?? $surat->terbitanFor;
             if ($pengajuan && ($pengajuan->unit_asal_id === $unitId || $pengajuan->unit_pengirim_id === $unitId)) {
                 return true;
             }
@@ -173,19 +194,41 @@ class UnitAksesService
         }
 
         $activeJabatanId = $user->getActiveJabatan()?->id;
+        $canDelegasiDisposisi = $user->canDisposisiUnit($unitId);
 
         // Check if there is a disposisi for this unit that covers this user
         $hasDisposisi = $surat->disposisis()
             ->where('unit_tujuan_id', $unitId)
-            ->where(function ($q) use ($user, $activeJabatanId) {
-                $q->whereNull('user_pegawai_jabatan_id')
-                    ->orWhere('user_pegawai_jabatan_id', $activeJabatanId)
-                    ->orWhere('user_pembuat_id', $user->id);
+            ->where(function ($q) use ($user, $activeJabatanId, $canDelegasiDisposisi) {
+                if ($canDelegasiDisposisi) {
+                    $q->whereNull('user_pegawai_jabatan_id')
+                        ->orWhere('user_pegawai_jabatan_id', $activeJabatanId)
+                        ->orWhere('user_pembuat_id', $user->id);
+                } else {
+                    $q->where('user_pegawai_jabatan_id', $activeJabatanId)
+                        ->orWhere('user_pembuat_id', $user->id);
+                }
             })
             ->exists();
 
         if ($hasDisposisi) {
             return true;
+        }
+
+        // Staf pemegang delegasi disposisi diizinkan membuka surat masuk unit atau alur menunggu tindakan unit
+        if ($canDelegasiDisposisi) {
+            $isDirectUnitInbox = $surat->suratUnits()->where('unit_kerja_id', $unitId)->exists();
+            if ($isDirectUnitInbox) {
+                return true;
+            }
+            $isUnitWorkflowWaiting = $surat->riwayats()
+                ->where('unit_tujuan_id', $unitId)
+                ->where('status', 'MENUNGGU')
+                ->whereNull('user_aktor_id')
+                ->exists();
+            if ($isUnitWorkflowWaiting) {
+                return true;
+            }
         }
 
         // Check if user is in the riwayat approval chain

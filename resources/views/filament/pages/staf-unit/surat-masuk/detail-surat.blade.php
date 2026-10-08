@@ -229,7 +229,8 @@
 
                             {{-- Date & Sender --}}
                             <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->name ?? ''}}
+                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai->nama_lengkap ?? ''}}
+                                
                                 @if ($d?->userPegawaiJabatan)
                                 ({{ $d->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $d->userPegawaiJabatan->unitKerja->nama_unit ?? '' }})
                                 @endif

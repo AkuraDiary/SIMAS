@@ -107,7 +107,9 @@ trait HasSuratFormActions
                     ]);
                 }
 
-                $surat->tanggal_kirim = now();
+                if (!$surat->tanggal_kirim) {
+                    $surat->tanggal_kirim = now();
+                }
                 $unitTujuan = $this->data['unitTujuan'][0] ?? $surat->unit_pengirim_id;
 
                 app(SuratRoutingService::class)->submitForApproval(
