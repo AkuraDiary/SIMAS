@@ -21,19 +21,20 @@ class SuratRoutingService
             $surat->update([
                 'status_surat' => 'TERKIRIM',
             ]);
-            // [NEW] Automated Routing Engine
+            // Automated Routing Engine
             $finalUnitTujuanId = $unitTujuanId;
             $finalUserAktorId = $targetUserAktorId;
             if ($isResubmission) {
-                // Cari aktor terakhir yang me-request REVISI
-                $lastRevisi = \App\Models\SuratRiwayat::where('surat_id', $surat->id)
-                    ->where('status', 'REVISI')
-                    ->latest()
+                // Cari riwayat peninjau yang me-request REVISI atau DIKEMBALIKAN (yang memiliki actioned_at)
+                $returnerRiwayat = \App\Models\SuratRiwayat::where('surat_id', $surat->id)
+                    ->whereIn('status', ['DIKEMBALIKAN', 'REVISI'])
+                    ->whereNotNull('actioned_at')
+                    ->latest('id')
                     ->first();
 
-                if ($lastRevisi) {
-                    $finalUnitTujuanId = $lastRevisi->unit_tujuan_id;
-                    $finalUserAktorId = $lastRevisi->user_aktor_id;
+                if ($returnerRiwayat) {
+                    $finalUnitTujuanId = $returnerRiwayat->unit_tujuan_id;
+                    $finalUserAktorId = $returnerRiwayat->user_aktor_id;
                 }
             } else {
                 // Jika ada approval_path, paksa rute pertama ke Jabatan pertama di list!
@@ -63,16 +64,40 @@ class SuratRoutingService
                 'actioned_at'    => null,
             ]);
 
-
-            // Kirim notifikasi ke penerima di unit langkah pertama
+            // Kirim notifikasi ke penerima di unit langkah pertama (Orkestrasi Terpusat)
             $hasApprovalPath = !empty($surat->approval_path) && is_array($surat->approval_path) && count($surat->approval_path) > 0;
             $notifTitle = $hasApprovalPath
-                ? 'Permohonan Persetujuan Surat Masuk'
-                : 'Surat Masuk Baru';
+                ? ($isResubmission ? 'Pembaruan Draf Revisi Surat' : 'Permohonan Persetujuan Surat Masuk')
+                : ($isResubmission ? 'Pembaruan Draf Revisi Surat' : 'Surat Masuk Baru');
             $notifBody = $hasApprovalPath
-                ? "Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda."
-                : "Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal;
-            $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get();
+                ? ($isResubmission ? "Konseptor telah memperbarui draf surat '{$surat->perihal}' sesuai revisi Anda." : "Surat '{$surat->perihal}' menunggu persetujuan / verifikasi Anda.")
+                : ($isResubmission ? "Draf surat '{$surat->perihal}' telah diperbarui oleh pengirim." : "Ada surat masuk baru dari " . ($surat->unitPengirim?->nama_unit ?? 'Luar') . ": " . $surat->perihal);
+
+            $targetUsers = [];
+            // Tentukan target penerima notifikasi secara cerdas
+            if ($finalUserAktorId) {
+                // 1. Jika ada target user aktor spesifik (peninjau revisi), kirim HANYA ke user tersebut
+                $targetUsers = \App\Models\User::where('id', $finalUserAktorId)->get();
+            } elseif ($hasApprovalPath) {
+                // 2. Jika ada approval_path, kirim ke pemegang jabatan approver aktif di unit tersebut
+                $stepJabatanId = $surat->approval_path[0]['jabatan_id'] ?? null;
+                if ($stepJabatanId) {
+                    $targetUsers = \App\Models\User::whereHas('userPegawaiJabatans', function ($q) use ($stepJabatanId) {
+                        $q->where('jabatan_id', $stepJabatanId)->where('status_jabatan', 'AKTIF');
+                    })->get();
+                } else {
+                    $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get();
+                }
+            } else {
+                // 3. Surat masuk unit biasa: ikuti kebijakan visibilitas unit (staf yang berhak & pimpinan)
+                $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get()->filter(function ($u) use ($surat, $finalUnitTujuanId) {
+                    return app(\App\Services\UnitAksesService::class)->canUserAccessSurat($u, $surat, $finalUnitTujuanId);
+                });
+                if ($targetUsers->isEmpty()) {
+                    $targetUsers = \App\Models\User::ofUnitKerja($finalUnitTujuanId)->get();
+                }
+            }
+
             if ($targetUsers->isNotEmpty()) {
                 \Filament\Notifications\Notification::make()
                     ->title($notifTitle)

@@ -172,11 +172,11 @@ class UnitAksesService
         if ($user->canViewAllSuratMasukUnit($unitId)) {
             return true;
         }
-        // Izinkan jika unit user adalah unit pemohon dari pengajuan yang dibalas oleh surat terbitan ini
+            // Izinkan jika unit user adalah unit pemohon dari pengajuan yang dibalas oleh surat terbitan ini (HANYA jika sudah SELESAI / TERBIT)
         if ($surat->terbitan_for_surat_id) {
             $pengajuan = $surat->terbitanForSurat ?? $surat->terbitanFor;
             if ($pengajuan && ($pengajuan->unit_asal_id === $unitId || $pengajuan->unit_pengirim_id === $unitId)) {
-                return true;
+                return in_array($surat->status_surat, ['SELESAI']);
             }
         }
         // If this unit is the sender unit:
