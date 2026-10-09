@@ -14,9 +14,13 @@ use App\Policies\UserPegawaiPolicy;
 use App\Policies\UserPolicy;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\ServiceProvider;
 use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAdded;
 
@@ -43,6 +47,16 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         Model::unguard();
+
+        // Force the login limiter to allow unlimited attempts if in development
+        RateLimiter::for('login', function (Request $request) {
+            if (App::environment('local')) {
+                return Limit::none(); // 🚫 Disables the limiter completely
+            }
+
+            // Keep standard safety limits for production
+            return Limit::perMinute(5)->by($request->ip());
+        });
 
         FilamentView::registerRenderHook(
             PanelsRenderHook::USER_MENU_BEFORE,
@@ -80,7 +94,7 @@ class AppServiceProvider extends ServiceProvider
                 $switchUrl = \App\Filament\Pages\SwitchRole::getUrl();
 
                 return '<a href="' . $switchUrl . '" title="Klik untuk berganti peran/unit" class="flex items-center px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50 transition-colors rounded-lg border dark:text-primary-400 border-primary-200 dark:bg-primary-950/30 dark:border-primary-800 mr-4 cursor-pointer">
-                            
+
                             <span>' . e($unitName) . '</span>
                         </a>';
             }
