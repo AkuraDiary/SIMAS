@@ -125,6 +125,11 @@ class GuestPengajuan extends Component implements HasForms
                             TextInput::make('pengirim_telp')
                                 ->label('Nomor Telepon / WhatsApp')
                                 ->placeholder('08xxxxxxxxxx')
+                                ->tel()
+                                ->numeric()
+                                ->minLength(10)
+                                ->maxLength(14)
+                                ->rule('regex:/^08[0-9]{8,12}$/')
                                 ->required(),
 
                             TextInput::make('pengirim_instansi')
