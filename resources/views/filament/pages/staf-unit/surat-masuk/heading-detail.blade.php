@@ -127,7 +127,13 @@
     </div>
 
     {{-- Banner Link to Terbitan (jika ini adalah PENGAJUAN dan sudah ada balasan) --}}
-    @if($surat && $surat->tipe_surat === 'PENGAJUAN' && $surat->terbitans->count() > 0)
+     @php
+        $isPemohon = \Illuminate\Support\Facades\Auth::check() && (
+            (\Illuminate\Support\Facades\Auth::user()->unit_kerja_id == $surat->unit_pengirim_id) ||
+            (\Illuminate\Support\Facades\Auth::id() == $surat->user_pembuat_id)
+        );
+    @endphp
+    @if($surat && $surat->tipe_surat === 'PENGAJUAN' && $isPemohon && $surat->terbitans->count() > 0)
     <div class="mt-2 flex">
         @foreach($surat->terbitans as $terbitan)
         @if(in_array($terbitan->status_surat, ['SELESAI', 'TERBIT']))

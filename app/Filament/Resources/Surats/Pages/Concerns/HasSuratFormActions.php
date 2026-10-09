@@ -68,11 +68,13 @@ trait HasSuratFormActions
             ->before(function (Action $action) {
                 $unitIds = $this->data['unitTujuan'] ?? [];
                 $hasRujukanPengajuan = !empty($this->data['terbitan_for_surat_id']);
-                // 🟢 Hanya wajibkan unitTujuan jika BUKAN surat balasan atas pengajuan pemohon
-                if (empty($unitIds) && !$hasRujukanPengajuan) {
+                $hasApprovalPath = !empty($this->data['approval_path']) && is_array($this->data['approval_path']) && count($this->data['approval_path']) > 0;
+
+                // Hanya wajibkan unitTujuan jika BUKAN balasan pengajuan DAN TIDAK memiliki approval_path
+                if (empty($unitIds) && !$hasRujukanPengajuan && !$hasApprovalPath) {
                     Notification::make()
-                        ->title('Tujuan Unit Tidak Boleh Kosong')
-                        ->body('Silakan pilih minimal satu unit kerja tujuan penerima surat.')
+                        ->title('Tujuan Surat Tidak Boleh Kosong')
+                        ->body('Silakan pilih minimal satu unit kerja tujuan atau tentukan alur persetujuan surat.')
                         ->danger()
                         ->send();
                     $action->halt();

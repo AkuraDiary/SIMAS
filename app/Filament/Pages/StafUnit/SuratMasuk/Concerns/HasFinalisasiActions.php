@@ -30,11 +30,23 @@ trait HasFinalisasiActions
         // 1. Download PDF Resmi dari Arsip
         if ($this->surat->tipe_surat === 'TERBITAN') {
             $actions[] = Action::make('download_pdf')
-
                 ->label('Unduh Surat Terbitan ')
                 ->icon('heroicon-o-document-arrow-down')
                 ->color('success')
-                ->visible(fn() => in_array($this->surat->status_surat, ['SELESAI', 'TERBIT']) && $this->surat->hasMedia('dokumen-final'))
+                ->visible(function () use ($unitId) {
+                    $isSelesai = in_array($this->surat->status_surat, ['SELESAI']) && $this->surat->hasMedia('dokumen-final');
+                    if (!$isSelesai) {
+                        return false;
+                    }
+                    $isPengirim = $this->surat->unit_pengirim_id == $unitId;
+                    $isPemohon = false;
+                    if ($this->surat->terbitan_for_surat_id && $this->surat->terbitanForSurat) {
+                        $pengajuan = $this->surat->terbitanForSurat;
+                        $isPemohon = ($pengajuan->unit_pengirim_id == $unitId) || ($pengajuan->user_pembuat_id == \Illuminate\Support\Facades\Auth::id());
+                    }
+                    $isPenerimaResmi = $this->surat->suratUnits()->where('unit_kerja_id', $unitId)->exists();
+                    return $isPengirim || $isPemohon || $isPenerimaResmi;
+                })
                 ->action(function () {
                     $media = $this->surat->getFirstMedia('dokumen-final');
                     if ($media) {

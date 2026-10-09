@@ -157,15 +157,20 @@ trait HasSuratTimeline
         }
 
         // 3. Disposisi
+        // 3. Disposisi
         foreach ($this->surat->disposisis as $disposisi) {
+            $isInternal = $disposisi->user_pegawai_jabatan_id !== null;
+            $targetLabel = $isInternal
+                ? 'Disposisi Internal ke: ' . ($disposisi->userPegawaiJabatan?->pegawai?->nama_lengkap ?? 'Staf') . ' (' . ($disposisi->userPegawaiJabatan?->jabatan?->nama_jabatan ?? 'Jabatan') . ')'
+                : 'Disposisi ke: ' . ($disposisi->unitTujuan?->nama_unit ?? '');
+
             $timeline[] = [
-                'title' => 'Disposisi ke: ' . ($disposisi->unitTujuan?->nama_unit ?? ''),
+                'title' => $targetLabel,
                 'instruksi' => $disposisi->jenis_instruksi,
                 'actor' => $disposisi->pembuat?->nama_lengkap ?? 'Sistem',
-                // 'unit' => $disposisi->unitPembuat?->nama_unit ?? '',
-                'unit' => $disposisi->pembuat?->jabatanAktif->unitKerja->nama_unit ?? '',
+                'unit' => $disposisi->pembuat?->getActiveJabatan()?->unitKerja?->nama_unit ?? $disposisi->pembuat?->unitKerja?->nama_unit ?? '',
                 'catatan' => $disposisi->catatan,
-                'date' => $disposisi->created_at,
+                'date' => $disposisi->tanggal_disposisi ?? $disposisi->created_at,
                 'color' => 'bg-blue-500 ring-blue-100 dark:ring-blue-900',
                 'icon' => 'heroicon-m-paper-airplane',
             ];

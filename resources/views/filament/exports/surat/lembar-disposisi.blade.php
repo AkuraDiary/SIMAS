@@ -48,7 +48,7 @@
                 <td>Ke {{ $disposisi->unitTujuan->nama_unit }}</td>
                 <td>{{ $disposisi->jenis_instruksi }}</td>
                 <td>{{ $disposisi->sifat }}</td>
-                <td>{!! $d->catatan ?? 'Tidak ada catatan.' !!}</td>
+                <td>{!! $d->catatan ?? '' !!}</td>
                 <td>{{ \Carbon\Carbon::parse($disposisi->tanggal_disposisi)->format('d M Y') }}</td>
             </tr>
         @endforeach

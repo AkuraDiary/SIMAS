@@ -6,6 +6,7 @@ use AmidEsfahani\FilamentTinyEditor\TinyEditor;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -66,6 +67,7 @@ class GuestPengajuan extends Component implements HasForms
                     'pengirim_fakultas'     => $metadata['fakultas_id'] ?? null,
                     'pengirim_prodi'        => $metadata['prodi_id'] ?? null,
                     'pengirim_instansi'     => $metadata['instansi'] ?? null,
+                    'tipe_surat'            => $surat->tipe_surat ?: 'PENGAJUAN',
                     'nomor_surat_eksternal' => $surat->nomor_surat_eksternal,
                     'unit_tujuan'           => $surat->unitTujuan->first()?->id,
                     'perihal'               => $surat->perihal,
@@ -176,6 +178,15 @@ class GuestPengajuan extends Component implements HasForms
                                     ->hiddenLabel()
                                     ->state(new \Illuminate\Support\HtmlString('<h2 class="text-xl font-bold text-gray-900 mb-2">Detail Surat</h2>')),
 
+                                Radio::make('tipe_surat')
+                                    ->label('Kategori Dokumen')
+                                    ->options([
+                                        'PENGAJUAN' => 'Pengajuan Permohonan (Memerlukan tindak lanjut atau balasan layanan dari Universitas)',
+                                        'EKSTERNAL'  => 'Surat Eksternal Biasa (Surat resmi masuk dari instansi luar, cth: undangan, permohonan kerjasama)',
+                                    ])
+                                    ->default('PENGAJUAN')
+                                    ->columnSpanFull()
+                                    ->required(fn(Get $get) => $get('template_id') === 'scratch'),
                                 Select::make('unit_tujuan')
                                     ->label('Unit Tujuan')
                                     ->options(function () {
@@ -440,6 +451,9 @@ class GuestPengajuan extends Component implements HasForms
             $surat->nomor_surat_eksternal = $state['nomor_surat_eksternal'] ?? null;
             $metadata = $surat->pengirim_metadata ?? [];
             $metadata['telp'] = $state['pengirim_telp'] ?? null;
+            if (!empty($state['tipe_surat'])) {
+                $surat->tipe_surat = $state['tipe_surat'];
+            }
             if ($state['tipe_pengirim'] === 'mahasiswa') {
                 $surat->pengirim_nim = $state['pengirim_nim'] ?? null;
                 $metadata['fakultas_id'] = $state['pengirim_fakultas'] ?? null;
@@ -450,6 +464,8 @@ class GuestPengajuan extends Component implements HasForms
             $surat->pengirim_metadata = $metadata;
             // 2. Update konten surat (Scratch vs Template)
             if ($isScratch) {
+                $surat->tipe_surat = $state['tipe_surat'] ?? (!empty($state['nomor_surat_eksternal']) ? 'EKSTERNAL' : 'PENGAJUAN');
+                $surat->template_id = null;
                 $surat->perihal = $state['perihal'] ?? $surat->perihal;
                 $scratchContent = $state['content'] ?? [];
                 $scratchContent['isi_surat'] = $state['content_scratch'] ?? '';
@@ -760,86 +776,6 @@ class GuestPengajuan extends Component implements HasForms
     {
         return app(\App\Services\SuratExportService::class)->downloadDraftPdf($this->form->getRawState());
     }
-    // public function downloadDraft()
-    // {
-    //     $state = $this->form->getRawState();
-
-    //     // Extract lampiran names from TemporaryUploadedFile or file array if lampiran_names is missing
-    //     if (empty($state['lampiran_names']) && !empty($state['lampiran'])) {
-    //         $lampiranNames = [];
-    //         foreach ($state['lampiran'] as $file) {
-    //             if (is_object($file) && method_exists($file, 'getClientOriginalName')) {
-    //                 $lampiranNames[] = $file->getClientOriginalName();
-    //             } elseif (is_string($file)) {
-    //                 $lampiranNames[] = basename($file);
-    //             }
-    //         }
-    //         $state['lampiran_names'] = $lampiranNames;
-    //     }
-
-    //     $isScratch = ($state['template_id'] ?? '') === 'scratch';
-
-    //     $pengirim = $state['pengirim_nama'] ?? 'Guest';
-    //     $tujuan = '-';
-    //     $perihal = $state['perihal'] ?? '-';
-    //     $renderedHtml = '';
-
-    //     if ($isScratch) {
-    //         $unitId = $state['unit_tujuan'] ?? null;
-    //         if ($unitId) {
-    //             $tujuan = \App\Models\UnitKerja::find($unitId)?->nama_unit ?? '-';
-    //         }
-    //         $renderedHtml = $state['content_scratch'] ?? '';
-    //     } else {
-    //         $templateId = $state['template_id'] ?? null;
-    //         if ($templateId) {
-    //             $template = \App\Models\Template::with('entryPointUnit')->find($templateId);
-    //             $perihal = 'Pengajuan ' . ($template?->nama_template ?? '');
-    //             $tujuan = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
-
-    //             $service = app(\App\Services\PlaceholderService::class);
-    //             $renderedHtml = $service->renderHtml($template, $state['content'] ?? []);
-    //         }
-    //     }
-
-    //     // Setup mock Surat for the surat view to prevent relation null errors
-    //     $mockSurat = new \App\Models\Surat([
-    //         'nomor_surat' => 'DRAF',
-    //         'nomor_agenda' => '-',
-    //         'perihal' => $perihal,
-    //         'tanggal_kirim' => now(),
-    //     ]);
-
-    //     $mockUnit = new \App\Models\UnitKerja(['nama_unit' => $tujuan]);
-    //     $mockPembuat = new \App\Models\User(['nama_lengkap' => $pengirim]);
-
-    //     $mockSurat->setRelation('unitPengirim', $mockUnit);
-    //     $mockSurat->setRelation('pembuat', $mockPembuat);
-
-    //     // Generate the HTML for the main letter (reusing the clean, watermark-free view)
-    //     $suratHtml = view('filament.exports.surat.surat', [
-    //         'surat' => $mockSurat,
-    //         'isArsip' => false,
-    //         'renderedHtml' => $renderedHtml
-    //     ])->render();
-
-    //     // Generate the separate metadata page
-    //     $metadataHtml = view('filament.exports.surat.metadata', [
-    //         'state' => $state,
-    //         'tujuan' => $tujuan,
-
-    //     ])->render();
-
-    //     // Inject metadata at the end of the surat HTML with a page break
-    //     $combinedHtml = str_replace('</body>', '<div style="page-break-before: always;"></div>' . $metadataHtml . '</body>', $suratHtml);
-
-    //     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($combinedHtml);
-
-    //     return response()->streamDownload(function () use ($pdf) {
-    //         echo $pdf->output();
-    //     }, 'Draf_Pengajuan_' . date('Ymd_His') . '.pdf');
-    // }
-
     public function render(): View
     {
         return view('livewire.guest-pengajuan');

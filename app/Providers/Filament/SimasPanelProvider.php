@@ -44,7 +44,7 @@ class SimasPanelProvider extends PanelProvider
             ->login(Login::class)
             ->sidebarCollapsibleOnDesktop()
             ->colors([
-                'primary' => [
+                'secondary' => [
                     50 => '255, 242, 235',
                     100 => '255, 222, 209',
                     200 => '255, 186, 158',
@@ -57,7 +57,7 @@ class SimasPanelProvider extends PanelProvider
                     900 => '153, 52, 10',
                     950 => '102, 31, 0',
                 ],
-                'secondary' => [
+                'primary' => [
                     50 => '255, 239, 230',
                     100 => '255, 215, 194',
                     200 => '255, 173, 133',
