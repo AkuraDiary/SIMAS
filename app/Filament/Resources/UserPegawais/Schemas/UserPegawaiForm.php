@@ -50,6 +50,11 @@ class UserPegawaiForm
                         TextInput::make('phone')
                             ->label('Nomor Telepon')
                             ->tel()
+                            ->numeric()
+                            ->minLength(10)
+                            ->maxLength(14)
+                            ->rule('regex:/^08[0-9]{8,12}$/')
+
                             ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->phone)),
 
                         Select::make('opsi_aktivasi')
@@ -126,7 +131,7 @@ class UserPegawaiForm
 
 
 
-              
+
             ]);
     }
 }

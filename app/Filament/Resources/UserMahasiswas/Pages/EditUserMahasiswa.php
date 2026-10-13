@@ -89,6 +89,10 @@ class EditUserMahasiswa extends EditRecord
                             TextInput::make('phone')
                                 ->label('Nomor Telepon')
                                 ->tel()
+                                ->numeric()
+                                ->minLength(10)
+                                ->maxLength(14)
+                                ->rule('regex:/^08[0-9]{8,12}$/')
                                 ->default(fn() => $this->record->user?->phone),
 
                             TextInput::make('new_password')
