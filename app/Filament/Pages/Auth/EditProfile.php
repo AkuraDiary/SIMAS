@@ -65,6 +65,10 @@ class EditProfile extends BaseEditProfile
                         TextInput::make('phone')
                             ->label('Nomor WhatsApp / HP')
                             ->tel()
+                            ->numeric()
+                            ->minLength(10)
+                            ->maxLength(14)
+                            ->rule('regex:/^08[0-9]{8,12}$/')
                             ->placeholder('Contoh: 081234567890 atau 6281234567890')
                             ->helperText('Digunakan untuk pengiriman notifikasi alur surat melalui WhatsApp.')
                             ->maxLength(20),
