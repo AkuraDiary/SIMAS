@@ -21,10 +21,18 @@ class UserMahasiswaForm
                         TextInput::make('nim')
                             ->required()
                             ->unique(
-                                table: 'users',
-                                column: 'username',
-                                modifyRuleUsing: fn($rule, $record) => $record ? $rule->ignore($record->user_id) : $rule
+                                table: 'user_mahasiswa',
+                                column: 'nim',
+                                modifyRuleUsing: fn($rule, $record) => $rule->withoutTrashed()->ignore($record?->id)
                             )
+                            ->rules([
+                                fn($record) => \Illuminate\Validation\Rule::unique('users', 'username')
+                                    ->withoutTrashed()
+                                    ->ignore($record?->user_id),
+                            ])
+                            ->validationMessages([
+                                'unique' => 'NIM ini sudah terdaftar pada data mahasiswa aktif.',
+                            ])
                             ->disabled(fn(string $context): bool => $context === 'edit')
                             ->dehydrated(),
                         TextInput::make('nama_lengkap')
@@ -76,6 +84,14 @@ class UserMahasiswaForm
                         TextInput::make('email')
                             ->email()
                             ->required()
+                            ->unique(
+                                table: 'users',
+                                column: 'email',
+                                modifyRuleUsing: fn($rule, $record) => $rule->withoutTrashed()->ignore($record?->user_id)
+                            )
+                            ->validationMessages([
+                                'unique' => 'Email ini sudah digunakan oleh akun lain.',
+                            ])
                             ->afterStateHydrated(fn($component, $record) => $component->state($record?->user?->email)),
                         TextInput::make('phone')
                             ->label('Nomor Telepon')

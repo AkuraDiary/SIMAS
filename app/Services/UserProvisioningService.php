@@ -20,6 +20,19 @@ class UserProvisioningService
 
     public function createMahasiswa(array $data): UserMahasiswa
     {
+        if (blank($data['nim'] ?? null)) {
+            throw new \InvalidArgumentException('NIM wajib diisi untuk membuat akun mahasiswa.');
+        }
+        if (UserMahasiswa::where('nim', $data['nim'])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'nim' => 'NIM ini sudah terdaftar pada data mahasiswa aktif.',
+            ]);
+        }
+        if (User::where('username', $data['nim'])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'nim' => 'Akun login untuk NIM ini sudah terdaftar.',
+            ]);
+        }
         return DB::transaction(function () use ($data) {
             $user = User::create([
                 'username' => $data['nim'],
@@ -76,6 +89,18 @@ class UserProvisioningService
         if (blank($data['nip'] ?? null)) {
             throw new \InvalidArgumentException('NIP wajib diisi untuk membuat akun pegawai.');
         }
+        if (UserPegawai::where('nip', $data['nip'])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'nip' => 'NIP ini sudah terdaftar pada data pegawai aktif.',
+            ]);
+        }
+        if (User::where('username', $data['nip'])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'nip' => 'Akun login untuk NIP ini sudah terdaftar.',
+            ]);
+        }
+
+
 
         return DB::transaction(function () use ($data) {
             $user = User::create([
@@ -139,41 +164,41 @@ class UserProvisioningService
         }
     }
     public function createOrUpdatePegawaiFromImport(array $data): UserPegawai
-{
-    return DB::transaction(function () use ($data) {
-        $pegawai = UserPegawai::where('nip', $data['nip'])->first();
+    {
+        return DB::transaction(function () use ($data) {
+            $pegawai = UserPegawai::where('nip', $data['nip'])->first();
 
-        if (! $pegawai) {
-            return $this->createPegawai([
-                'nip' => $data['nip'],
-                'nama_lengkap' => $data['nama_lengkap'],
-                'email' => $data['email'] ?? null,
-                'phone' => $data['phone'] ?? null,
-                'jabatan_assignments' => [
-                    [
-                        'unit_kerja_id' => $data['unit_kerja_id'] ?? null,
-                        'jabatan_id' => $data['jabatan_id'] ?? null,
+            if (! $pegawai) {
+                return $this->createPegawai([
+                    'nip' => $data['nip'],
+                    'nama_lengkap' => $data['nama_lengkap'],
+                    'email' => $data['email'] ?? null,
+                    'phone' => $data['phone'] ?? null,
+                    'jabatan_assignments' => [
+                        [
+                            'unit_kerja_id' => $data['unit_kerja_id'] ?? null,
+                            'jabatan_id' => $data['jabatan_id'] ?? null,
+                        ],
                     ],
-                ],
+                ]);
+            }
+
+            $pegawai->update([
+                'nama_lengkap' => $data['nama_lengkap'],
             ]);
-        }
 
-        $pegawai->update([
-            'nama_lengkap' => $data['nama_lengkap'],
-        ]);
+            $pegawai->user?->update([
+                'email' => $data['email'] ?? $pegawai->user->email,
+                'phone' => $data['phone'] ?? $pegawai->user->phone,
+            ]);
 
-        $pegawai->user?->update([
-            'email' => $data['email'] ?? $pegawai->user->email,
-            'phone' => $data['phone'] ?? $pegawai->user->phone,
-        ]);
+            $this->updateJabatanAktif(
+                $pegawai,
+                $data['unit_kerja_id'] ?? null,
+                $data['jabatan_id'] ?? null
+            );
 
-        $this->updateJabatanAktif(
-            $pegawai,
-            $data['unit_kerja_id'] ?? null,
-            $data['jabatan_id'] ?? null
-        );
-
-        return $pegawai;
-    });
-}
+            return $pegawai;
+        });
+    }
 }
