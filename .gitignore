@@ -27,3 +27,6 @@ Thumbs.db
 AGENTS.md
 .graphifyignore
 /graphify-out
+/agents/*
+.agents/*
+
