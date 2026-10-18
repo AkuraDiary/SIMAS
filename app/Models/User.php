@@ -118,6 +118,8 @@ class User extends Authenticatable implements FilamentUser, HasName
         )->where('status_jabatan', 'AKTIF');
     }
 
+    
+
     /**
      * Dapatkan UserPegawaiJabatan yang sedang aktif berdasarkan Session atau Database Settings.
      */
