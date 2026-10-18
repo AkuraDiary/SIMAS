@@ -82,7 +82,7 @@ class SuratRoutingService
                 // 2. Jika ada approval_path, kirim ke pemegang jabatan approver aktif di unit tersebut
                 $stepJabatanId = $surat->approval_path[0]['jabatan_id'] ?? null;
                 if ($stepJabatanId) {
-                    $targetUsers = \App\Models\User::whereHas('userPegawaiJabatan', function ($q) use ($stepJabatanId) {
+                    $targetUsers = \App\Models\User::whereHas('pegawai.jabatans', function ($q) use ($stepJabatanId) {
                         $q->where('jabatan_id', $stepJabatanId)->where('status_jabatan', 'AKTIF');
                     })->get();
                 } else {
