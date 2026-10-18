@@ -158,6 +158,59 @@ class TemplateResource extends Resource
 
                     ])->columns(2)
                     ->columnSpanFull(),
+                Section::make('Aset Kop Surat, Footer, & Background (Opsional)')
+                    ->icon('heroicon-o-photo')
+                    ->description('Unggah gambar hasil ekspor MS Word/Desain (PNG/JPG/SVG). Semua bersifat opsional.')
+                    ->schema([
+                        Grid::make(2)
+                            ->schema([
+                                SpatieMediaLibraryFileUpload::make('kop_surat')
+                                    ->label('Gambar Kop Surat (Header)')
+                                    ->collection('kop_surat')
+                                    ->disk('private')
+                                    ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/svg+xml'])
+                                    ->maxSize(5120)
+                                    ->helperText('Lebar penuh proporsional di bagian atas kertas A4.'),
+
+                                Select::make('kop_posisi')
+                                    ->label('Tampilan Kop pada Surat Multi-Halaman')
+                                    ->options([
+                                        'AWAL_SAJA' => 'Hanya Halaman Pertama',
+                                        'SEMUA_HALAMAN' => 'Semua Halaman (Berulang)',
+                                    ])
+                                    ->default('AWAL_SAJA'),
+                            ]),
+
+                        Grid::make(2)
+                            ->schema([
+                                SpatieMediaLibraryFileUpload::make('footer_surat')
+                                    ->label('Gambar Footer Surat')
+                                    ->collection('footer_surat')
+                                    ->disk('private')
+                                    ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/svg+xml'])
+                                    ->maxSize(5120)
+                                    ->helperText('Lebar penuh proporsional di bagian bawah kertas A4.'),
+
+                                Select::make('footer_posisi')
+                                    ->label('Tampilan Footer pada Surat Multi-Halaman')
+                                    ->options([
+                                        'AKHIR_SAJA' => 'Hanya Halaman Terakhir',
+                                        'SEMUA_HALAMAN' => 'Semua Halaman (Berulang)',
+                                    ])
+                                    ->default('AKHIR_SAJA'),
+                            ]),
+
+                        SpatieMediaLibraryFileUpload::make('background_surat')
+                            ->label('Gambar Background / Watermark Kertas A4 (Opsional)')
+                            ->collection('background_surat')
+                            ->disk('private')
+                            ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/svg+xml'])
+                            ->maxSize(8192)
+                            ->helperText('Dirender memenuhi lembar A4 di belakang teks isi surat.')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->columnSpanFull(),
 
                 Section::make('Placeholders (Variabel Isian)')
                     ->columnSpanFull()
@@ -306,8 +359,22 @@ class TemplateResource extends Resource
                             ->fileAttachmentsDirectory('template-attachments')
                             ->setCustomConfigs([
                                 'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
+                                'pagebreak_separator' => '<!-- pagebreak -->',
+                                'pagebreak_split_block' => true,
                             ])
-                            ->hintAction(
+                            ->hintActions([
+                                Action::make('insertPageBreak')
+                                    ->label('Tambah Halaman Baru (Page Break)')
+                                    ->icon('heroicon-m-document-plus')
+                                    ->color('gray')
+                                    ->action(function (Set $set, Get $get) {
+                                        $html = $get('content_html') ?? '';
+                                        $set('content_html', $html . "\n<p><!-- pagebreak --></p>\n");
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Pemisah halaman ditambahkan di akhir dokumen!')
+                                            ->info()
+                                            ->send();
+                                    }),
                                 Action::make('scanHtmlPlaceholders')
                                     ->label('Scan Placeholders')
                                     ->icon('heroicon-m-arrow-path')
@@ -323,8 +390,8 @@ class TemplateResource extends Resource
 
                                         $set('field_variables', $current);
                                         \Filament\Notifications\Notification::make()->title('Placeholders disinkronkan!')->success()->send();
-                                    })
-                            )
+                                    }),
+                            ])
                             ->columnSpanFull(),
                     ])->columnSpanFull(),
 

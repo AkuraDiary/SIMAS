@@ -190,12 +190,55 @@ class DetailSurat extends Page implements HasForms
 
         if ($this->surat->template_id && $this->surat->template) {
             $service = app(\App\Services\PlaceholderService::class);
-            $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? []);
+            $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
         } else {
             $this->renderedHtml = $this->surat->content['isi_surat'] ?? null;
         }
     }
 
+    public function updateTtdPosition(string $key, ?int $x = null, ?int $y = null, ?int $width = null): void
+    {
+        $service = app(\App\Services\PlaceholderService::class);
+        if (!$service->canUserAdjustSignature($this->surat, $this->surat->template, $key)) {
+            Notification::make()
+                ->title('Akses Dibatasi')
+                ->body('Anda hanya dapat menyesuaikan posisi TTD / QR milik jabatan Anda sendiri.')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        $content = $this->surat->content ?? [];
+        if ($x !== null && $y !== null) {
+            $content[$key . '_posisi_x'] = max(-300, min(300, $x));
+            $content[$key . '_posisi_y'] = max(-300, min(300, $y));
+        }
+        if ($width !== null) {
+            $content[$key . '_width'] = max(60, min(450, $width));
+        }
+
+        $this->surat->update(['content' => $content]);
+
+        // Sinkronkan juga ke tabel surat_ttds jika record TTD sudah dibuat
+        if ($x !== null && $y !== null) {
+            $this->surat->suratTtds()
+                ->where('placeholder_key', $key)
+                ->update([
+                    'posisi_x' => $content[$key . '_posisi_x'],
+                    'posisi_y' => $content[$key . '_posisi_y'],
+                ]);
+        }
+
+        $this->surat->refresh();
+        if ($this->surat->template_id && $this->surat->template) {
+            $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        }
+
+        // Jika surat sudah SELESAI, perbarui PDF dokumen-final agar posisi terbaru ikut tersimpan di PDF
+        if ($this->surat->status_surat === 'SELESAI') {
+            app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat);
+        }
+    }
     protected function getHeaderActions(): array
     {
         $primaryActions = [];
@@ -359,6 +402,7 @@ class DetailSurat extends Page implements HasForms
             ->success()
             ->send();
     }
+
 
     protected function updateStatusSurat(): void
     {
