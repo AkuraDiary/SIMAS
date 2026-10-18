@@ -36,23 +36,34 @@
             }
         },
 
+               savePosition(key, x, y, width = null) {
+            if (!key) return;
+            if (typeof $wire.updateTtdPosition === 'function' || $wire.get('surat') !== undefined) {
+                $wire.call('updateTtdPosition', key, x, y, width);
+                return;
+            }
+            let pathPrefix = ($wire.get('data') === undefined) ? 'content.' : 'data.content.';
+            if (x !== null && y !== null) {
+                $wire.set(pathPrefix + key + '_posisi_x', x, false);
+                $wire.set(pathPrefix + key + '_posisi_y', y, false);
+            }
+            if (width !== null) {
+                $wire.set(pathPrefix + key + '_width', width, false);
+            }
+        },
+
         handleDblClick(e) {
             const el = e.target.closest('.draggable-signature');
-            if (!el) return;
-            // Reset position on double click
+            if (!el || el.getAttribute('data-locked') === 'true') return;
             el.style.left = '0px';
             el.style.top = '0px';
             const key = el.getAttribute('data-key');
-            if (key) {
-                let pathPrefix = ($wire.get('data') === undefined) ? 'content.' : 'data.content.';
-                $wire.set(pathPrefix + key + '_posisi_x', 0, false);
-                $wire.set(pathPrefix + key + '_posisi_y', 0, false);
-            }
+            this.savePosition(key, 0, 0, null);
         },
 
         startDrag(e) {
             const el = e.target.closest('.draggable-signature');
-            if (!el) return;
+            if (!el || el.getAttribute('data-locked') === 'true') return;
 
             e.preventDefault();
             this.isDragging = true;
@@ -60,7 +71,6 @@
             this.startX = e.clientX;
             this.startY = e.clientY;
 
-            // el has position: relative; left and top represent the relative displacement
             this.initialLeft = parseInt(el.style.left, 10) || 0;
             this.initialTop = parseInt(el.style.top, 10) || 0;
 
@@ -96,12 +106,8 @@
             if (key) {
                 const x = parseInt(el.style.left, 10) || 0;
                 const y = parseInt(el.style.top, 10) || 0;
-
-                let pathPrefix = ($wire.get('data') === undefined) ? 'content.' : 'data.content.';
-                $wire.set(pathPrefix + key + '_posisi_x', x, false);
-                $wire.set(pathPrefix + key + '_posisi_y', y, false);
+                this.savePosition(key, x, y, null);
             }
-
             this.dragEl = null;
         },
 
@@ -109,7 +115,7 @@
             const handle = e.target.closest('.signature-resize-handle');
             if (!handle) return;
             const el = handle.closest('.draggable-signature');
-            if (!el) return;
+            if (!el || el.getAttribute('data-locked') === 'true') return;
 
             e.preventDefault();
             e.stopPropagation();
@@ -147,8 +153,9 @@
             const key = el.getAttribute('data-key');
             if (key) {
                 const width = parseInt(el.style.width, 10);
-                let pathPrefix = ($wire.get('data') === undefined) ? 'content.' : 'data.content.';
-                $wire.set(pathPrefix + key + '_width', width, false);
+                const x = parseInt(el.style.left, 10) || 0;
+                const y = parseInt(el.style.top, 10) || 0;
+                this.savePosition(key, x, y, width);
             }
 
             this.resizeEl = null;
@@ -157,8 +164,7 @@
     @mousedown="handleMouseDown"
     @mousemove.window="handleMouseMove"
     @mouseup.window="handleMouseUp"
-    @dblclick="handleDblClick"
->
+    @dblclick="handleDblClick">
     <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5">
         <div class="absolute top-0 right-0 rounded-bl-lg bg-primary-600 px-3 py-1 text-xs font-bold text-white shadow-sm z-10">
             PREVIEW
@@ -167,9 +173,23 @@
         <div class="surat-content relative font-sans">
             <!-- Ensure text remains readable inside the white paper container -->
             <style>
-                .preview-paper-content { color: #000000; position: relative; min-height: 800px; }
-                .preview-paper-content p, .preview-paper-content span, .preview-paper-content td, .preview-paper-content th { color: #000000 !important; }
+                .preview-paper-content {
+                    color: #000000;
+                    position: relative;
+                    min-height: 800px;
+                }
 
+                .preview-paper-content p,
+                .preview-paper-content span,
+                .preview-paper-content td,
+                .preview-paper-content th {
+                    color: #000000 !important;
+                }
+
+                .draggable-signature[data-locked="true"] {
+                    outline: none !important;
+                    cursor: default !important;
+                }
                 /* Drag & Resize hints for signatures */
                 .draggable-signature {
                     user-select: none;
@@ -180,13 +200,16 @@
                     border-radius: 4px;
                     transition: outline 0.15s ease;
                 }
+
                 .draggable-signature:hover {
                     outline: 2px dashed #2563eb;
                 }
+
                 .draggable-signature.is-being-dragged {
                     outline: 2px solid #2563eb;
                     cursor: grabbing;
                 }
+
                 .draggable-signature.is-being-resized {
                     outline: 2px dashed #3b82f6;
                 }
@@ -202,9 +225,10 @@
                     border-radius: 50%;
                     cursor: se-resize;
                     z-index: 20;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
                     transition: transform 0.15s ease, background-color 0.15s ease;
                 }
+
                 .signature-resize-handle:hover {
                     transform: scale(1.3);
                     background: #1d4ed8;

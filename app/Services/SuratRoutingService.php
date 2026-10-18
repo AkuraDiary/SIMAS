@@ -138,7 +138,8 @@ class SuratRoutingService
             $isFinalStep,
             $isSignatureRequired,
             $signatureType,
-            $catatan
+            $catatan,
+            $signatureData
         ) {
             $surat = $currentRiwayat->surat;
 

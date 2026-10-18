@@ -88,27 +88,44 @@ trait HasApprovalActions
     /**
      * Komponen schema input Tanda Tangan Digital reusable.
      */
-    protected function getSignatureFieldsetSchema(): array
+        protected function getSignatureFieldsetSchema(): array
     {
         return [
+            Toggle::make('is_visible')
+                ->label('Tampilkan TTD / QR Pengesahan pada Lembar Surat')
+                ->helperText('Jika dinonaktifkan, persetujuan tetap tercatat di Lembar Kendali namun tidak ditempelkan di halaman surat.')
+                ->default(true)
+                ->live()
+                ->columnSpanFull(),
+
             Radio::make('qr_code_type')
-                ->label('Sumber QR Code TTD')
+                ->label('Format Visual Pengesahan')
                 ->options([
-                    'generate' => 'Generate Otomatis dari Sistem (Verifikasi Internal)',
-                    'upload'   => 'Unggah QR Code Eksternal',
+                    'generate' => 'QR Code Verifikasi Sistem (Otomatis)',
+                    'upload'   => 'Unggah Gambar QR Code / Stempel TTD Eksternal',
                     'draw'     => 'Goreskan Tanda Tangan Langsung',
-                    'none'     => 'Mengetahui Saja (Nama)',
+                    'both'     => 'Kombinasi: Goresan TTD + QR Verifikasi Sistem',
+                    'none'     => 'Teks Nama & Jabatan Saja (Tanpa Gambar)',
                 ])
                 ->default('generate')
-                ->reactive()
+                ->visible(fn (Get $get) => (bool) $get('is_visible'))
+                ->live()
+                ->columnSpanFull(),
+
+            Toggle::make('tampilkan_nama_ttd')
+                ->label('Tampilkan Nama & Jabatan Penandatangan di Bawah QR / TTD')
+                ->helperText('Matikan opsi ini jika Anda hanya ingin menampilkan gambar QR Code / TTD saja.')
+                ->default(true)
+                ->visible(fn (Get $get) => (bool) $get('is_visible') && $get('qr_code_type') !== 'none')
                 ->columnSpanFull(),
 
             FileUpload::make('custom_qr_code')
-                ->label('File QR Code')
+                ->label('File Gambar QR Code / TTD')
                 ->image()
+                ->disk('private')
                 ->directory('signatures')
-                ->visible(fn(Get $get) => $get('qr_code_type') === 'upload')
-                ->required(fn(Get $get) => $get('qr_code_type') === 'upload')
+                ->visible(fn (Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
+                ->required(fn (Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
                 ->columnSpanFull(),
 
             SignaturePad::make('drawn_signature')
@@ -125,12 +142,11 @@ trait HasApprovalActions
                 ->backgroundColorOnDark('#111111')
                 ->penColor('#000000')
                 ->penColorOnDark('#ffffff')
-                ->visible(fn(Get $get) => $get('qr_code_type') === 'draw')
-                ->required(fn(Get $get) => $get('qr_code_type') === 'draw')
+                ->visible(fn (Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
+                ->required(fn (Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
                 ->columnSpanFull(),
         ];
     }
-
     protected function getActionPersetujuan(): array
     {
         return [

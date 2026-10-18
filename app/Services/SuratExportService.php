@@ -56,7 +56,7 @@ class SuratExportService
     public function generateAndAttachDokumenFinal(Surat $surat, ?string $nomor = null): void
     {
         $renderedHtml = ($surat->template_id && $surat->template)
-            ? app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat)
+            ? app(\App\Services\PlaceholderService::class)->renderHtml($surat->template, $surat->content ?? [], $surat, true)
             : app(\App\Services\PlaceholderService::class)->renderScratchHtml($surat);
 
         $suratHtml = view('filament.exports.surat.surat', [
@@ -203,7 +203,7 @@ class SuratExportService
                 $perihal = $state['perihal'] ?? ('Pengajuan ' . ($template?->nama_template ?? ''));
                 $tujuan = $template?->entryPointUnit?->nama_unit ?? 'Sesuai Template';
 
-                $renderedHtml = app(\App\Services\PlaceholderService::class)->renderHtml($template, $state['content'] ?? []);
+                                $renderedHtml = app(\App\Services\PlaceholderService::class)->renderHtml($template, $state['content'] ?? [], null, true);
             }
         }
 
