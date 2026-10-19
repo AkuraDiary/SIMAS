@@ -10,6 +10,7 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Forms\Components\ViewField;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -183,16 +184,28 @@ class GuestPengajuan extends Component implements HasForms
                                     ->hiddenLabel()
                                     ->state(new \Illuminate\Support\HtmlString('<h2 class="text-xl font-bold text-gray-900 mb-2">Detail Surat</h2>')),
 
-                                Radio::make('tipe_surat')
+                                                             ToggleButtons::make('tipe_surat')
                                     ->label('Kategori Dokumen')
                                     ->options([
                                         'PENGAJUAN' => 'Pengajuan Permohonan',
-                                        'EKSTERNAL'  => 'Surat Eksternal Biasa',
+                                        'EKSTERNAL' => 'Surat Eksternal Biasa',
+                                    ])
+                                    ->icons([
+                                        'PENGAJUAN' => 'heroicon-m-document-text',
+                                        'EKSTERNAL' => 'heroicon-m-paper-airplane',
+                                    ])
+                                    ->colors([
+                                        'PENGAJUAN' => 'primary',
+                                        'EKSTERNAL' => 'primary',
+                                    ])
+                                    ->grouped()
+                                    ->extraAttributes([
+                                        'class' => 'w-full flex [&_label]:flex-1 [&_label]:justify-center [&_label]:py-2.5 [&_label]:text-sm [&_label]:font-semibold shadow-xs',
                                     ])
                                     ->default('PENGAJUAN')
                                     ->columnSpanFull()
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
-                                    
+
                                 Select::make('unit_tujuan')
                                     ->label('Unit Tujuan')
                                     ->options(function () {
