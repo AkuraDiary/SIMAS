@@ -118,6 +118,7 @@ class DetailSurat extends Page implements HasForms
             'unitTujuan',
             'suratUnits',
             'media',
+            'suratTtds.user',
             // 'terbitanForSurat.media',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',

@@ -88,7 +88,7 @@ trait HasApprovalActions
     /**
      * Komponen schema input Tanda Tangan Digital reusable.
      */
-        protected function getSignatureFieldsetSchema(): array
+    protected function getSignatureFieldsetSchema(): array
     {
         return [
             Toggle::make('is_visible')
@@ -108,7 +108,7 @@ trait HasApprovalActions
                     'none'     => 'Teks Nama & Jabatan Saja (Tanpa Gambar)',
                 ])
                 ->default('generate')
-                ->visible(fn (Get $get) => (bool) $get('is_visible'))
+                ->visible(fn(Get $get) => (bool) $get('is_visible'))
                 ->live()
                 ->columnSpanFull(),
 
@@ -116,7 +116,7 @@ trait HasApprovalActions
                 ->label('Tampilkan Nama & Jabatan Penandatangan di Bawah QR / TTD')
                 ->helperText('Matikan opsi ini jika Anda hanya ingin menampilkan gambar QR Code / TTD saja.')
                 ->default(true)
-                ->visible(fn (Get $get) => (bool) $get('is_visible') && $get('qr_code_type') !== 'none')
+                ->visible(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') !== 'none')
                 ->columnSpanFull(),
 
             FileUpload::make('custom_qr_code')
@@ -124,8 +124,8 @@ trait HasApprovalActions
                 ->image()
                 ->disk('private')
                 ->directory('signatures')
-                ->visible(fn (Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
-                ->required(fn (Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
+                ->visible(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
+                ->required(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
                 ->columnSpanFull(),
 
             SignaturePad::make('drawn_signature')
@@ -142,8 +142,133 @@ trait HasApprovalActions
                 ->backgroundColorOnDark('#111111')
                 ->penColor('#000000')
                 ->penColorOnDark('#ffffff')
-                ->visible(fn (Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
-                ->required(fn (Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
+                ->visible(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
+                ->required(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
+                ->columnSpanFull(),
+        ];
+    }
+
+    protected function renderModalLivePreview(Get $get): \Illuminate\Support\HtmlString
+    {
+        if (!$this->surat->template_id || !$this->surat->template) {
+            return new \Illuminate\Support\HtmlString('');
+        }
+
+        $info = $this->getApprovalPathInfo();
+        $stepKey = $info['current_step']['placeholder_key'] ?? ('ttd_user_' . Auth::id());
+        $isVisible = (bool) ($get('is_visible') ?? true);
+        $qrType = $get('qr_code_type') ?? 'generate';
+        $showName = (bool) ($get('tampilkan_nama_ttd') ?? true);
+        $drawn = $get('drawn_signature');
+
+        $data = $this->surat->content ?? [];
+        $actor = Auth::user();
+        $jabatanName = $actor?->getActiveJabatan()?->jabatan?->nama_jabatan ?? 'Pejabat Berwenang';
+        $namaTerang = $actor?->nama_lengkap ?? 'Pejabat Berwenang';
+
+        $widthVal = (int) ($data[$stepKey . '_width'] ?? 160);
+        $imgSize = max(60, min(220, $widthVal - 20));
+        $x = (int) ($data[$stepKey . '_posisi_x'] ?? 0);
+        $y = (int) ($data[$stepKey . '_posisi_y'] ?? 0);
+
+        if (!$isVisible) {
+            $data[$stepKey] = '';
+        } else {
+            $imgHtml = '';
+            if (in_array($qrType, ['generate', 'both'], true)) {
+                $imgHtml .= '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; max-width: ' . $imgSize . 'px; height: auto; margin-bottom: 4px; display: block;" pointer-events="none" />';
+            }
+            if (in_array($qrType, ['draw', 'both'], true) && !empty($drawn)) {
+                $imgHtml .= '<img src="' . htmlspecialchars($drawn) . '" style="width: 100%; max-width: ' . $imgSize . 'px; height: auto; margin-bottom: 4px; display: block;" pointer-events="none" />';
+            }
+            $nameHtml = $showName
+                ? ('<b><u>' . htmlspecialchars($namaTerang) . '</u></b><br><span style="font-size: 10pt;">' . htmlspecialchars($jabatanName) . '</span>')
+                : '';
+
+            $style = "text-align: left; display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
+            $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
+            $visual = '<div class="draggable-signature" data-key="' . $stepKey . '" style="' . $style . '">' . $imgHtml . $nameHtml . $resizeHandle . '</div>';
+
+            $data[$stepKey] = $visual;
+            $data['__live_approver_preview_' . $stepKey] = $imgHtml . $nameHtml;
+        }
+
+        $html = app(\App\Services\PlaceholderService::class)->renderHtml($this->surat->template, $data, $this->surat);
+
+        return new \Illuminate\Support\HtmlString(
+            view('filament.forms.components.template-preview', [
+                'html' => $html,
+                'isDetailPage' => true,
+            ])->render()
+        );
+    }
+
+    protected function getSignatureFieldsetSchema(): array
+    {
+        return [
+            Toggle::make('is_visible')
+                ->label('Tampilkan TTD / QR Pengesahan pada Lembar Surat')
+                ->helperText('Jika dinonaktifkan, persetujuan tetap tercatat di Lembar Kendali namun tidak ditempelkan di halaman surat.')
+                ->default(true)
+                ->live()
+                ->columnSpanFull(),
+
+            Radio::make('qr_code_type')
+                ->label('Format Visual Pengesahan')
+                ->options([
+                    'generate' => 'QR Code Verifikasi Sistem (Otomatis)',
+                    'upload'   => 'Unggah Gambar QR Code / Stempel TTD Eksternal',
+                    'draw'     => 'Goreskan Tanda Tangan Langsung',
+                    'both'     => 'Kombinasi: Goresan TTD + QR Verifikasi Sistem',
+                    'none'     => 'Teks Nama & Jabatan Saja (Tanpa Gambar)',
+                ])
+                ->default('generate')
+                ->visible(fn(Get $get) => (bool) $get('is_visible'))
+                ->live()
+                ->columnSpanFull(),
+
+            Toggle::make('tampilkan_nama_ttd')
+                ->label('Tampilkan Nama & Jabatan Penandatangan di Bawah QR / TTD')
+                ->helperText('Matikan opsi ini jika Anda hanya ingin menampilkan gambar QR Code / TTD saja.')
+                ->default(true)
+                ->live()
+                ->visible(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') !== 'none')
+                ->columnSpanFull(),
+
+            FileUpload::make('custom_qr_code')
+                ->label('File Gambar QR Code / TTD')
+                ->image()
+                ->disk('private')
+                ->directory('signatures')
+                ->live()
+                ->visible(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
+                ->required(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
+                ->columnSpanFull(),
+
+            SignaturePad::make('drawn_signature')
+                ->label('Gambar Tanda Tangan')
+                ->downloadable()
+                ->downloadableFormats([
+                    DownloadableFormat::PNG,
+                    DownloadableFormat::JPG,
+                    DownloadableFormat::SVG,
+                ])
+                ->exportBackgroundColor('rgba(0,0,0,0)')
+                ->exportPenColor('#000000')
+                ->backgroundColor('#ffffff')
+                ->backgroundColorOnDark('#111111')
+                ->penColor('#000000')
+                ->penColorOnDark('#ffffff')
+                ->live()
+                ->visible(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
+                ->required(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
+                ->columnSpanFull(),
+
+            TextEntry::make('live_ttd_preview')
+                ->label('Pratinjau & Penataan Posisi TTD / QR pada Surat (Geser / Ubah Ukuran Langsung)')
+                ->state(fn(Get $get) => $this->renderModalLivePreview($get))
+                ->html()
+                ->visible(fn() => (bool) $this->surat->template_id)
                 ->columnSpanFull(),
         ];
     }
@@ -159,6 +284,7 @@ trait HasApprovalActions
                             ? 'Setujui & Selesaikan (Tanda Tangan Final)'
                             : 'Setujui & Selesai';
                     })
+                    ->modalWidth('5xl')
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->visible(function () {
@@ -200,6 +326,7 @@ trait HasApprovalActions
                         }
                         return 'Setujui & Teruskan';
                     })
+                    ->modalWidth('5xl')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('primary')
                     ->visible(function () {

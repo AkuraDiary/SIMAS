@@ -143,7 +143,7 @@
 
     <div class="header-title">
         <h2>Lembar Kendali Persuratan & Pengesahan Digital</h2>
-        <p>Sistem Informasi Manajemen Arsip dan Surat (SIMAS) Universitas</p>
+        <p>Sistem Informasi Manajemen Arsip dan Surat (SIMAS)</p>
     </div>
 
     {{-- BAGIAN 1: METADATA & DATA POKOK NASKAH --}}

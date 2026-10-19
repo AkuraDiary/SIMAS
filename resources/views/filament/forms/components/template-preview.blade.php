@@ -10,6 +10,7 @@
         isResizing: false,
         resizeEl: null,
         startWidth: 0,
+        isDetailPage: @js((bool) ($isDetailPage ?? false)),
 
         handleMouseDown(e) {
             if (e.target.closest('.signature-resize-handle')) {
@@ -36,9 +37,9 @@
             }
         },
 
-               savePosition(key, x, y, width = null) {
+        savePosition(key, x, y, width = null) {
             if (!key) return;
-            if (typeof $wire.updateTtdPosition === 'function' || $wire.get('surat') !== undefined) {
+            if (this.isDetailPage) {
                 $wire.call('updateTtdPosition', key, x, y, width);
                 return;
             }

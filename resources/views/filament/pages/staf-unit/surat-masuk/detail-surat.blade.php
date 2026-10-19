@@ -55,7 +55,7 @@
             {{-- Paper Card for HTML Content --}}
 
             {{-- Paper Card for HTML Content (Interactive for Authorized Signer) --}}
-            @include('filament.forms.components.template-preview', ['html' => $this->renderedHtml])
+            @include('filament.forms.components.template-preview', ['html' => $this->renderedHtml, 'isDetailPage' => true])
 
             {{-- Lampiran Section --}}
             @php
