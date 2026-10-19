@@ -86,59 +86,145 @@ trait HasApprovalActions
         ];
     }
 
-    protected function renderModalLivePreview(Get $get): \Illuminate\Support\HtmlString
+    public function resolveMyPlaceholderKey(): string
     {
-        if (!$this->surat->template_id || !$this->surat->template) {
-            return new \Illuminate\Support\HtmlString('');
+        $actor = Auth::user();
+        if (!$actor) {
+            return 'ttd_approver';
+        }
+
+        $existing = $this->surat->suratTtds->firstWhere('user_id', $actor->id);
+        if ($existing && $existing->placeholder_key) {
+            return $existing->placeholder_key;
         }
 
         $info = $this->getApprovalPathInfo();
-        $stepKey = $info['current_step']['placeholder_key'] ?? ('ttd_user_' . Auth::id());
-        $isVisible = (bool) ($get('is_visible') ?? true);
-        $qrType = $get('qr_code_type') ?? 'generate';
-        $showName = (bool) ($get('tampilkan_nama_ttd') ?? true);
-        $drawn = $get('drawn_signature');
-
-        $data = $this->surat->content ?? [];
-        $actor = Auth::user();
-        $jabatanName = $actor?->getActiveJabatan()?->jabatan?->nama_jabatan ?? 'Pejabat Berwenang';
-        $namaTerang = $actor?->nama_lengkap ?? 'Pejabat Berwenang';
-
-        $widthVal = (int) ($data[$stepKey . '_width'] ?? 160);
-        $imgSize = max(60, min(220, $widthVal - 20));
-        $x = (int) ($data[$stepKey . '_posisi_x'] ?? 0);
-        $y = (int) ($data[$stepKey . '_posisi_y'] ?? 0);
-
-        if (!$isVisible) {
-            $data[$stepKey] = '';
-        } else {
-            $imgHtml = '';
-            if (in_array($qrType, ['generate', 'both'], true)) {
-                $imgHtml .= '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; max-width: ' . $imgSize . 'px; height: auto; margin-bottom: 4px; display: block;" pointer-events="none" />';
-            }
-            if (in_array($qrType, ['draw', 'both'], true) && !empty($drawn)) {
-                $imgHtml .= '<img src="' . htmlspecialchars($drawn) . '" style="width: 100%; max-width: ' . $imgSize . 'px; height: auto; margin-bottom: 4px; display: block;" pointer-events="none" />';
-            }
-            $nameHtml = $showName
-                ? ('<b><u>' . htmlspecialchars($namaTerang) . '</u></b><br><span style="font-size: 10pt;">' . htmlspecialchars($jabatanName) . '</span>')
-                : '';
-
-            $style = "text-align: left; display: inline-block; cursor: grab; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
-            $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
-            $visual = '<div class="draggable-signature" data-key="' . $stepKey . '" style="' . $style . '">' . $imgHtml . $nameHtml . $resizeHandle . '</div>';
-
-            $data[$stepKey] = $visual;
-            $data['__live_approver_preview_' . $stepKey] = $imgHtml . $nameHtml;
+        if (!empty($info['current_step']['placeholder_key'])) {
+            return $info['current_step']['placeholder_key'];
         }
 
-        $html = app(\App\Services\PlaceholderService::class)->renderHtml($this->surat->template, $data, $this->surat);
+        return 'ttd_user_' . $actor->id;
+    }
 
-        return new \Illuminate\Support\HtmlString(
-            view('filament.forms.components.template-preview', [
-                'html' => $html,
-                'isDetailPage' => true,
-            ])->render()
-        );
+    public function getMySuratTtd(): ?\App\Models\SuratTtd
+    {
+        $actor = Auth::user();
+        if (!$actor) {
+            return null;
+        }
+        return $this->surat->suratTtds->firstWhere('user_id', $actor->id);
+    }
+
+    public function isMyStepPending(): bool
+    {
+        $unitId = Auth::user()?->unit_kerja_id;
+        if (!$unitId || !in_array($this->surat->status_surat, ['DIPROSES', 'TERKIRIM'], true)) {
+            return false;
+        }
+        return $this->surat->riwayats
+            ->where('status', 'MENUNGGU')
+            ->where('unit_tujuan_id', $unitId)
+            ->isNotEmpty();
+    }
+
+    /**
+     * Toggle on-the-fly: Tampilkan / Sembunyikan Nama & Jabatan di bawah QR/TTD (Hanya saat tahap Tweaking / Pra-Finalisasi)
+     */
+    public function toggleMyTtdShowName(): void
+    {
+        if (!$this->isMyStepPending()) {
+            Notification::make()->title('Surat sudah difinalisasi, format nama tidak dapat diubah lagi.')->warning()->send();
+            return;
+        }
+
+        $ttd = $this->getMySuratTtd();
+        if (!$ttd) {
+            return;
+        }
+
+        $key = $ttd->placeholder_key ?: $this->resolveMyPlaceholderKey();
+        $content = $this->surat->content ?? [];
+        $current = (bool) ($content[$key . '_show_name'] ?? true);
+        $content[$key . '_show_name'] = !$current;
+
+        $this->surat->update(['content' => $content]);
+        $this->surat->refresh();
+
+        if ($this->surat->template_id && $this->surat->template) {
+            $this->renderedHtml = app(\App\Services\PlaceholderService::class)
+                ->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        }
+    }
+
+    /**
+     * Toggle on-the-fly: Tampilkan / Sembunyikan seluruh blok TTD/QR (Tersedia saat Tweaking maupun Pasca-Finalisasi)
+     */
+    public function toggleMyTtdVisibility(): void
+    {
+        $ttd = $this->getMySuratTtd();
+        if (!$ttd) {
+            return;
+        }
+
+        $ttd->update(['is_visible' => !$ttd->is_visible]);
+        $this->surat->refresh();
+
+        if ($this->surat->template_id && $this->surat->template) {
+            $this->renderedHtml = app(\App\Services\PlaceholderService::class)
+                ->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        }
+
+        if ($this->surat->status_surat === 'SELESAI') {
+            app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat);
+        }
+    }
+
+    /**
+     * Standalone Action yang dapat dipanggil dari tombol di atas kertas surat ($wire.mountAction('setupSignature'))
+     */
+    public function setupSignatureAction(): Action
+    {
+        return Action::make('setupSignature')
+            ->label(fn() => $this->getMySuratTtd() ? 'Ubah Metode / Gambar TTD' : 'Bubuhkan & Atur TTD Pengesahan')
+            ->icon('heroicon-o-pencil-square')
+            ->color('primary')
+            ->modalHeading('Pengaturan Tanda Tangan & QR Pengesahan')
+            ->modalDescription('Pilih metode tanda tangan/QR Anda. Setelah disimpan, Anda dapat menggeser posisi dan mengatur tampilan nama secara langsung di lembar surat sebelum melakukan Finalisasi.')
+            ->modalSubmitActionLabel('Terapkan ke Lembar Surat')
+            ->visible(fn() => $this->isMyStepPending())
+            ->fillForm(function (): array {
+                $ttd = $this->getMySuratTtd();
+                $key = $this->resolveMyPlaceholderKey();
+                $content = $this->surat->content ?? [];
+
+                return [
+                    'is_visible'         => $ttd ? (bool) $ttd->is_visible : true,
+                    'qr_code_type'       => $content[$key . '_mode'] ?? 'generate',
+                    'tampilkan_nama_ttd' => array_key_exists($key . '_show_name', $content) ? (bool) $content[$key . '_show_name'] : true,
+                ];
+            })
+            ->schema($this->getSignatureFieldsetSchema())
+            ->action(function (array $data): void {
+                if (!$this->isMyStepPending()) {
+                    return;
+                }
+
+                $info = $this->getApprovalPathInfo();
+                $placeholderKey = $this->resolveMyPlaceholderKey();
+
+                app(\App\Services\SignatureService::class)->processDigitalSignature(
+                    $this->surat,
+                    Auth::user(),
+                    $data,
+                    $placeholderKey,
+                    'UTAMA'
+                );
+
+                $this->refreshPage(
+                    'TTD Diterapkan ke Surat',
+                    'Silakan sesuaikan posisi atau toggle nama langsung di lembar surat, lalu klik Finalisasi jika sudah sesuai.'
+                );
+            });
     }
 
     protected function getSignatureFieldsetSchema(): array
@@ -201,42 +287,81 @@ trait HasApprovalActions
                 ->visible(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
                 ->required(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
                 ->columnSpanFull(),
-
-            TextEntry::make('live_ttd_preview')
-                ->label('Pratinjau & Penataan Posisi TTD / QR pada Surat (Geser / Ubah Ukuran Langsung)')
-                ->state(fn(Get $get) => $this->renderModalLivePreview($get))
-                ->html()
-                ->visible(fn() => (bool) $this->surat->template_id)
-                ->columnSpanFull(),
         ];
     }
+
     protected function getActionPersetujuan(): array
     {
         return [
             'group_proses' => \Filament\Actions\ActionGroup::make([
-                // 1. SETUJUI & SELESAI (Hanya untuk langkah final atau surat tanpa path)
+                // 0. TAHAP 2: BUBUHKAN / UBAH TTD PENGESAHAN (Tweak On-The-Fly sebelum Finalisasi)
+                Action::make('setup_signature_menu')
+                    ->label(fn() => $this->getMySuratTtd() ? '1. Ubah Metode / Gambar TTD' : '1. Bubuhkan & Atur TTD di Surat')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('info')
+                    ->modalHeading('Pengaturan Tanda Tangan & QR Pengesahan')
+                    ->modalDescription('Pilih metode tanda tangan/QR Anda. Setelah disimpan, Anda dapat menggeser posisi dan mengatur tampilan nama secara langsung di lembar surat sebelum melakukan Finalisasi.')
+                    ->modalSubmitActionLabel('Terapkan ke Lembar Surat')
+                    ->fillForm(function (): array {
+                        $ttd = $this->getMySuratTtd();
+                        $key = $this->resolveMyPlaceholderKey();
+                        $content = $this->surat->content ?? [];
+
+                        return [
+                            'is_visible'         => $ttd ? (bool) $ttd->is_visible : true,
+                            'qr_code_type'       => $content[$key . '_mode'] ?? 'generate',
+                            'tampilkan_nama_ttd' => array_key_exists($key . '_show_name', $content) ? (bool) $content[$key . '_show_name'] : true,
+                        ];
+                    })
+                    ->schema($this->getSignatureFieldsetSchema())
+                    ->action(function (array $data): void {
+                        $placeholderKey = $this->resolveMyPlaceholderKey();
+
+                        app(\App\Services\SignatureService::class)->processDigitalSignature(
+                            $this->surat,
+                            Auth::user(),
+                            $data,
+                            $placeholderKey,
+                            'UTAMA'
+                        );
+
+                        $this->refreshPage(
+                            'TTD Diterapkan ke Surat',
+                            'Silakan sesuaikan posisi atau toggle nama langsung di lembar surat, lalu klik Finalisasi jika sudah sesuai.'
+                        );
+                    }),
+
+                // 1. TAHAP 3 (FINAL): FINALISASI & SELESAIKAN SURAT
                 Action::make('approve_finish')
                     ->label(function () {
                         $info = $this->getApprovalPathInfo();
-                        return ($info['has_path'] && $info['is_final'])
-                            ? 'Setujui & Selesaikan (Tanda Tangan Final)'
-                            : 'Setujui & Selesai';
+                        $prefix = $this->getMySuratTtd() ? '2. Finalisasi & Selesaikan Surat' : 'Finalisasi & Selesai';
+                        return ($info['has_path'] && $info['is_final']) ? $prefix : 'Finalisasi & Selesai';
                     })
-                    ->modalWidth('5xl')
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->visible(function () {
                         $info = $this->getApprovalPathInfo();
-                        // Sembunyikan jika masih ada langkah berikutnya di approval_path
                         return !($info['has_path'] && $info['is_intermediate']);
                     })
-                    ->schema([
-                        Textarea::make('catatan')
-                            ->label('Catatan Persetujuan Akhir (Opsional)'),
+                    ->schema(function () {
+                        $alreadyHasTtd = (bool) $this->getMySuratTtd();
+                        $schema = [
+                            Textarea::make('catatan')
+                                ->label('Catatan Persetujuan Akhir (Opsional)'),
+                        ];
 
-                        Fieldset::make('Tanda Tangan Digital')
-                            ->schema($this->getSignatureFieldsetSchema()),
-                    ])
+                        if (!$alreadyHasTtd) {
+                            $schema[] = Fieldset::make('Tanda Tangan Digital (Belum Diatur di Surat)')
+                                ->schema($this->getSignatureFieldsetSchema());
+                        } else {
+                            $schema[] = TextEntry::make('info_ttd_siap')
+                                ->label('Status Tanda Tangan')
+                                ->state('Tanda tangan / QR Anda sudah terpasang di lembar surat. Setelah difinalisasi, Anda hanya dapat menggeser posisi atau menyembunyikan/menampilkan TTD secara utuh.');
+                        }
+
+                        return $schema;
+                    })
                     ->action(function (array $data): void {
                         $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
@@ -252,31 +377,30 @@ trait HasApprovalActions
                             $data['catatan'] ?? null,
                             $data
                         );
-                        $this->refreshPage('Berhasil', 'Surat berhasil disetujui & ditandatangani.');
+                        $this->refreshPage('Berhasil Difinalisasi', 'Surat resmi disetujui dan difinalisasi.');
                     }),
 
-                // 2. SETUJUI & TERUSKAN / LANJUTKAN (Untuk langkah perantara atau alur bebas)
+                // 2. TAHAP 3 (INTERMEDIATE): FINALISASI & LANJUTKAN KE TAHAP BERIKUTNYA
                 Action::make('approve_forward')
                     ->label(function () {
                         $info = $this->getApprovalPathInfo();
                         if ($info['has_path'] && $info['is_intermediate']) {
-                            return 'Verifikasi & Lanjutkan ke ' . ($info['next_jabatan_name'] ?? 'Tahap Berikutnya');
+                            return '2. Finalisasi & Lanjutkan ke ' . ($info['next_jabatan_name'] ?? 'Tahap Berikutnya');
                         }
-                        return 'Setujui & Teruskan';
+                        return 'Finalisasi & Teruskan';
                     })
-                    ->modalWidth('5xl')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('primary')
                     ->visible(function () {
                         $info = $this->getApprovalPathInfo();
-                        // Sembunyikan jika sudah berada di langkah final
                         return !($info['has_path'] && $info['is_final']);
                     })
                     ->schema(function () {
                         $info = $this->getApprovalPathInfo();
                         $isIntermediate = $info['has_path'] && $info['is_intermediate'];
+                        $alreadyHasTtd = (bool) $this->getMySuratTtd();
 
-                        return [
+                        $schema = [
                             TextEntry::make('info_tujuan_otomatis')
                                 ->label('Tujuan Selanjutnya (Otomatis)')
                                 ->state(fn() => 'Surat akan otomatis diteruskan ke ' . ($info['next_jabatan_name'] ?? 'tahap berikutnya') . ' sesuai alur persetujuan.')
@@ -288,25 +412,34 @@ trait HasApprovalActions
                                 ->searchable()
                                 ->visible(!$isIntermediate)
                                 ->required(!$isIntermediate),
+                        ];
 
-                            Toggle::make('tambah_ttd')
+                        if (!$alreadyHasTtd) {
+                            $schema[] = Toggle::make('tambah_ttd')
                                 ->label('Tambahkan Tanda Tangan / Paraf')
                                 ->default($info['requires_signature'])
-                                ->reactive(),
+                                ->reactive();
 
-                            Fieldset::make('Tanda Tangan Digital')
+                            $schema[] = Fieldset::make('Tanda Tangan Digital')
                                 ->schema($this->getSignatureFieldsetSchema())
-                                ->visible(fn(Get $get) => (bool) $get('tambah_ttd')),
+                                ->visible(fn(Get $get) => (bool) $get('tambah_ttd'));
+                        } else {
+                            $schema[] = TextEntry::make('info_ttd_siap')
+                                ->label('Status Tanda Tangan')
+                                ->state('Tanda tangan / QR Anda sudah terpasang di lembar surat. Setelah diteruskan, Anda hanya dapat menggeser posisi atau menyembunyikan/menampilkan TTD secara utuh.');
+                        }
 
-                            Textarea::make('catatan')->label('Catatan Penerusan (Opsional)'),
-                        ];
+                        $schema[] = Textarea::make('catatan')->label('Catatan Penerusan (Opsional)');
+
+                        return $schema;
                     })
                     ->action(function (array $data): void {
                         $activeRiwayat = $this->getActiveRiwayat();
                         if (!$activeRiwayat) return;
 
                         $info = $this->getApprovalPathInfo();
-                        $needsSig = (bool) ($data['tambah_ttd'] ?? $info['requires_signature']);
+                        $alreadyHasTtd = (bool) $this->getMySuratTtd();
+                        $needsSig = $alreadyHasTtd ? true : (bool) ($data['tambah_ttd'] ?? $info['requires_signature']);
 
                         app(\App\Services\SuratRoutingService::class)->approveStep(
                             $activeRiwayat,
@@ -319,7 +452,7 @@ trait HasApprovalActions
                             $data['catatan'] ?? null,
                             $data
                         );
-                        $this->refreshPage('Berhasil', 'Surat disetujui dan diteruskan ke tahap berikutnya.');
+                        $this->refreshPage('Berhasil Difinalisasi', 'Surat disetujui dan diteruskan ke tahap berikutnya.');
                     }),
 
                 // 3. TERUSKAN SAJA (Disposisi manual tanpa persetujuan formal)

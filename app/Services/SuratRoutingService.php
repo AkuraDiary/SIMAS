@@ -205,14 +205,21 @@ class SuratRoutingService
                     }
                 }
 
-                // 2b. Serahkan urusan image processing & QR ke SignatureService!
-                app(\App\Services\SignatureService::class)->processDigitalSignature(
-                    $surat,
-                    $actor,
-                    $signatureData ?? [],
-                    $placeholderKey,
-                    $signatureType
-                );
+                if (!$placeholderKey) {
+                    $placeholderKey = 'ttd_user_' . $actor->id;
+                }
+
+                // 2b. Jika penyetuju belum membuat TTD di Tahap 2 (atau mengirim form TTD baru), proses via SignatureService
+                $existingTtd = $surat->suratTtds()->where('user_id', $actor->id)->first();
+                if (!$existingTtd || !empty($signatureData['qr_code_type'])) {
+                    app(\App\Services\SignatureService::class)->processDigitalSignature(
+                        $surat,
+                        $actor,
+                        $signatureData ?? [],
+                        $placeholderKey,
+                        $signatureType
+                    );
+                }
             }
 
 
