@@ -126,8 +126,8 @@ class PlaceholderService
             // Inject QR Code Dokumen Utama (Fleksibel & Draggable)
             $qrX = (int) ($data['qr_code_posisi_x'] ?? ($surat->content['qr_code_posisi_x'] ?? 0));
             $qrY = (int) ($data['qr_code_posisi_y'] ?? ($surat->content['qr_code_posisi_y'] ?? 0));
-            if (abs($qrX) > 300) $qrX = 0;
-            if (abs($qrY) > 400) $qrY = 0;
+            if (abs($qrX) > 700) $qrX = 0;
+            if (abs($qrY) > 1000) $qrY = 0;
             $qrWidth = (int) ($data['qr_code_width'] ?? ($surat->content['qr_code_width'] ?? 80));
             $qrStyle = "text-align: center; display: inline-block; cursor: {$qrCursor}; position: relative; left: {$qrX}px; top: {$qrY}px; width: {$qrWidth}px;";
             $data['qr_code'] = '<div class="draggable-signature" data-key="qr_code"' . $qrLockAttr . ' style="' . $qrStyle . '">' .
@@ -183,8 +183,8 @@ class PlaceholderService
 
                 $x = (int) ($data[$pKey . '_posisi_x'] ?? ($surat->content[$pKey . '_posisi_x'] ?? $ttd->posisi_x ?? 0));
                 $y = (int) ($data[$pKey . '_posisi_y'] ?? ($surat->content[$pKey . '_posisi_y'] ?? $ttd->posisi_y ?? 0));
-                if (abs($x) > 300) $x = 0;
-                if (abs($y) > 400) $y = 0;
+                if (abs($qrX) > 700) $qrX = 0;
+                if (abs($qrY) > 1000) $qrY = 0;
 
                 $canDrag = !$forPdf && $this->canUserAdjustSignature($surat, $template, $pKey);
                 $lockAttr = $canDrag ? '' : ' data-locked="true"';
@@ -312,8 +312,8 @@ class PlaceholderService
             if ($val) {
                 $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
                 $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
-                if (abs($x) > 300) $x = 0;
-                if (abs($y) > 400) $y = 0;
+                if (abs($qrX) > 700) $qrX = 0;
+                if (abs($qrY) > 1000) $qrY = 0;
 
                 $canDrag = !$forPdf && $this->canUserAdjustSignature($surat, $template, $key);
                 $lockAttr = $canDrag ? '' : ' data-locked="true"';
@@ -338,8 +338,8 @@ class PlaceholderService
             if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
                 $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
                 $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
-                if (abs($x) > 300) $x = 0;
-                if (abs($y) > 400) $y = 0;
+                if (abs($qrX) > 700) $qrX = 0;
+                if (abs($qrY) > 1000) $qrY = 0;
 
                 $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
                 $widthVal = $width ? (int) $width : 140;

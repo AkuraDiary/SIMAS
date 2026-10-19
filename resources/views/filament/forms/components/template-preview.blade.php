@@ -86,9 +86,10 @@
             const dx = e.clientX - this.startX;
             const dy = e.clientY - this.startY;
 
-            // Clamping offset within reasonable bounds (-300px to +300px)
-            const newLeft = Math.max(-300, Math.min(300, this.initialLeft + dx));
-            const newTop = Math.max(-300, Math.min(300, this.initialTop + dy));
+            // Rentang pergeseran luas (-700px s/d +700px horizontal, -1000px s/d +1000px vertikal)
+            // agar TTD yang berawal di kanan kertas bisa digeser penuh sampai ke margin kiri kertas
+            const newLeft = Math.max(-700, Math.min(700, this.initialLeft + dx));
+            const newTop = Math.max(-1000, Math.min(1000, this.initialTop + dy));
 
             this.dragEl.style.left = newLeft + 'px';
             this.dragEl.style.top = newTop + 'px';

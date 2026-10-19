@@ -210,9 +210,9 @@ class DetailSurat extends Page implements HasForms
         }
 
         $content = $this->surat->content ?? [];
-        if ($x !== null && $y !== null) {
-            $content[$key . '_posisi_x'] = max(-300, min(300, $x));
-            $content[$key . '_posisi_y'] = max(-300, min(300, $y));
+               if ($x !== null && $y !== null) {
+            $content[$key . '_posisi_x'] = max(-700, min(700, $x));
+            $content[$key . '_posisi_y'] = max(-1000, min(1000, $y));
         }
         if ($width !== null) {
             $content[$key . '_width'] = max(60, min(450, $width));
