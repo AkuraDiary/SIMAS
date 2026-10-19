@@ -85,68 +85,6 @@ trait HasApprovalActions
             'requires_signature' => (bool) ($currentStep['is_signer'] ?? true),
         ];
     }
-    /**
-     * Komponen schema input Tanda Tangan Digital reusable.
-     */
-    protected function getSignatureFieldsetSchema(): array
-    {
-        return [
-            Toggle::make('is_visible')
-                ->label('Tampilkan TTD / QR Pengesahan pada Lembar Surat')
-                ->helperText('Jika dinonaktifkan, persetujuan tetap tercatat di Lembar Kendali namun tidak ditempelkan di halaman surat.')
-                ->default(true)
-                ->live()
-                ->columnSpanFull(),
-
-            Radio::make('qr_code_type')
-                ->label('Format Visual Pengesahan')
-                ->options([
-                    'generate' => 'QR Code Verifikasi Sistem (Otomatis)',
-                    'upload'   => 'Unggah Gambar QR Code / Stempel TTD Eksternal',
-                    'draw'     => 'Goreskan Tanda Tangan Langsung',
-                    'both'     => 'Kombinasi: Goresan TTD + QR Verifikasi Sistem',
-                    'none'     => 'Teks Nama & Jabatan Saja (Tanpa Gambar)',
-                ])
-                ->default('generate')
-                ->visible(fn(Get $get) => (bool) $get('is_visible'))
-                ->live()
-                ->columnSpanFull(),
-
-            Toggle::make('tampilkan_nama_ttd')
-                ->label('Tampilkan Nama & Jabatan Penandatangan di Bawah QR / TTD')
-                ->helperText('Matikan opsi ini jika Anda hanya ingin menampilkan gambar QR Code / TTD saja.')
-                ->default(true)
-                ->visible(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') !== 'none')
-                ->columnSpanFull(),
-
-            FileUpload::make('custom_qr_code')
-                ->label('File Gambar QR Code / TTD')
-                ->image()
-                ->disk('private')
-                ->directory('signatures')
-                ->visible(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
-                ->required(fn(Get $get) => (bool) $get('is_visible') && $get('qr_code_type') === 'upload')
-                ->columnSpanFull(),
-
-            SignaturePad::make('drawn_signature')
-                ->label('Gambar Tanda Tangan')
-                ->downloadable()
-                ->downloadableFormats([
-                    DownloadableFormat::PNG,
-                    DownloadableFormat::JPG,
-                    DownloadableFormat::SVG,
-                ])
-                ->exportBackgroundColor('rgba(0,0,0,0)')
-                ->exportPenColor('#000000')
-                ->backgroundColor('#ffffff')
-                ->backgroundColorOnDark('#111111')
-                ->penColor('#000000')
-                ->penColorOnDark('#ffffff')
-                ->visible(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
-                ->required(fn(Get $get) => (bool) $get('is_visible') && in_array($get('qr_code_type'), ['draw', 'both'], true))
-                ->columnSpanFull(),
-        ];
-    }
 
     protected function renderModalLivePreview(Get $get): \Illuminate\Support\HtmlString
     {
