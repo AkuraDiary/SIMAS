@@ -186,12 +186,13 @@ class GuestPengajuan extends Component implements HasForms
                                 Radio::make('tipe_surat')
                                     ->label('Kategori Dokumen')
                                     ->options([
-                                        'PENGAJUAN' => 'Pengajuan Permohonan (Memerlukan tindak lanjut atau balasan layanan dari Universitas)',
-                                        'EKSTERNAL'  => 'Surat Eksternal Biasa (Surat resmi masuk dari instansi luar, cth: undangan, permohonan kerjasama)',
+                                        'PENGAJUAN' => 'Pengajuan Permohonan',
+                                        'EKSTERNAL'  => 'Surat Eksternal Biasa',
                                     ])
                                     ->default('PENGAJUAN')
                                     ->columnSpanFull()
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
+                                    
                                 Select::make('unit_tujuan')
                                     ->label('Unit Tujuan')
                                     ->options(function () {

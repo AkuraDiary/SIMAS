@@ -121,39 +121,39 @@
                 @include('filament.forms.components.template-preview', ['html' => $this->renderedHtml, 'isDetailPage' => true])
 
 
-                {{-- Lampiran Section --}}
+                                {{-- Lampiran Section --}}
                 @php
-
-                $lampirans = $surat->getSemuaLampiran();
-
+                    $lampirans = $surat->getSemuaLampiran();
                 @endphp
-                @if ($lampirans->isNotEmpty())
                 <x-filament::section>
                     <x-slot name="heading">
                         Lampiran Berkas ({{ $lampirans->count() }})
                     </x-slot>
 
-                    <div class="flex flex-wrap gap-4 mt-2">
-                        @foreach ($lampirans as $lampiran)
-                        <x-filament::card class="w-full sm:w-auto">
-                            <button wire:click="openPreview({{ $lampiran->id }})" class="flex items-center gap-4 text-left w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors p-2 rounded-lg -m-2">
-                                <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                                    @if ($lampiran->hasGeneratedConversion('thumb'))
-                                    <img src="{{ route('media.thumb', $lampiran->id) }}" alt="{{ $lampiran->file_name }}" class="object-cover w-full h-full" />
-                                    @else
-                                    <span class="text-xs font-bold text-gray-500">{{ strtoupper($lampiran->extension) }}</span>
-                                    @endif
-                                </div>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{{ $lampiran->file_name }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ number_format($lampiran->size / 1024, 2) }} KB</p>
-                                </div>
-                            </button>
-                        </x-filament::card>
-                        @endforeach
-                    </div>
+                    @if ($lampirans->isNotEmpty())
+                        <div class="flex flex-wrap gap-4 mt-2">
+                            @foreach ($lampirans as $lampiran)
+                            <x-filament::card class="w-full sm:w-auto">
+                                <button wire:click="openPreview({{ $lampiran->id }})" class="flex items-center gap-4 text-left w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors p-2 rounded-lg -m-2">
+                                    <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                                        @if ($lampiran->hasGeneratedConversion('thumb'))
+                                        <img src="{{ route('media.thumb', $lampiran->id) }}" alt="{{ $lampiran->file_name }}" class="object-cover w-full h-full" />
+                                        @else
+                                        <span class="text-xs font-bold text-gray-500">{{ strtoupper($lampiran->extension) }}</span>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{{ $lampiran->file_name }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ number_format($lampiran->size / 1024, 2) }} KB</p>
+                                    </div>
+                                </button>
+                            </x-filament::card>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-xs text-gray-500 dark:text-gray-400 italic">Tidak ada berkas lampiran pada surat ini.</p>
+                    @endif
                 </x-filament::section>
-                @endif
             </div>
 
 

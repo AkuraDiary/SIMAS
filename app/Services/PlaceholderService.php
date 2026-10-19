@@ -438,6 +438,10 @@ class PlaceholderService
                 return '';
             }, $seg);
 
+            // Pastikan setiap segmen halaman memiliki pasangan tag pembuka/penutup yang seimbang
+            // agar tidak bocor keluar dari .surat-page-sheet dan merusak layout halaman utama (seperti Lampiran)
+            $seg = $this->balanceHtmlFragment($seg);
+
             $showKop = $kopUri && ($isFirstPage || $kopPosisi === 'SEMUA_HALAMAN');
             $showFooter = $footerUri && ($isLastPage || $footerPosisi === 'SEMUA_HALAMAN');
 
@@ -601,6 +605,54 @@ class PlaceholderService
         return $html;
     }
 
+        /**
+     * Menyeimbangkan tag HTML pembuka dan penutup pada potongan segmen halaman
+     * agar pemotongan <!-- pagebreak --> di tengah <div> / <table> tidak merusak DOM di luar kertas surat.
+     */
+    private function balanceHtmlFragment(string $fragment): string
+    {
+        if (trim($fragment) === '') {
+            return '';
+        }
+
+        $voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+        $openStack = [];
+        $result = '';
+        $tokens = preg_split('/(<[^>]+>)/s', $fragment, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+        foreach ($tokens as $token) {
+            if ($token[0] === '<' && preg_match('/^<\/([a-zA-Z0-9]+)\s*>$/', $token, $closeMatch)) {
+                $tag = strtolower($closeMatch[1]);
+                if (in_array($tag, $voidTags, true)) {
+                    continue;
+                }
+                // Hanya izinkan tag penutup jika memang ada pasangannya di dalam segmen halaman ini
+                $pos = array_search($tag, array_reverse($openStack, true), true);
+                if ($pos !== false) {
+                    while (count($openStack) > $pos) {
+                        $popped = array_pop($openStack);
+                        $result .= "</{$popped}>";
+                    }
+                }
+            } elseif ($token[0] === '<' && preg_match('/^<([a-zA-Z0-9]+)(\s[^>]*)?>$/s', $token, $openMatch)) {
+                $tag = strtolower($openMatch[1]);
+                $isSelfClosing = str_ends_with(rtrim($token, '>'), '/');
+                $result .= $token;
+                if (!$isSelfClosing && !in_array($tag, $voidTags, true)) {
+                    $openStack[] = $tag;
+                }
+            } else {
+                $result .= $token;
+            }
+        }
+
+        while (!empty($openStack)) {
+            $tag = array_pop($openStack);
+            $result .= "</{$tag}>";
+        }
+
+        return $result;
+    }
     /**
      * Render HTML untuk Surat Scratch / Bebas dengan menyematkan blok tanda tangan resmi di bagian bawah.
      */

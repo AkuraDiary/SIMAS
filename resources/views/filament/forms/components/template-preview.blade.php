@@ -1,9 +1,12 @@
-<div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50"
+<div x-ref="scrollViewport"
+    class="mt-4 rounded-xl border border-gray-300 bg-slate-200/80 p-4 sm:p-6 flex justify-center max-h-[860px] overflow-y-auto overflow-x-auto custom-scrollbar shadow-inner dark:border-gray-700 dark:bg-gray-900/90"
     x-data="{
         isDragging: false,
         dragEl: null,
         startX: 0,
         startY: 0,
+        startScrollTop: 0,
+        startScrollLeft: 0,
         initialLeft: 0,
         initialTop: 0,
         originPage: 1,
@@ -78,6 +81,10 @@
             this.startX = e.clientX;
             this.startY = e.clientY;
 
+            const vp = this.$refs.scrollViewport;
+            this.startScrollTop = vp ? vp.scrollTop : 0;
+            this.startScrollLeft = vp ? vp.scrollLeft : 0;
+
             this.initialLeft = parseInt(el.style.left, 10) || 0;
             this.initialTop = parseInt(el.style.top, 10) || 0;
 
@@ -92,8 +99,22 @@
         onDrag(e) {
             if (!this.isDragging || !this.dragEl) return;
 
-            const dx = e.clientX - this.startX;
-            const dy = e.clientY - this.startY;
+            const vp = this.$refs.scrollViewport;
+            if (vp) {
+                const vpRect = vp.getBoundingClientRect();
+                const edgeThreshold = 60;
+                if (e.clientY < vpRect.top + edgeThreshold) {
+                    vp.scrollTop -= 18;
+                } else if (e.clientY > vpRect.bottom - edgeThreshold) {
+                    vp.scrollTop += 18;
+                }
+            }
+
+            const scrollDeltaY = vp ? (vp.scrollTop - this.startScrollTop) : 0;
+            const scrollDeltaX = vp ? (vp.scrollLeft - this.startScrollLeft) : 0;
+
+            const dx = (e.clientX - this.startX) + scrollDeltaX;
+            const dy = (e.clientY - this.startY) + scrollDeltaY;
 
             // Izinkan gerak vertikal lintas beberapa lembar kertas (-2500px s/d +2500px)
             const newLeft = Math.max(-700, Math.min(700, this.initialLeft + dx));
@@ -107,7 +128,7 @@
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
 
-            document.querySelectorAll('.surat-page-sheet').forEach(sheet => {
+            this.$el.querySelectorAll('.surat-page-sheet').forEach(sheet => {
                 const sRect = sheet.getBoundingClientRect();
                 if (centerY >= sRect.top && centerY <= sRect.bottom && centerX >= sRect.left && centerX <= sRect.right) {
                     sheet.classList.add('is-drop-target');
@@ -126,17 +147,16 @@
             el.style.zIndex = '';
             el.classList.remove('is-being-dragged');
 
-            document.querySelectorAll('.surat-page-sheet.is-drop-target').forEach(s => s.classList.remove('is-drop-target'));
+            this.$el.querySelectorAll('.surat-page-sheet.is-drop-target').forEach(s => s.classList.remove('is-drop-target'));
 
             const key = el.getAttribute('data-key');
             if (key) {
                 const dropRect = el.getBoundingClientRect();
-                const centerX = dropRect.left + dropRect.width / 2;
                 const centerY = dropRect.top + dropRect.height / 2;
 
                 // Cari lembar kertas tempat TTD dijatuhkan
                 let targetSheet = null;
-                document.querySelectorAll('.surat-page-sheet').forEach(sheet => {
+                this.$el.querySelectorAll('.surat-page-sheet').forEach(sheet => {
                     const sRect = sheet.getBoundingClientRect();
                     if (centerY >= sRect.top && centerY <= sRect.bottom) {
                         targetSheet = sheet;
@@ -152,7 +172,7 @@
                 let y = parseInt(el.style.top, 10) || 0;
 
                 // Jika TTD dijatuhkan ke lembar halaman yang berbeda, pindahkan ke anchor halaman tujuan
-                // dan hitung ulang offset (x, y) agar posisi visual tidak bergeser 1 piksel pun!
+                // dan hitung ulang offset (x, y) agar posisi visual tidak bergeser 1 piksel pun
                 if (targetSheet && currentSheet && targetSheet !== currentSheet) {
                     const targetAnchor = targetSheet.querySelector('.surat-page-ttd-anchor');
                     if (targetAnchor) {
@@ -231,7 +251,7 @@
     @mousemove.window="handleMouseMove"
     @mouseup.window="handleMouseUp"
     @dblclick="handleDblClick">
-    <div class="relative w-full max-w-3xl text-black">
+    <div class="relative w-full max-w-3xl text-black my-auto">
         <div class="surat-content relative font-sans">
             <style>
                 .preview-paper-content {
