@@ -134,9 +134,8 @@ class PlaceholderService
                 '<img src="' . asset('images/qr_placeholder.png') . '" style="width: 100%; height: auto; display: block;" pointer-events="none" />' .
                 $qrResizeHandle .
                 '</div>';
-
             // Inject TTD & QR Code dari Database (surat_ttds)
-            $unplacedTtdHtmls = [];
+            $unplacedTtdsByPage = [];
             foreach ($surat->suratTtds as $ttd) {
                 $pKey = $ttd->placeholder_key ?: ('ttd_user_' . $ttd->user_id);
 
@@ -183,8 +182,10 @@ class PlaceholderService
 
                 $x = (int) ($data[$pKey . '_posisi_x'] ?? ($surat->content[$pKey . '_posisi_x'] ?? $ttd->posisi_x ?? 0));
                 $y = (int) ($data[$pKey . '_posisi_y'] ?? ($surat->content[$pKey . '_posisi_y'] ?? $ttd->posisi_y ?? 0));
-                if (abs($qrX) > 700) $qrX = 0;
-                if (abs($qrY) > 1000) $qrY = 0;
+                if (abs($x) > 700) $x = 0;
+                if (abs($y) > 1000) $y = 0;
+
+                $savedPage = (int) ($data[$pKey . '_halaman'] ?? ($surat->content[$pKey . '_halaman'] ?? $ttd->halaman ?? 0));
 
                 $canDrag = !$forPdf && $this->canUserAdjustSignature($surat, $template, $pKey);
                 $lockAttr = $canDrag ? '' : ' data-locked="true"';
@@ -193,18 +194,23 @@ class PlaceholderService
 
                 $style = "text-align: left; display: inline-block; cursor: {$cursor}; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
 
-                $ttdVisual = '<div class="draggable-signature" data-key="' . $pKey . '"' . $lockAttr . ' style="' . $style . '">' .
+                $ttdVisual = '<div class="draggable-signature" data-key="' . $pKey . '" data-page="' . max(1, $savedPage) . '"' . $lockAttr . ' style="' . $style . '">' .
                     $qrImg .
                     $extraTtdImg .
                     $nameHtml .
                     $resizeHandle .
                     '</div>';
 
-                $data[$pKey] = $ttdVisual;
+                $hasTagInHtml = (bool) preg_match('/\{\{\s*' . preg_quote($pKey, '/') . '\s*\}\}/', $html);
 
-                // Jika tag {{ placeholder_key }} tidak tertulis di dalam template HTML, simpan ke daftar fallback bawah surat
-                if (!preg_match('/\{\{\s*' . preg_quote($pKey, '/') . '\s*\}\}/', $html)) {
-                    $unplacedTtdHtmls[$pKey] = $ttdVisual;
+                // Jika user sudah pernah memindahkan TTD lintas halaman secara eksplisit (atau tag tidak ada di HTML),
+                // tempatkan ke anchor halaman tujuan dan kosongkan tag lama agar tidak duplikat
+                if ($savedPage > 0 || !$hasTagInHtml) {
+                    $data[$pKey] = '';
+                    $targetPageNum = $savedPage > 0 ? $savedPage : 999; // 999 = fallback halaman terakhir
+                    $unplacedTtdsByPage[$targetPageNum][$pKey] = $ttdVisual;
+                } else {
+                    $data[$pKey] = $ttdVisual;
                 }
             }
         }
@@ -254,15 +260,14 @@ class PlaceholderService
         // Handle flat vars (text, date, number, etc.) - amankan karakter '$'
         foreach ($data as $key => $value) {
             if (!is_array($value) && $value !== null) {
-                // Jika sengaja dikosongkan karena is_visible = false pada surat_ttds, tetap replace jadi kosong
-                $isHiddenTtd = $surat && $surat->suratTtds->where('placeholder_key', $key)->where('is_visible', false)->isNotEmpty();
-                if ($value !== '' || $isHiddenTtd) {
+                $isRefocatedOrHidden = ($surat && $surat->suratTtds->where('placeholder_key', $key)->isNotEmpty() && $value === '');
+                if ($value !== '' || $isRefocatedOrHidden) {
                     $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', (string) $value), $html);
                 }
             }
         }
 
-        // Handle signature vars specifically
+        // Handle signature vars specifically (TTD Pemohon)
         foreach ($template->field_variables ?? [] as $field) {
             $key = $field['key'] ?? '';
             if (!$key || $field['type'] !== 'signature') continue;
@@ -312,8 +317,10 @@ class PlaceholderService
             if ($val) {
                 $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
                 $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
-                if (abs($qrX) > 700) $qrX = 0;
-                if (abs($qrY) > 1000) $qrY = 0;
+                if (abs($x) > 700) $x = 0;
+                if (abs($y) > 1000) $y = 0;
+
+                $savedPage = (int) ($data[$key . '_halaman'] ?? ($surat ? ($surat->content[$key . '_halaman'] ?? 0) : 0));
 
                 $canDrag = !$forPdf && $this->canUserAdjustSignature($surat, $template, $key);
                 $lockAttr = $canDrag ? '' : ' data-locked="true"';
@@ -321,8 +328,14 @@ class PlaceholderService
                 $resizeHandle = $canDrag ? '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>' : '';
 
                 $style = "display: inline-block; cursor: {$cursor}; position: relative; left: {$x}px; top: {$y}px; width: {$widthVal}px;";
-                $wrapper = '<div class="draggable-signature" data-key="' . $key . '"' . $lockAttr . ' style="' . $style . '">' . $val . $resizeHandle . '</div>';
-                $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $wrapper), $html);
+                $wrapper = '<div class="draggable-signature" data-key="' . $key . '" data-page="' . max(1, $savedPage) . '"' . $lockAttr . ' style="' . $style . '">' . $val . $resizeHandle . '</div>';
+
+                if ($savedPage > 0) {
+                    $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', '', $html);
+                    $unplacedTtdsByPage[$savedPage][$key] = $wrapper;
+                } else {
+                    $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $wrapper), $html);
+                }
             }
         }
 
@@ -330,7 +343,6 @@ class PlaceholderService
         $html = preg_replace_callback('/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/', function ($m) use ($data, $surat, $template, $forPdf) {
             $key = $m[1];
 
-            // Pada saat cetak PDF final, jangan tampilkan kotak merah placeholder yang belum ditandatangani
             if ($forPdf && \Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
                 return '';
             }
@@ -338,8 +350,8 @@ class PlaceholderService
             if (\Illuminate\Support\Str::startsWith(strtolower($key), 'ttd_')) {
                 $x = (int) ($data[$key . '_posisi_x'] ?? ($surat ? ($surat->content[$key . '_posisi_x'] ?? null) : null) ?? 0);
                 $y = (int) ($data[$key . '_posisi_y'] ?? ($surat ? ($surat->content[$key . '_posisi_y'] ?? null) : null) ?? 0);
-                if (abs($qrX) > 700) $qrX = 0;
-                if (abs($qrY) > 1000) $qrY = 0;
+                if (abs($x) > 700) $x = 0;
+                if (abs($y) > 1000) $y = 0;
 
                 $width = $data[$key . '_width'] ?? ($surat ? ($surat->content[$key . '_width'] ?? null) : null);
                 $widthVal = $width ? (int) $width : 140;
@@ -360,104 +372,146 @@ class PlaceholderService
             return '<span style="color:#ef4444; font-weight:bold;">[' . $key . ']</span>';
         }, $html);
 
-        // Jika ada TTD dari surat_ttds atau approval_path yang belum memiliki tag {{ ... }} di dalam isi HTML,
-        // sematkan otomatis di bagian bawah dokumen agar tetap muncul & dapat digeser oleh penyetuju!
-        if (!empty($unplacedTtdHtmls)) {
-            $html .= '<div style="margin-top: 24px; text-align: right;">' . implode('&nbsp;&nbsp;&nbsp;', $unplacedTtdHtmls) . '</div>';
-        } elseif (!$forPdf && $surat) {
-            // Saat belum ditandatangani (atau preview di modal), tampilkan kotak placeholder bagi approver aktif jika belum ada di HTML
-            $approvalPath = $surat->approval_path ?? $template->approval_path ?? [];
-            if (is_array($approvalPath)) {
-                foreach ($approvalPath as $step) {
-                    $stepKey = $step['placeholder_key'] ?? null;
-                    if ($stepKey && $this->canUserAdjustSignature($surat, $template, $stepKey)) {
-                        $alreadyInHtml = strpos($html, 'data-key="' . $stepKey . '"') !== false;
-                        $alreadySigned = $surat->suratTtds->where('placeholder_key', $stepKey)->isNotEmpty();
-                        if (!$alreadyInHtml && !$alreadySigned) {
-                            $x = (int) ($data[$stepKey . '_posisi_x'] ?? ($surat->content[$stepKey . '_posisi_x'] ?? 0));
-                            $y = (int) ($data[$stepKey . '_posisi_y'] ?? ($surat->content[$stepKey . '_posisi_y'] ?? 0));
-                            $w = (int) ($data[$stepKey . '_width'] ?? ($surat->content[$stepKey . '_width'] ?? 160));
-                            $previewBoxContent = $data['__live_approver_preview_' . $stepKey] ?? ('[' . $stepKey . ']');
-                            $style = "color:#1d4ed8; font-weight:bold; cursor: grab; display: inline-block; border: 1px dashed #2563eb; padding: 0.25rem; user-select: none; position: relative; left: {$x}px; top: {$y}px; width: {$w}px; text-align: left;";
-                            $resizeHandle = '<div class="signature-resize-handle" title="Tarik untuk mengubah ukuran"></div>';
-                            $html .= '<div style="margin-top: 24px; text-align: right;"><div class="draggable-signature" data-key="' . $stepKey . '" style="' . $style . '">' . $previewBoxContent . $resizeHandle . '</div></div>';
-                        }
-                    }
-                }
+        // Pecah dokumen berdasarkan <!-- pagebreak --> menjadi array segmen halaman
+        $pageSegments = preg_split('/(?:<p>\s*)?<!--\s*pagebreak\s*-->(?:\s*<\/p>)?/i', $html) ?: [$html];
+        $totalPages = max(1, count($pageSegments));
+
+        // Distribusikan TTD yang belum terpasang / dipindah lintas halaman ke segmen halaman yang sesuai
+        foreach ($unplacedTtdsByPage ?? [] as $requestedPage => $ttdList) {
+            $pageIdx = ($requestedPage === 999)
+                ? ($totalPages - 1)
+                : max(0, min($totalPages - 1, ((int) $requestedPage) - 1));
+
+            if (!isset($pageSegments[$pageIdx])) {
+                $pageIdx = $totalPages - 1;
             }
+            $pageSegments[$pageIdx] .= '<!-- TTD_ANCHOR:' . implode('&nbsp;&nbsp;&nbsp;', $ttdList) . ' -->';
         }
 
-        // Normalisasi token pemisah halaman (<!-- pagebreak --> dari TinyMCE) menjadi elemen .page-break
-        $html = preg_replace('/(?:<p>\s*)?<!--\s*pagebreak\s*-->(?:\s*<\/p>)?/i', '<div class="page-break"></div>', $html);
+        // Ambil aset Kop, Footer, dan Background
+        $kopUri = $template->getMediaDataUri('kop_surat');
+        $footerUri = $template->getMediaDataUri('footer_surat');
+        $bgUri = $template->getMediaDataUri('background_surat');
+        $kopPosisi = $template->kop_posisi ?? 'AWAL_SAJA';
+        $footerPosisi = $template->footer_posisi ?? 'AKHIR_SAJA';
+        $bgStyle = $bgUri ? "background-image: url('{$bgUri}'); background-size: 100% 100%; background-repeat: no-repeat;" : '';
 
-        // Untuk mode Live Preview di Browser (bukan DomPDF), tampilkan Kop, Footer, Background, dan garis pemisah halaman
-        $kopPreviewHtml = '';
-        $footerPreviewHtml = '';
-        $bgStyle = '';
-        $pageBreakScreenCss = '';
+        // 1. Jika dirender untuk PDF (DomPDF): satukan kembali dengan <div class="page-break"></div>
+        if ($forPdf) {
+            foreach ($pageSegments as $idx => $seg) {
+                $anchorContent = '';
+                $seg = preg_replace_callback('/<!-- TTD_ANCHOR:(.*?) -->/s', function ($m) use (&$anchorContent) {
+                    $anchorContent .= $m[1];
+                    return '';
+                }, $seg);
+                $pageSegments[$idx] = $seg . '<div class="surat-page-ttd-anchor" style="margin-top: 24px; text-align: right; min-height: 1px;">' . $anchorContent . '</div>';
+            }
 
-        if (!$forPdf) {
-            if ($kopUri = $template->getMediaDataUri('kop_surat')) {
-                $kopPreviewHtml = '<div class="surat-kop-preview" style="margin-bottom: 16px;"><img src="' . $kopUri . '" style="width: 100%; height: auto; display: block;" /></div>';
-            }
-            if ($footerUri = $template->getMediaDataUri('footer_surat')) {
-                $footerPreviewHtml = '<div class="surat-footer-preview" style="margin-top: 24px;"><img src="' . $footerUri . '" style="width: 100%; height: auto; display: block;" /></div>';
-            }
-            if ($bgUri = $template->getMediaDataUri('background_surat')) {
-                $bgStyle = "background-image: url('{$bgUri}'); background-size: 100% 100%; background-repeat: no-repeat;";
-            }
-            $pageBreakScreenCss = '
+            $joinedPdfHtml = implode('<div class="page-break"></div>', $pageSegments);
+            $pdfCss = '<style>
+                .docx-preview-wrapper { position: relative; }
+                .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
                 .page-break {
-                    border-top: 2px dashed #94a3b8;
-                    margin: 28px -2.5rem;
-                    position: relative;
-                    height: 16px;
-                    background: #f1f5f9;
-                }
-                .page-break::after {
-                    content: "PEMISAH HALAMAN (HALAMAN BARU)";
-                    position: absolute;
-                    top: -9px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #e2e8f0;
-                    color: #475569;
-                    font-size: 10px;
-                    font-weight: 700;
-                    padding: 1px 10px;
-                    border-radius: 9999px;
-                    letter-spacing: 0.05em;
-                }
-            ';
-        } else {
-            // Saat cetak PDF di DomPDF, pastikan elemen .page-break tidak memiliki tinggi/garis/teks visual apa pun
-            $pageBreakScreenCss = '
-                .page-break {
+                    page-break-after: always;
+                    break-after: page;
                     border: none !important;
                     margin: 0 !important;
                     padding: 0 !important;
                     height: 0 !important;
                     background: transparent !important;
                 }
-            ';
+            </style>';
+
+            return '<div class="docx-preview-wrapper">' . $pdfCss . $joinedPdfHtml . '</div>';
         }
 
-        $css = '<style>
-            .docx-preview-wrapper { position: relative; ' . $bgStyle . ' }
+        // 2. Jika dirender untuk Browser Live Preview: bungkus setiap halaman sebagai lembar kertas A4 mandiri (.surat-page-sheet)
+        $sheetsHtml = '';
+        foreach ($pageSegments as $idx => $seg) {
+            $pageNum = $idx + 1;
+            $isFirstPage = ($pageNum === 1);
+            $isLastPage = ($pageNum === $totalPages);
+
+            $anchorContent = '';
+            $seg = preg_replace_callback('/<!-- TTD_ANCHOR:(.*?) -->/s', function ($m) use (&$anchorContent) {
+                $anchorContent .= $m[1];
+                return '';
+            }, $seg);
+
+            $showKop = $kopUri && ($isFirstPage || $kopPosisi === 'SEMUA_HALAMAN');
+            $showFooter = $footerUri && ($isLastPage || $footerPosisi === 'SEMUA_HALAMAN');
+
+            $kopHtml = $showKop
+                ? '<div class="surat-kop-preview" style="margin-bottom: 16px;"><img src="' . $kopUri . '" style="width: 100%; height: auto; display: block;" pointer-events="none" /></div>'
+                : '';
+            $footerHtml = $showFooter
+                ? '<div class="surat-footer-preview" style="margin-top: 28px;"><img src="' . $footerUri . '" style="width: 100%; height: auto; display: block;" pointer-events="none" /></div>'
+                : '';
+
+            $pageBadge = $totalPages > 1
+                ? '<div class="surat-page-badge">HALAMAN ' . $pageNum . ' / ' . $totalPages . '</div>'
+                : '<div class="surat-page-badge">PREVIEW</div>';
+
+            $sheetsHtml .= '<div class="surat-page-sheet" data-page="' . $pageNum . '" style="' . $bgStyle . '">' .
+                $pageBadge .
+                '<div class="surat-page-body">' .
+                    $kopHtml .
+                    $seg .
+                    '<div class="surat-page-ttd-anchor" style="margin-top: 24px; text-align: right; min-height: 2px;">' . $anchorContent . '</div>' .
+                '</div>' .
+                $footerHtml .
+            '</div>';
+        }
+
+        $previewCss = '<style>
+            .docx-preview-wrapper { position: relative; }
             .docx-preview-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-            .page-break {
-                page-break-after: always;
-                break-after: page;
+            .surat-page-sheet {
+                position: relative;
+                width: 100%;
+                min-height: 840px;
+                background-color: #ffffff;
+                color: #000000;
+                padding: 2.5rem;
+                margin-bottom: 2rem;
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+                border: 1px solid rgba(0,0,0,0.08);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                transition: box-shadow 0.15s ease, border-color 0.15s ease;
             }
-            ' . $pageBreakScreenCss . '
+            .surat-page-sheet:last-child {
+                margin-bottom: 0;
+            }
+            .surat-page-sheet.is-drop-target {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25), 0 10px 15px -3px rgba(0,0,0,0.1);
+            }
+            .surat-page-body {
+                flex: 1 1 auto;
+                position: relative;
+            }
+            .surat-page-badge {
+                position: absolute;
+                top: 0;
+                right: 0;
+                background: #2563eb;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 700;
+                padding: 4px 12px;
+                border-bottom-left-radius: 8px;
+                z-index: 10;
+                letter-spacing: 0.04em;
+            }
             @media print {
-                .signature-resize-handle { display: none !important; }
+                .signature-resize-handle, .surat-page-badge { display: none !important; }
             }
         </style>';
 
-        return '<div class="docx-preview-wrapper">' . $css . $kopPreviewHtml . $html . $footerPreviewHtml . '</div>';
+        return '<div class="docx-preview-wrapper">' . $previewCss . $sheetsHtml . '</div>';
     }
-
     /**
      * Inject missing variables back into the HTML content block.
      * Returns the updated HTML string and the count of items added.
