@@ -54,229 +54,293 @@
         <div class="col-span-1 md:col-span-2 space-y-6">
             {{-- Paper Card for HTML Content --}}
 
-            {{-- Paper Card for HTML Content (Interactive for Authorized Signer) --}}
-            @include('filament.forms.components.template-preview', ['html' => $this->renderedHtml])
 
-            {{-- Lampiran Section --}}
-            @php
+                @php
+                $myTtd = $this->getMySuratTtd();
+                $isPendingStep = $this->isMyStepPending();
+                $myKey = $this->resolveMyPlaceholderKey();
+                $showNameState = (bool) ($surat->content[$myKey . '_show_name'] ?? true);
+                @endphp
 
-            $lampirans = $surat->getSemuaLampiran();
-
-            @endphp
-            @if ($lampirans->isNotEmpty())
-            <x-filament::section>
-                <x-slot name="heading">
-                    Lampiran Berkas ({{ $lampirans->count() }})
-                </x-slot>
-
-                <div class="flex flex-wrap gap-4 mt-2">
-                    @foreach ($lampirans as $lampiran)
-                    <x-filament::card class="w-full sm:w-auto">
-                        <button wire:click="openPreview({{ $lampiran->id }})" class="flex items-center gap-4 text-left w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors p-2 rounded-lg -m-2">
-                            <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                                @if ($lampiran->hasGeneratedConversion('thumb'))
-                                <img src="{{ route('media.thumb', $lampiran->id) }}" alt="{{ $lampiran->file_name }}" class="object-cover w-full h-full" />
+                @if($isPendingStep || $myTtd)
+                <div class="rounded-xl border border-primary-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                @if($isPendingStep)
+                                Mode Penataan TTD & Pengesahan (Pra-Finalisasi)
                                 @else
-                                <span class="text-xs font-bold text-gray-500">{{ strtoupper($lampiran->extension) }}</span>
+                                Penyesuaian Posisi TTD Anda (Pasca-Finalisasi)
                                 @endif
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{{ $lampiran->file_name }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ number_format($lampiran->size / 1024, 2) }} KB</p>
-                            </div>
-                        </button>
-                    </x-filament::card>
-                    @endforeach
-                </div>
-            </x-filament::section>
-            @endif
-        </div>
-
-
-        {{-- RIGHT COLUMN: Metadata & Disposition Timeline --}}
-        <div class="col-span-1 space-y-6">
-
-            {{-- Informasi Pengirim --}}
-            <x-filament::section>
-                <x-slot name="heading">
-                    <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Informasi Pengirim</span>
-                </x-slot>
-
-                <div class="grid grid-cols-2 gap-y-6 gap-x-4 mt-2">
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Informasi Pengirim</p>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            @if ($surat->userPegawaiJabatan)
-                            {{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}<br>
-                            <span class="text-xs text-gray-500 font-normal">
-                                {{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? $surat->unitPengirim?->nama_unit ?? '' }}
-                            </span>
-                            @elseif ($surat->tipe_surat === 'EKSTERNAL')
-                            {{ $surat->pengirim_nama ?? 'Eksternal' }}<br>
-                            <span class="text-xs text-gray-500 font-normal">
-                                via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
-                            </span>
-                            @elseif (filled($surat->pengirim_nama))
-                            {{ $surat->pengirim_nama }}<br>
-                            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">
-                                @if($surat->pengirim_nim)
-                                NIM: {{ $surat->pengirim_nim }}
-                                @elseif(!empty($surat->pengirim_metadata['instansi']))
-                                {{ $surat->pengirim_metadata['instansi'] }}
+                            </p>
+                            <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                @if($isPendingStep)
+                                {{ $myTtd ? 'Geser/ubah ukuran TTD Anda langsung di kertas surat, atur visibilitas nama, lalu klik Proses Surat → Finalisasi.' : 'Klik tombol di samping untuk membubuhkan TTD / QR Anda ke lembar surat sebelum difinalisasi.' }}
                                 @else
-                                Pemohon Luar (Guest)
+                                TTD telah difinalisasi. Anda masih dapat menggeser posisi/ukuran TTD di kertas surat atau menampilkan/menyembunyikan TTD Anda.
                                 @endif
-                                @if($surat->pengirim_email)
-                                • {{ $surat->pengirim_email }}
-                                @endif
-                                @if(!empty($surat->pengirim_metadata['telp']))
-                                • {{ $surat->pengirim_metadata['telp'] }}
-                                @endif
-                            </span>
-                            @else
-                            {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            @if($isPendingStep)
+                            <x-filament::button
+                                size="xs"
+                                color="primary"
+                                icon="heroicon-m-pencil-square"
+                                wire:click="mountAction('setupSignature')">
+                                {{ $myTtd ? 'Ubah Metode (QR / TTD)' : 'Bubuhkan TTD / QR' }}
+                            </x-filament::button>
                             @endif
-                        </p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tipe / Jenis Surat</p>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                            {{ ucfirst(strtolower($surat->tipe_surat)) }}
-                        </p>
-                    </div>
 
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Surat</p>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $surat->created_at->format('d M Y') }}
-                        </p>
-                    </div>
+                            @if($myTtd && $isPendingStep)
+                            <x-filament::button
+                                size="xs"
+                                :color="$showNameState ? 'info' : 'gray'"
+                                icon="heroicon-m-identification"
+                                wire:click="toggleMyTtdShowName">
+                                {{ $showNameState ? 'Nama & Jabatan: Tampil' : 'Nama & Jabatan: Sembunyi' }}
+                            </x-filament::button>
+                            @endif
 
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Nomor Surat</p>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white font-mono">
-                            {{ $surat->nomor_surat ?: '-' }}
-                        </p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Diterima Via</p>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Eksternal (Manual)' : 'Sistem SIMAS' }}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Terima</p>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">
-                            {{ $suratUnit?->tanggal_terima ? \Carbon\Carbon::parse($suratUnit->tanggal_terima)->format('d M Y') : '-' }}
-                        </p>
-                    </div>
-
-                </div>
-            </x-filament::section>
-
-
-
-            {{-- Riwayat & Perjalanan Surat --}}
-            <x-filament::section>
-                <x-slot name="heading">
-                    <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Perjalanan Surat</span>
-                </x-slot>
-
-                <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
-                    @include('filament.pages.components.surat-timeline')
-                </div>
-            </x-filament::section>
-            {{-- Lembar Disposisi --}}
-            <x-filament::section>
-                <x-slot name="heading">
-                    <div class="flex justify-between items-center w-full">
-                        <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Lembar Disposisi</span>
-                    </div>
-                </x-slot>
-
-                <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
-                    @if ($surat->disposisis->isEmpty())
-                    <div class="flex flex-col items-center justify-center py-6 text-center">
-                        <x-heroicon-o-document-text class="w-8 h-8 text-gray-400 mb-2" />
-                        <p class="text-sm text-gray-500 italic">Tidak/Belum ada disposisi.</p>
-                    </div>
-                    @else
-                    <div class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-8 mt-2">
-                        @foreach ($surat->disposisis->sortBy('tanggal_disposisi') as $d)
-                        <div class="relative pl-6">
-                            {{-- Timeline Dot --}}
-                            <span class="absolute flex items-center justify-center w-4 h-4 rounded-full -left-[9px] top-1 {{ $d->status_disposisi === 'selesai' ? 'bg-green-500 ring-4 ring-green-100 dark:ring-green-900' : 'bg-blue-500 ring-4 ring-blue-100 dark:ring-blue-900' }}">
-                            </span>
-
-                            {{-- Target Unit / Staf & Status Badge --}}
-                            <div class="flex flex-wrap gap-2 items-center mb-1">
-                                @if($d->user_pegawai_jabatan_id && $d->userPegawaiJabatan)
-                                <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Disposisi Internal</span>
-                                    Ke: {{ $d->userPegawaiJabatan->pegawai?->nama_lengkap ?? 'Staf' }} ({{ $d->userPegawaiJabatan->jabatan?->nama_jabatan ?? '' }})
-                                </h3>
-                                @else
-                                <h3 class="text-sm font-bold text-gray-900 dark:text-white">
-                                    Ke {{ $d->unitTujuan->nama_unit ?? 'Unit' }}
-                                </h3>
-                                @endif
-
-                                @if($d->status_disposisi === 'SELESAI')
-                                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Selesai</span>
-                                @else
-                                <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Sedang Proses</span>
-                                @endif
-                            </div>
-
-                            {{-- Date & Sender --}}
-                            <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
-                                {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai?->nama_lengkap ?? $d?->pembuat?->nama_lengkap ?? 'Pimpinan' }}
-
-                                @php
-                                $pembuatJabatan = $d?->pembuat?->getActiveJabatan();
-                                @endphp
-                                @if ($pembuatJabatan)
-                                ({{ $pembuatJabatan->jabatan->nama_jabatan ?? '' }} - {{ $pembuatJabatan->unitKerja->nama_unit ?? '' }})
-                                @endif
-                            </time>
-
-                            {{-- Content Card --}}
-                            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
-
-                                <div class="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                    <span class="text-gray-400">Instruksi:</span> {{ $d->jenis_instruksi }}
-                                </div>
-                                <br>
-                                <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
-                                    {!! nl2br($d->catatan ?? '') !!}
-                                </p>
-                            </div>
-
-                            {{-- Bukti Media --}}
-                            @if ($d->getMedia('bukti-disposisi')->isNotEmpty())
-                            <div class="mt-3 flex gap-2">
-                                @foreach ($d->getMedia('bukti-disposisi') as $media)
-                                <button
-                                    type="button"
-                                    @click="$dispatch('open-image-modal', { url: '{{ route('media.preview', $media->id) }}' })"
-                                    class="block w-12 h-12 rounded border border-gray-200 overflow-hidden hover:opacity-75 transition-opacity cursor-pointer focus:outline-none">
-                                    <img src="{{ route('media.preview', $media->id) }}" class="object-cover w-full h-full" alt="Bukti" />
-                                </button>
-                                @endforeach
-                            </div>
+                            @if($myTtd)
+                            <x-filament::button
+                                size="xs"
+                                :color="$myTtd->is_visible ? 'success' : 'gray'"
+                                :icon="$myTtd->is_visible ? 'heroicon-m-eye' : 'heroicon-m-eye-slash'"
+                                wire:click="toggleMyTtdVisibility">
+                                {{ $myTtd->is_visible ? 'TTD di Surat: Tampil' : 'TTD di Surat: Disembunyikan' }}
+                            </x-filament::button>
                             @endif
                         </div>
-                        @endforeach
                     </div>
-                    @endif
                 </div>
-            </x-filament::section>
+                @endif
+
+                {{-- Paper Card for HTML Content (Interactive for Authorized Signer) --}}
+                @include('filament.forms.components.template-preview', ['html' => $this->renderedHtml, 'isDetailPage' => true])
+
+
+                                {{-- Lampiran Section --}}
+                @php
+                    $lampirans = $surat->getSemuaLampiran();
+                @endphp
+                <x-filament::section>
+                    <x-slot name="heading">
+                        Lampiran Berkas ({{ $lampirans->count() }})
+                    </x-slot>
+
+                    @if ($lampirans->isNotEmpty())
+                        <div class="flex flex-wrap gap-4 mt-2">
+                            @foreach ($lampirans as $lampiran)
+                            <x-filament::card class="w-full sm:w-auto">
+                                <button wire:click="openPreview({{ $lampiran->id }})" class="flex items-center gap-4 text-left w-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors p-2 rounded-lg -m-2">
+                                    <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                                        @if ($lampiran->hasGeneratedConversion('thumb'))
+                                        <img src="{{ route('media.thumb', $lampiran->id) }}" alt="{{ $lampiran->file_name }}" class="object-cover w-full h-full" />
+                                        @else
+                                        <span class="text-xs font-bold text-gray-500">{{ strtoupper($lampiran->extension) }}</span>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs">{{ $lampiran->file_name }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ number_format($lampiran->size / 1024, 2) }} KB</p>
+                                    </div>
+                                </button>
+                            </x-filament::card>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-xs text-gray-500 dark:text-gray-400 italic">Tidak ada berkas lampiran pada surat ini.</p>
+                    @endif
+                </x-filament::section>
+            </div>
+
+
+            {{-- RIGHT COLUMN: Metadata & Disposition Timeline --}}
+            <div class="col-span-1 space-y-6">
+
+                {{-- Informasi Pengirim --}}
+                <x-filament::section>
+                    <x-slot name="heading">
+                        <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Informasi Pengirim</span>
+                    </x-slot>
+
+                    <div class="grid grid-cols-2 gap-y-6 gap-x-4 mt-2">
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Informasi Pengirim</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                @if ($surat->userPegawaiJabatan)
+                                {{ $surat->userPegawaiJabatan->pegawai->nama_lengkap ?? 'Pegawai' }}<br>
+                                <span class="text-xs text-gray-500 font-normal">
+                                    {{ $surat->userPegawaiJabatan->jabatan->nama_jabatan ?? '' }} - {{ $surat->userPegawaiJabatan->unitKerja->nama_unit ?? $surat->unitPengirim?->nama_unit ?? '' }}
+                                </span>
+                                @elseif ($surat->tipe_surat === 'EKSTERNAL')
+                                {{ $surat->pengirim_nama ?? 'Eksternal' }}<br>
+                                <span class="text-xs text-gray-500 font-normal">
+                                    via {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
+                                </span>
+                                @elseif (filled($surat->pengirim_nama))
+                                {{ $surat->pengirim_nama }}<br>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                                    @if($surat->pengirim_nim)
+                                    NIM: {{ $surat->pengirim_nim }}
+                                    @elseif(!empty($surat->pengirim_metadata['instansi']))
+                                    {{ $surat->pengirim_metadata['instansi'] }}
+                                    @else
+                                    Pemohon Luar (Guest)
+                                    @endif
+                                    @if($surat->pengirim_email)
+                                    • {{ $surat->pengirim_email }}
+                                    @endif
+                                    @if(!empty($surat->pengirim_metadata['telp']))
+                                    • {{ $surat->pengirim_metadata['telp'] }}
+                                    @endif
+                                </span>
+                                @else
+                                {{ $surat->unitPengirim?->nama_unit ?? 'Sistem' }}
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tipe / Jenis Surat</p>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {{ ucfirst(strtolower($surat->tipe_surat)) }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Surat</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                {{ $surat->created_at->format('d M Y') }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Nomor Surat</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white font-mono">
+                                {{ $surat->nomor_surat ?: '-' }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Diterima Via</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                {{ $surat->tipe_surat === 'EKSTERNAL' ? 'Eksternal (Manual)' : 'Sistem SIMAS' }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tanggal Terima</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                {{ $suratUnit?->tanggal_terima ? \Carbon\Carbon::parse($suratUnit->tanggal_terima)->format('d M Y') : '-' }}
+                            </p>
+                        </div>
+
+                    </div>
+                </x-filament::section>
+
+
+
+                {{-- Riwayat & Perjalanan Surat --}}
+                <x-filament::section>
+                    <x-slot name="heading">
+                        <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Perjalanan Surat</span>
+                    </x-slot>
+
+                    <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+                        @include('filament.pages.components.surat-timeline')
+                    </div>
+                </x-filament::section>
+                {{-- Lembar Disposisi --}}
+                <x-filament::section>
+                    <x-slot name="heading">
+                        <div class="flex justify-between items-center w-full">
+                            <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Lembar Disposisi</span>
+                        </div>
+                    </x-slot>
+
+                    <div class="mt-4 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+                        @if ($surat->disposisis->isEmpty())
+                        <div class="flex flex-col items-center justify-center py-6 text-center">
+                            <x-heroicon-o-document-text class="w-8 h-8 text-gray-400 mb-2" />
+                            <p class="text-sm text-gray-500 italic">Tidak/Belum ada disposisi.</p>
+                        </div>
+                        @else
+                        <div class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-8 mt-2">
+                            @foreach ($surat->disposisis->sortBy('tanggal_disposisi') as $d)
+                            <div class="relative pl-6">
+                                {{-- Timeline Dot --}}
+                                <span class="absolute flex items-center justify-center w-4 h-4 rounded-full -left-[9px] top-1 {{ $d->status_disposisi === 'selesai' ? 'bg-green-500 ring-4 ring-green-100 dark:ring-green-900' : 'bg-blue-500 ring-4 ring-blue-100 dark:ring-blue-900' }}">
+                                </span>
+
+                                {{-- Target Unit / Staf & Status Badge --}}
+                                <div class="flex flex-wrap gap-2 items-center mb-1">
+                                    @if($d->user_pegawai_jabatan_id && $d->userPegawaiJabatan)
+                                    <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                        <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Disposisi Internal</span>
+                                        Ke: {{ $d->userPegawaiJabatan->pegawai?->nama_lengkap ?? 'Staf' }} ({{ $d->userPegawaiJabatan->jabatan?->nama_jabatan ?? '' }})
+                                    </h3>
+                                    @else
+                                    <h3 class="text-sm font-bold text-gray-900 dark:text-white">
+                                        Ke {{ $d->unitTujuan->nama_unit ?? 'Unit' }}
+                                    </h3>
+                                    @endif
+
+                                    @if($d->status_disposisi === 'SELESAI')
+                                    <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Selesai</span>
+                                    @else
+                                    <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Sedang Proses</span>
+                                    @endif
+                                </div>
+
+                                {{-- Date & Sender --}}
+                                <time class="block mb-3 text-xs font-normal text-gray-500 dark:text-gray-400">
+                                    {{ \Carbon\Carbon::parse($d->tanggal_disposisi)->format('d M Y, H:i') }} • Dari: {{ $d?->pembuat?->pegawai?->nama_lengkap ?? $d?->pembuat?->nama_lengkap ?? 'Pimpinan' }}
+
+                                    @php
+                                    $pembuatJabatan = $d?->pembuat?->getActiveJabatan();
+                                    @endphp
+                                    @if ($pembuatJabatan)
+                                    ({{ $pembuatJabatan->jabatan->nama_jabatan ?? '' }} - {{ $pembuatJabatan->unitKerja->nama_unit ?? '' }})
+                                    @endif
+                                </time>
+
+                                {{-- Content Card --}}
+                                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+
+                                    <div class="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        <span class="text-gray-400">Instruksi:</span> {{ $d->jenis_instruksi }}
+                                    </div>
+                                    <br>
+                                    <p class="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                                        {!! nl2br($d->catatan ?? '') !!}
+                                    </p>
+                                </div>
+
+                                {{-- Bukti Media --}}
+                                @if ($d->getMedia('bukti-disposisi')->isNotEmpty())
+                                <div class="mt-3 flex gap-2">
+                                    @foreach ($d->getMedia('bukti-disposisi') as $media)
+                                    <button
+                                        type="button"
+                                        @click="$dispatch('open-image-modal', { url: '{{ route('media.preview', $media->id) }}' })"
+                                        class="block w-12 h-12 rounded border border-gray-200 overflow-hidden hover:opacity-75 transition-opacity cursor-pointer focus:outline-none">
+                                        <img src="{{ route('media.preview', $media->id) }}" class="object-cover w-full h-full" alt="Bukti" />
+                                    </button>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
+                    </div>
+                </x-filament::section>
+
+            </div>
 
         </div>
 
-    </div>
-
-    @include('filament.pages.components.image-modal')
+        @include('filament.pages.components.image-modal')
 
 </x-filament-panels::page>

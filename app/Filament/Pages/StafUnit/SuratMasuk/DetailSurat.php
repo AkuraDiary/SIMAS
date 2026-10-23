@@ -118,6 +118,7 @@ class DetailSurat extends Page implements HasForms
             'unitTujuan',
             'suratUnits',
             'media',
+            'suratTtds.user',
             // 'terbitanForSurat.media',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
@@ -196,7 +197,7 @@ class DetailSurat extends Page implements HasForms
         }
     }
 
-    public function updateTtdPosition(string $key, ?int $x = null, ?int $y = null, ?int $width = null): void
+    public function updateTtdPosition(string $key, ?int $x = null, ?int $y = null, ?int $width = null, ?int $page = null): void
     {
         $service = app(\App\Services\PlaceholderService::class);
         if (!$service->canUserAdjustSignature($this->surat, $this->surat->template, $key)) {
@@ -210,23 +211,31 @@ class DetailSurat extends Page implements HasForms
 
         $content = $this->surat->content ?? [];
         if ($x !== null && $y !== null) {
-            $content[$key . '_posisi_x'] = max(-300, min(300, $x));
-            $content[$key . '_posisi_y'] = max(-300, min(300, $y));
+            $content[$key . '_posisi_x'] = max(-700, min(700, $x));
+            $content[$key . '_posisi_y'] = max(-1000, min(1000, $y));
         }
         if ($width !== null) {
             $content[$key . '_width'] = max(60, min(450, $width));
+        }
+        if ($page !== null && $page > 0) {
+            $content[$key . '_halaman'] = $page;
         }
 
         $this->surat->update(['content' => $content]);
 
         // Sinkronkan juga ke tabel surat_ttds jika record TTD sudah dibuat
+        $ttdUpdate = [];
         if ($x !== null && $y !== null) {
+            $ttdUpdate['posisi_x'] = $content[$key . '_posisi_x'];
+            $ttdUpdate['posisi_y'] = $content[$key . '_posisi_y'];
+        }
+        if ($page !== null && $page > 0) {
+            $ttdUpdate['halaman'] = $page;
+        }
+        if (!empty($ttdUpdate)) {
             $this->surat->suratTtds()
                 ->where('placeholder_key', $key)
-                ->update([
-                    'posisi_x' => $content[$key . '_posisi_x'],
-                    'posisi_y' => $content[$key . '_posisi_y'],
-                ]);
+                ->update($ttdUpdate);
         }
 
         $this->surat->refresh();
@@ -234,7 +243,7 @@ class DetailSurat extends Page implements HasForms
             $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
         }
 
-        // Jika surat sudah SELESAI, perbarui PDF dokumen-final agar posisi terbaru ikut tersimpan di PDF
+        // Jika surat sudah SELESAI, perbarui PDF dokumen-final agar posisi & halaman terbaru ikut tersimpan di PDF
         if ($this->surat->status_surat === 'SELESAI') {
             app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat);
         }

@@ -169,13 +169,10 @@
                     </span>
                     @endif
                 </div>
-                <div class="rounded-2xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50">
-                    <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5 rounded-xl">
-                        <div class="prose max-w-none prose-sm sm:prose-base dark:prose-invert">
-                            {!! $this->renderedHtml !!}
-                        </div>
-                    </div>
-                </div>
+                @include('filament.forms.components.template-preview', [
+                    'html' => $this->renderedHtml,
+                    'isDetailPage' => true
+                ])
             </div>
 
             {{-- 2. BERKAS LAMPIRAN --}}

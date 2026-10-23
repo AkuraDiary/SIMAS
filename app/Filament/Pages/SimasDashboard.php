@@ -33,12 +33,14 @@ class SimasDashboard extends BaseDashboard
         if (!$user) {
             return [];
         }
-        // 1. Data untuk ADMIN
+           // 1. Data untuk ADMIN
         if ($user->tipe_entitas === 'ADMIN') {
+            $totalPegawaiAktif = \App\Models\UserPegawai::whereHas('user')->count();
+            $totalMahasiswaAktif = \App\Models\UserMahasiswa::whereHas('user')->count();
             return [
-                'totalPengguna'  => \App\Models\User::count(),
+                'totalPengguna'  => $totalPegawaiAktif + $totalMahasiswaAktif,
                 'templateAktif'  => \App\Models\Template::where('is_active', true)->count(),
-                'unitOrganisasi' => \App\Models\UnitKerja::count(),
+                'unitOrganisasi' => \App\Models\UnitKerja::where('is_active', true)->count(),
             ];
         }
         // 2. Data untuk STAF / PEGAWAI UNIT

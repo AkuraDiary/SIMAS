@@ -1,15 +1,20 @@
-<div class="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-6 flex justify-center overflow-x-auto dark:border-gray-800 dark:bg-gray-900/50"
+<div x-ref="scrollViewport"
+    class="mt-4 rounded-xl border border-gray-300 bg-slate-200/80 p-4 sm:p-6 flex justify-center max-h-[860px] overflow-y-auto overflow-x-auto custom-scrollbar shadow-inner dark:border-gray-700 dark:bg-gray-900/90"
     x-data="{
         isDragging: false,
         dragEl: null,
         startX: 0,
         startY: 0,
+        startScrollTop: 0,
+        startScrollLeft: 0,
         initialLeft: 0,
         initialTop: 0,
+        originPage: 1,
 
         isResizing: false,
         resizeEl: null,
         startWidth: 0,
+        isDetailPage: @js((bool) ($isDetailPage ?? false)),
 
         handleMouseDown(e) {
             if (e.target.closest('.signature-resize-handle')) {
@@ -36,10 +41,10 @@
             }
         },
 
-               savePosition(key, x, y, width = null) {
+        savePosition(key, x, y, width = null, page = null) {
             if (!key) return;
-            if (typeof $wire.updateTtdPosition === 'function' || $wire.get('surat') !== undefined) {
-                $wire.call('updateTtdPosition', key, x, y, width);
+            if (this.isDetailPage) {
+                $wire.call('updateTtdPosition', key, x, y, width, page);
                 return;
             }
             let pathPrefix = ($wire.get('data') === undefined) ? 'content.' : 'data.content.';
@@ -50,6 +55,9 @@
             if (width !== null) {
                 $wire.set(pathPrefix + key + '_width', width, false);
             }
+            if (page !== null) {
+                $wire.set(pathPrefix + key + '_halaman', page, false);
+            }
         },
 
         handleDblClick(e) {
@@ -58,7 +66,9 @@
             el.style.left = '0px';
             el.style.top = '0px';
             const key = el.getAttribute('data-key');
-            this.savePosition(key, 0, 0, null);
+            const sheet = el.closest('.surat-page-sheet');
+            const page = sheet ? (parseInt(sheet.getAttribute('data-page'), 10) || 1) : null;
+            this.savePosition(key, 0, 0, null, page);
         },
 
         startDrag(e) {
@@ -71,8 +81,15 @@
             this.startX = e.clientX;
             this.startY = e.clientY;
 
+            const vp = this.$refs.scrollViewport;
+            this.startScrollTop = vp ? vp.scrollTop : 0;
+            this.startScrollLeft = vp ? vp.scrollLeft : 0;
+
             this.initialLeft = parseInt(el.style.left, 10) || 0;
             this.initialTop = parseInt(el.style.top, 10) || 0;
+
+            const sheet = el.closest('.surat-page-sheet');
+            this.originPage = sheet ? (parseInt(sheet.getAttribute('data-page'), 10) || 1) : 1;
 
             el.style.cursor = 'grabbing';
             el.style.zIndex = '50';
@@ -82,15 +99,43 @@
         onDrag(e) {
             if (!this.isDragging || !this.dragEl) return;
 
-            const dx = e.clientX - this.startX;
-            const dy = e.clientY - this.startY;
+            const vp = this.$refs.scrollViewport;
+            if (vp) {
+                const vpRect = vp.getBoundingClientRect();
+                const edgeThreshold = 60;
+                if (e.clientY < vpRect.top + edgeThreshold) {
+                    vp.scrollTop -= 18;
+                } else if (e.clientY > vpRect.bottom - edgeThreshold) {
+                    vp.scrollTop += 18;
+                }
+            }
 
-            // Clamping offset within reasonable bounds (-300px to +300px)
-            const newLeft = Math.max(-300, Math.min(300, this.initialLeft + dx));
-            const newTop = Math.max(-300, Math.min(300, this.initialTop + dy));
+            const scrollDeltaY = vp ? (vp.scrollTop - this.startScrollTop) : 0;
+            const scrollDeltaX = vp ? (vp.scrollLeft - this.startScrollLeft) : 0;
+
+            const dx = (e.clientX - this.startX) + scrollDeltaX;
+            const dy = (e.clientY - this.startY) + scrollDeltaY;
+
+            // Izinkan gerak vertikal lintas beberapa lembar kertas (-2500px s/d +2500px)
+            const newLeft = Math.max(-700, Math.min(700, this.initialLeft + dx));
+            const newTop = Math.max(-2500, Math.min(2500, this.initialTop + dy));
 
             this.dragEl.style.left = newLeft + 'px';
             this.dragEl.style.top = newTop + 'px';
+
+            // Highlight lembar kertas tujuan di bawah titik tengah TTD
+            const rect = this.dragEl.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            this.$el.querySelectorAll('.surat-page-sheet').forEach(sheet => {
+                const sRect = sheet.getBoundingClientRect();
+                if (centerY >= sRect.top && centerY <= sRect.bottom && centerX >= sRect.left && centerX <= sRect.right) {
+                    sheet.classList.add('is-drop-target');
+                } else {
+                    sheet.classList.remove('is-drop-target');
+                }
+            });
         },
 
         stopDrag(e) {
@@ -102,11 +147,50 @@
             el.style.zIndex = '';
             el.classList.remove('is-being-dragged');
 
+            this.$el.querySelectorAll('.surat-page-sheet.is-drop-target').forEach(s => s.classList.remove('is-drop-target'));
+
             const key = el.getAttribute('data-key');
             if (key) {
-                const x = parseInt(el.style.left, 10) || 0;
-                const y = parseInt(el.style.top, 10) || 0;
-                this.savePosition(key, x, y, null);
+                const dropRect = el.getBoundingClientRect();
+                const centerY = dropRect.top + dropRect.height / 2;
+
+                // Cari lembar kertas tempat TTD dijatuhkan
+                let targetSheet = null;
+                this.$el.querySelectorAll('.surat-page-sheet').forEach(sheet => {
+                    const sRect = sheet.getBoundingClientRect();
+                    if (centerY >= sRect.top && centerY <= sRect.bottom) {
+                        targetSheet = sheet;
+                    }
+                });
+
+                const currentSheet = el.closest('.surat-page-sheet');
+                const targetPage = targetSheet
+                    ? (parseInt(targetSheet.getAttribute('data-page'), 10) || this.originPage)
+                    : this.originPage;
+
+                let x = parseInt(el.style.left, 10) || 0;
+                let y = parseInt(el.style.top, 10) || 0;
+
+                // Jika TTD dijatuhkan ke lembar halaman yang berbeda, pindahkan ke anchor halaman tujuan
+                // dan hitung ulang offset (x, y) agar posisi visual tidak bergeser 1 piksel pun
+                if (targetSheet && currentSheet && targetSheet !== currentSheet) {
+                    const targetAnchor = targetSheet.querySelector('.surat-page-ttd-anchor');
+                    if (targetAnchor) {
+                        el.style.left = '0px';
+                        el.style.top = '0px';
+                        targetAnchor.appendChild(el);
+
+                        const anchorRect = el.getBoundingClientRect();
+                        x = Math.round(dropRect.left - anchorRect.left);
+                        y = Math.round(dropRect.top - anchorRect.top);
+
+                        el.style.left = x + 'px';
+                        el.style.top = y + 'px';
+                        el.setAttribute('data-page', targetPage);
+                    }
+                }
+
+                this.savePosition(key, x, y, null, targetPage);
             }
             this.dragEl = null;
         },
@@ -155,7 +239,9 @@
                 const width = parseInt(el.style.width, 10);
                 const x = parseInt(el.style.left, 10) || 0;
                 const y = parseInt(el.style.top, 10) || 0;
-                this.savePosition(key, x, y, width);
+                const sheet = el.closest('.surat-page-sheet');
+                const page = sheet ? (parseInt(sheet.getAttribute('data-page'), 10) || 1) : null;
+                this.savePosition(key, x, y, width, page);
             }
 
             this.resizeEl = null;
@@ -165,18 +251,20 @@
     @mousemove.window="handleMouseMove"
     @mouseup.window="handleMouseUp"
     @dblclick="handleDblClick">
-    <div class="relative w-full max-w-3xl min-h-[800px] bg-white text-black p-10 shadow-lg dark:shadow-none ring-1 ring-gray-950/5">
-        <div class="absolute top-0 right-0 rounded-bl-lg bg-primary-600 px-3 py-1 text-xs font-bold text-white shadow-sm z-10">
-            PREVIEW
-        </div>
-
+    <div class="relative w-full max-w-3xl text-black my-auto">
         <div class="surat-content relative font-sans">
-            <!-- Ensure text remains readable inside the white paper container -->
             <style>
                 .preview-paper-content {
                     color: #000000;
                     position: relative;
+                }
+
+                /* Fallback jika HTML mentah tanpa .surat-page-sheet dirender */
+                .preview-paper-content:not(:has(.surat-page-sheet)) {
+                    background: #ffffff;
                     min-height: 800px;
+                    padding: 2.5rem;
+                    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
                 }
 
                 .preview-paper-content p,
@@ -190,7 +278,7 @@
                     outline: none !important;
                     cursor: default !important;
                 }
-                /* Drag & Resize hints for signatures */
+
                 .draggable-signature {
                     user-select: none;
                     cursor: grab;
