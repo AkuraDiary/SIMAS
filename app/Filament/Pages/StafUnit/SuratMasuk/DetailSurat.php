@@ -193,7 +193,8 @@ class DetailSurat extends Page implements HasForms
             $service = app(\App\Services\PlaceholderService::class);
             $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
         } else {
-            $this->renderedHtml = $this->surat->content['isi_surat'] ?? null;
+            $this->renderedHtml = $service->renderScratchHtml($this->surat);
+            // $this->renderedHtml = $this->surat->content['isi_surat'] ?? null;
         }
     }
 
@@ -241,6 +242,8 @@ class DetailSurat extends Page implements HasForms
         $this->surat->refresh();
         if ($this->surat->template_id && $this->surat->template) {
             $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        }else{
+            $this->renderedHtml = $service->renderScratchHtml($this->surat);
         }
 
         // Jika surat sudah SELESAI, perbarui PDF dokumen-final agar posisi & halaman terbaru ikut tersimpan di PDF
