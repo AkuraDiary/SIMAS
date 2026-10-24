@@ -95,9 +95,12 @@ class PlaceholderService
     /**
      * Render the template's HTML by injecting the provided data.
      */
-    public function renderHtml(Template $template, array $data, ?\App\Models\Surat $surat = null, bool $forPdf = false): string
+    public function renderHtml(?Template $template, array $data, ?\App\Models\Surat $surat = null, bool $forPdf = false): string
     {
-        $html = $template->content_html ?? '';
+        $html = $template ? ($template->content_html ?? '') : ($data['isi_surat'] ?? ($surat?->content['isi_surat'] ?? ''));
+        if (empty(trim($html))) {
+            $html = '<p style="color:#64748b;">(Belum ada isi surat)</p>';
+        }
 
         // Inject Reserved System Variables if a Surat instance is provided
         if (!isset($data['nomor_surat']) || empty($data['nomor_surat'])) {
@@ -216,7 +219,7 @@ class PlaceholderService
         }
 
         // Fallback : if content_html is empty but it's a DOCX template, generate it once and save it
-        if (empty($html) && $template->render_engine === 'DOCX') {
+        if ($template && empty($html) && $template->render_engine === 'DOCX') {
             $media = $template->getFirstMedia('template_file');
             if ($media && file_exists($media->getPath())) {
                 try {
@@ -268,7 +271,7 @@ class PlaceholderService
         }
 
         // Handle signature vars specifically (TTD Pemohon)
-        foreach ($template->field_variables ?? [] as $field) {
+        foreach ($templat?->field_variables ?? [] as $field) {
             $key = $field['key'] ?? '';
             if (!$key || $field['type'] !== 'signature') continue;
 
@@ -389,11 +392,11 @@ class PlaceholderService
         }
 
         // Ambil aset Kop, Footer, dan Background
-        $kopUri = $template->getMediaDataUri('kop_surat');
-        $footerUri = $template->getMediaDataUri('footer_surat');
-        $bgUri = $template->getMediaDataUri('background_surat');
-        $kopPosisi = $template->kop_posisi ?? 'AWAL_SAJA';
-        $footerPosisi = $template->footer_posisi ?? 'AKHIR_SAJA';
+        $kopUri = $template?->getMediaDataUri('kop_surat');
+        $footerUri = $template?->getMediaDataUri('footer_surat');
+        $bgUri = $template?->getMediaDataUri('background_surat');
+        $kopPosisi = $template?->kop_posisi ?? 'AWAL_SAJA';
+        $footerPosisi = $template?->footer_posisi ?? 'AKHIR_SAJA';
         $bgStyle = $bgUri ? "background-image: url('{$bgUri}'); background-size: 100% 100%; background-repeat: no-repeat;" : '';
 
         // 1. Jika dirender untuk PDF (DomPDF): satukan kembali dengan <div class="page-break"></div>
@@ -459,12 +462,12 @@ class PlaceholderService
             $sheetsHtml .= '<div class="surat-page-sheet" data-page="' . $pageNum . '" style="' . $bgStyle . '">' .
                 $pageBadge .
                 '<div class="surat-page-body">' .
-                    $kopHtml .
-                    $seg .
-                    '<div class="surat-page-ttd-anchor" style="margin-top: 24px; text-align: right; min-height: 2px;">' . $anchorContent . '</div>' .
+                $kopHtml .
+                $seg .
+                '<div class="surat-page-ttd-anchor" style="margin-top: 24px; text-align: right; min-height: 2px;">' . $anchorContent . '</div>' .
                 '</div>' .
                 $footerHtml .
-            '</div>';
+                '</div>';
         }
 
         $previewCss = '<style>
@@ -605,7 +608,7 @@ class PlaceholderService
         return $html;
     }
 
-        /**
+    /**
      * Menyeimbangkan tag HTML pembuka dan penutup pada potongan segmen halaman
      * agar pemotongan <!-- pagebreak --> di tengah <div> / <table> tidak merusak DOM di luar kertas surat.
      */
@@ -656,44 +659,48 @@ class PlaceholderService
     /**
      * Render HTML untuk Surat Scratch / Bebas dengan menyematkan blok tanda tangan resmi di bagian bawah.
      */
-    public function renderScratchHtml(\App\Models\Surat $surat): string
+     public function renderScratchHtml(\App\Models\Surat $surat, bool $forPdf = false): string
     {
-        $content = $surat->content['isi_surat'] ?? '';
-
-        // Sematkan blok tanda tangan jika sudah ada pejabat yang menandatangani
-        $ttds = $surat->suratTtds;
-        if ($ttds->isNotEmpty()) {
-            $ttdHtml = '<div style="margin-top: 40px; page-break-inside: avoid; width: 100%;">';
-            $ttdHtml .= '<table style="width: 100%; border: none; border-collapse: collapse;"><tr>';
-
-            foreach ($ttds as $ttd) {
-                $qrImg = '';
-                if ($ttd->qr_code_path) {
-                    $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
-                    if (!file_exists($fullPath)) {
-                        $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
-                    }
-                    if (file_exists($fullPath)) {
-                        $mime = mime_content_type($fullPath) ?: 'image/png';
-                        $base64Data = base64_encode(file_get_contents($fullPath));
-                        $qrImg = '<img src="data:' . $mime . ';base64,' . $base64Data . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" /><br>';
-                    }
-                }
-
-                $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
-
-                $ttdHtml .= '<td style="vertical-align: top; text-align: left; padding: 10px; width: ' . floor(100 / max(count($ttds), 1)) . '%;">';
-                $ttdHtml .= '<p style="margin: 0 0 5px 0; font-size: 10pt;">' . htmlspecialchars($ttd->jabatan_saat_ttd ?? 'Pejabat Berwenang') . '</p>';
-                $ttdHtml .= $qrImg;
-                $ttdHtml .= '<b style="text-decoration: underline;">' . htmlspecialchars($namaTerang) . '</b><br>';
-                $ttdHtml .= '<span style="font-size: 9pt; color: #555;">' . htmlspecialchars($ttd->unit_saat_ttd ?? '') . '</span>';
-                $ttdHtml .= '</td>';
-            }
-
-            $ttdHtml .= '</tr></table></div>';
-            $content .= $ttdHtml;
-        }
-
-        return $content;
+        return $this->renderHtml(null, $surat->content ?? [], $surat, $forPdf);
     }
+    // public function renderScratchHtml(\App\Models\Surat $surat): string
+    // {
+    //     $content = $surat->content['isi_surat'] ?? '';
+
+    //     // Sematkan blok tanda tangan jika sudah ada pejabat yang menandatangani
+    //     $ttds = $surat->suratTtds;
+    //     if ($ttds->isNotEmpty()) {
+    //         $ttdHtml = '<div style="margin-top: 40px; page-break-inside: avoid; width: 100%;">';
+    //         $ttdHtml .= '<table style="width: 100%; border: none; border-collapse: collapse;"><tr>';
+
+    //         foreach ($ttds as $ttd) {
+    //             $qrImg = '';
+    //             if ($ttd->qr_code_path) {
+    //                 $fullPath = storage_path('app/private/' . $ttd->qr_code_path);
+    //                 if (!file_exists($fullPath)) {
+    //                     $fullPath = storage_path('app/public/' . $ttd->qr_code_path);
+    //                 }
+    //                 if (file_exists($fullPath)) {
+    //                     $mime = mime_content_type($fullPath) ?: 'image/png';
+    //                     $base64Data = base64_encode(file_get_contents($fullPath));
+    //                     $qrImg = '<img src="data:' . $mime . ';base64,' . $base64Data . '" style="width: 80px; height: 80px; margin-bottom: 5px; display: block;" /><br>';
+    //                 }
+    //             }
+
+    //             $namaTerang = $ttd->user->nama_lengkap ?? 'Pejabat Berwenang';
+
+    //             $ttdHtml .= '<td style="vertical-align: top; text-align: left; padding: 10px; width: ' . floor(100 / max(count($ttds), 1)) . '%;">';
+    //             $ttdHtml .= '<p style="margin: 0 0 5px 0; font-size: 10pt;">' . htmlspecialchars($ttd->jabatan_saat_ttd ?? 'Pejabat Berwenang') . '</p>';
+    //             $ttdHtml .= $qrImg;
+    //             $ttdHtml .= '<b style="text-decoration: underline;">' . htmlspecialchars($namaTerang) . '</b><br>';
+    //             $ttdHtml .= '<span style="font-size: 9pt; color: #555;">' . htmlspecialchars($ttd->unit_saat_ttd ?? '') . '</span>';
+    //             $ttdHtml .= '</td>';
+    //         }
+
+    //         $ttdHtml .= '</tr></table></div>';
+    //         $content .= $ttdHtml;
+    //     }
+
+    //     return $content;
+    // }
 }
