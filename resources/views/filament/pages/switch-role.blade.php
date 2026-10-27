@@ -5,7 +5,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="font-bold text-lg">{{ $jabatan->jabatan->nama_jabatan }}</h3>
-                        <p class="text-sm text-gray-500">{{ $jabatan->unitKerja->nama_unit }}</p>
+                        <p class="text-sm text-gray-500">{{ $jabatan->unitKerja->nama_unit ?? "" }}</p>
                     </div>
 
                     @if($activeJabatanId == $jabatan->id)
