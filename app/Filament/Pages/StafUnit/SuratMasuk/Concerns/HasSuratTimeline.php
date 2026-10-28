@@ -166,7 +166,7 @@ trait HasSuratTimeline
 
             $timeline[] = [
                 'title' => $targetLabel,
-                'instruksi' => $disposisi->jenis_instruksi,
+                'instruksi' => $disposisi->formatted_instruksi ?? (is_array($disposisi->jenis_instruksi) ? implode(', ', $disposisi->jenis_instruksi) : $disposisi->jenis_instruksi),
                 'actor' => $disposisi->pembuat?->nama_lengkap ?? 'Sistem',
                 'unit' => $disposisi->pembuat?->getActiveJabatan()?->unitKerja?->nama_unit ?? $disposisi->pembuat?->unitKerja?->nama_unit ?? '',
                 'catatan' => $disposisi->catatan,
