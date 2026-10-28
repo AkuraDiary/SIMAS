@@ -226,7 +226,7 @@ class AiDraftAction
                     ])
                     ->visible(fn(Get $get) => !empty($get('ai_isi_surat'))),
 
-                Section::make('Revisi Percakapan Lanjut (Chat Refinement)')
+                Section::make('Revisi hasil generate / sesuaikan')
                     ->schema([
                         TextInput::make('ai_revisi_prompt')
                             ->label('Instruksi Perbaikan / Tambahan')
