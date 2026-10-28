@@ -184,7 +184,7 @@ class GuestPengajuan extends Component implements HasForms
                                     ->hiddenLabel()
                                     ->state(new \Illuminate\Support\HtmlString('<h2 class="text-xl font-bold text-gray-900 mb-2">Detail Surat</h2>')),
 
-                                                             ToggleButtons::make('tipe_surat')
+                                ToggleButtons::make('tipe_surat')
                                     ->label('Kategori Dokumen')
                                     ->options([
                                         'PENGAJUAN' => 'Pengajuan Permohonan',
@@ -207,12 +207,17 @@ class GuestPengajuan extends Component implements HasForms
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
 
                                 Select::make('unit_tujuan')
-                                    ->label('Unit Tujuan')
-                                    ->options(function () {
-                                        return \App\Models\UnitKerja::pluck('nama_unit', 'id');
+                                    ->label('Unit Penerima Utama')
+                                    ->options(fn() => \App\Models\UnitKerja::pluck('nama_unit', 'id'))
+                                    ->default(function () {
+                                        return \App\Models\UnitKerja::whereNull('parent_id')
+                                            ->where('is_active', true)
+                                            ->value('id');
                                     })
+                                    ->helperText('Seluruh surat permohonan dan surat masuk umum diterima melalui satu pintu di Rektorat sebelum didisposisikan.')
+                                    ->disabled()
+                                    ->dehydrated(true)
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
-
                                 TextInput::make('perihal')
                                     ->label('Subjek / Judul')
                                     ->required(fn(Get $get) => $get('template_id') === 'scratch'),
@@ -458,9 +463,33 @@ class GuestPengajuan extends Component implements HasForms
 
     public function submit()
     {
+        $rootUnit = \App\Models\UnitKerja::whereNull('parent_id')
+            ->where('is_active', true)
+            ->first();
+
+        if (!$rootUnit && empty($state['unit_tujuan'])) {
+            \Filament\Notifications\Notification::make()
+                ->title('Layanan Persuratan Belum Siap')
+                ->body('Surat belum dapat dikirimkan karena unit penerima utama (Rektorat) belum dikonfigurasi di sistem. Silakan hubungi pihak terkait.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $state = $this->form->getState();
 
         $isScratch = $state['template_id'] === 'scratch';
+
+
+        $targetUnitId = null;
+        if ($isScratch) {
+            $targetUnitId = (int) ($state['unit_tujuan'] ?? $rootUnit?->id);
+        } elseif (!$isScratch && isset($template) && $template->entry_point_unit_id) {
+            $targetUnitId = (int) $template->entry_point_unit_id;
+        } else {
+            $targetUnitId = (int) ($rootUnit?->id);
+        }
+
 
         if ($this->revisiSurat) {
             $surat = $this->revisiSurat;
@@ -613,8 +642,11 @@ class GuestPengajuan extends Component implements HasForms
         $surat->save();
 
         // Attach unit tujuan
-        if ($isScratch && !empty($state['unit_tujuan'])) {
-            $surat->unitTujuan()->attach($state['unit_tujuan'], [
+
+
+
+        if ($targetUnitId) {
+            $surat->unitTujuan()->attach($targetUnitId, [
                 'jenis_tujuan' => 'UTAMA',
                 'tanggal_terima' => now(),
                 'status_baca' => 'BELUM',

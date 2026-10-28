@@ -176,6 +176,49 @@ class OllamaService
         );
     }
 
+        /**
+     * Memuat konfigurasi gaya bahasa, persona, dan few-shot examples dari folder resources/prompts/unik/
+     */
+    protected function loadUnikPromptConfig(array $context = []): string
+    {
+        $baseDir = resource_path('prompts/unik');
+        $systemFile = $baseDir . '/system_prompt.txt';
+        $styleFile  = $baseDir . '/style_guidelines.md';
+
+        $systemPrompt = file_exists($systemFile)
+            ? file_get_contents($systemFile)
+            : "Anda adalah asisten AI profesional spesialis Tata Naskah Dinas Universitas Kadiri (UNIK).";
+
+        $styleGuide = file_exists($styleFile) ? file_get_contents($styleFile) : '';
+
+        // Deteksi kategori dan pilih file contoh (Few-Shot Example)
+        $kategori = strtolower($context['kategori'] ?? '');
+        $exampleFile = null;
+        if (str_contains($kategori, 'undangan')) {
+            $exampleFile = $baseDir . '/examples/undangan.md';
+        } elseif (str_contains($kategori, 'permohonan') || str_contains($kategori, 'izin')) {
+            $exampleFile = $baseDir . '/examples/permohonan.md';
+        } elseif (str_contains($kategori, 'edaran') || str_contains($kategori, 'pemberitahuan')) {
+            $exampleFile = $baseDir . '/examples/edaran.md';
+        } elseif (str_contains($kategori, 'tugas')) {
+            $exampleFile = $baseDir . '/examples/tugas.md';
+        }
+
+        $exampleContent = ($exampleFile && file_exists($exampleFile))
+            ? "\n\nCONTOH NASKAH RESMI UNIK (FEW-SHOT REFERENCE):\n" . file_get_contents($exampleFile)
+            : '';
+
+        return $systemPrompt . "\n\n" . $styleGuide . $exampleContent;
+    }
+
+    /**
+     * System prompt establishing Indonesian Tata Naskah Dinas official letter standards.
+     */
+    protected function buildSystemPrompt(array $context = []): string
+    {
+        return $this->loadUnikPromptConfig($context);
+    }
+
     /**
      * Generate an official bureaucratic letter draft with Indonesian Tata Naskah Dinas standard.
      *
@@ -307,41 +350,6 @@ class OllamaService
         ];
     }
 
-    /**
-     * System prompt establishing Indonesian Tata Naskah Dinas official letter standards.
-     */
-    protected function buildSystemPrompt(array $context = []): string
-    {
-        return <<<PROMPT
-Anda adalah asisten AI profesional spesialis Tata Naskah Dinas dan korespondensi birokrasi pemerintahan/perguruan tinggi di Indonesia.
-Tugas Anda adalah membuat atau menyempurnakan draft isi surat resmi dalam Bahasa Indonesia yang baku, santun, lugas, dan sesuai kaidah PUEBI (Pedoman Umum Ejaan Bahasa Indonesia).
-
-PEDOMAN PENTING STRUKTUR SURAT:
-1. Kop surat (kepala surat), nomor surat, tanggal surat, dan blok tanda tangan (TTD) sudah ditangani otomatis oleh sistem aplikasi SIMAS.
-2. Anda HANYA bertugas menghasilkan:
-   - "PERIHAL": Judul/perihal surat yang ringkas, padat, dan jelas.
-   - "ISI_SURAT": Badan surat resmi lengkap yang terdiri dari:
-     a. Alinea Pembuka (contoh: "Sehubungan dengan...", "Dalam rangka pelaksanaan kegiatan...", "Menindaklanjuti surat permohonan...")
-     b. Alinea Isi/Substansi (rincian acara/agenda, hari/tanggal, waktu, tempat, peserta, atau poin-poin permohonan/instruksi secara terstruktur)
-     c. Alinea Penutup (contoh: "Demikian surat ini kami sampaikan, atas perhatian dan kerja sama Saudara kami ucapkan terima kasih.")
-3. Format ISI_SURAT harus berupa HTML bersih yang siap dipakai langsung oleh Rich Text Editor (TinyEditor):
-   - Gunakan tag <p>...</p> untuk setiap paragraf.
-   - Gunakan tag <ul><li>...</li></ul> atau <ol><li>...</li></ol> untuk rincian atau daftar poin.
-   - Gunakan <strong>...</strong> untuk penekanan penting.
-   - JANGAN menyertakan blok kode markdown seperti ```html atau ```.
-   - JANGAN menyertakan tag <html>, <head>, atau <body>.
-
-FORMAT OUTPUT WAJIB:
-Tuliskan jawaban Anda persis dalam format pembatas berikut agar dapat diproses oleh sistem aplikasi:
-
----PERIHAL---
-[Tuliskan saran perihal surat di sini]
----ISI_SURAT---
-[Tuliskan HTML isi surat di sini]
----PENJELASAN---
-[Catatan singkat mengenai draft yang dibuat atau bagian yang perlu disesuaikan oleh staf]
-PROMPT;
-    }
 
     /**
      * Parse structured response from AI.
