@@ -23,7 +23,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
-
+.licenses/
 AGENTS.md
 .graphifyignore
 /graphify-out
