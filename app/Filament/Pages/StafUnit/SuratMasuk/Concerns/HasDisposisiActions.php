@@ -101,33 +101,19 @@ trait HasDisposisiActions
                         ->visible(fn(Get $get) => $get('tipe_tujuan') === 'INTERNAL')
                         ->required(fn(Get $get) => $get('tipe_tujuan') === 'INTERNAL'),
 
-                    Select::make('jenis_instruksi')
-                        ->label('Jenis Instruksi')
-                        ->options([
-                            'tindaklanjuti' => 'Tindak lanjuti',
-                            'koordinasikan' => 'Koordinasikan',
-                            'laporkan' => 'Laporkan',
-                            'arsipkan' => 'Arsipkan',
-                            'saran' => 'Ajukan Pendapat / Saran',
-                            'diketahui' => 'Untuk diperhatikan / diketahui',
-                            'laporan' => 'Laporan / Laporkan',
-                            'acc' => 'Setuju / ACC',
-                            'pengecekan' => 'Adakan Pengecekan',
-                            'mewakili' => 'Agar Mewakili',
-                            'jawab' => 'Siapkan Jawaban',
-                            'diselesaikan' => 'Untuk Diselesaikan',
-                            'bahas' => 'Bahas Bersama',
-                            'edarkan' => 'Gandakan / Edarkan',
-                            'lainnya' => 'Instruksi Lainnya',
-                        ])
-                        ->reactive()
+                    \Filament\Forms\Components\CheckboxList::make('jenis_instruksi')
+                        ->label('Jenis Instruksi Disposisi (Bisa Pilih Lebih dari 1)')
+                        ->options(\App\Models\Disposisi::daftarOpsiInstruksi())
+                        ->columns(2)
+                        ->live()
                         ->required(),
 
                     Textarea::make('instruksi_custom')
-                        ->label('Instruksi Khusus')
+                        ->label('Instruksi Khusus (Tambahan)')
                         ->rows(2)
-                        ->required(fn(Get $get) => $get('jenis_instruksi') === 'lainnya')
-                        ->visible(fn(Get $get) => $get('jenis_instruksi') === 'lainnya'),
+                        ->placeholder('Tuliskan rincian instruksi khusus di sini...')
+                        ->required(fn(Get $get) => in_array('lainnya', (array) ($get('jenis_instruksi') ?? []), true))
+                        ->visible(fn(Get $get) => in_array('lainnya', (array) ($get('jenis_instruksi') ?? []), true)),
 
                     Select::make('sifat')
                         ->options([
@@ -201,22 +187,40 @@ trait HasDisposisiActions
 
             $activeJabatan = Auth::user()->getActiveJabatan();
 
-            $jenisInstruksi = ($item['jenis_instruksi'] ?? '') === 'lainnya'
-                ? ($item['instruksi_custom'] ?? 'Lainnya')
-                : ($item['jenis_instruksi'] ?? 'tindaklanjuti');
+            // $jenisInstruksi = ($item['jenis_instruksi'] ?? '') === 'lainnya'
+            //     ? ($item['instruksi_custom'] ?? 'Lainnya')
+            //     : ($item['jenis_instruksi'] ?? 'tindaklanjuti');
+
+
+            $rawInstruksi = (array) ($item['jenis_instruksi'] ?? ['tindaklanjuti']);
+            $finalInstruksi = [];
+            foreach ($rawInstruksi as $ins) {
+                if ($ins === 'lainnya') {
+                    if (!empty($item['instruksi_custom'])) {
+                        $finalInstruksi[] = trim($item['instruksi_custom']);
+                    }
+                } else {
+                    $finalInstruksi[] = $ins;
+                }
+            }
+            if (empty($finalInstruksi)) {
+                $finalInstruksi = ['tindaklanjuti'];
+            }
 
             $disposisi = Disposisi::create([
                 'surat_id' => $this->surat->id,
                 'unit_tujuan_id' => $unitTujuanId,
                 'user_pembuat_id' => Auth::id(),
                 'user_pegawai_jabatan_id' => $targetJabatanId,
-                'jenis_instruksi' => $jenisInstruksi,
+                'jenis_instruksi' => $finalInstruksi,
                 'sifat' => $item['sifat'] ?? 'BIASA',
                 'catatan' => $item['catatan'] ?? null,
                 'status_disposisi' => 'BARU',
                 'tanggal_disposisi' => now(),
                 'parent_disposisi_id' => $parentDisposisi?->id,
             ]);
+
+
 
             if ($isInternal && $targetJabatanId) {
                 $targetUpj = UserPegawaiJabatan::with('pegawai.user')->find($targetJabatanId);

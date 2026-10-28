@@ -116,9 +116,14 @@ trait HasApprovalActions
     }
 
     public function isMyStepPending(): bool
-    {
-        $unitId = Auth::user()?->unit_kerja_id;
+    {   $unitId = Auth::user()?->unit_kerja_id;
         if (!$unitId || !in_array($this->surat->status_surat, ['DIPROSES', 'TERKIRIM'], true)) {
+            return false;
+        }
+        // HANYA aktif jika surat bertipe persetujuan atau memiliki alur approval (approval_path)
+        $isApprovalType = in_array($this->surat->tipe_surat, ['PENGAJUAN', 'TERBITAN'], true)
+            || !empty($this->surat->approval_path);
+        if (!$isApprovalType) {
             return false;
         }
         return $this->surat->riwayats
@@ -150,9 +155,11 @@ trait HasApprovalActions
         $this->surat->update(['content' => $content]);
         $this->surat->refresh();
 
+        $service = app(\App\Services\PlaceholderService::class);
         if ($this->surat->template_id && $this->surat->template) {
-            $this->renderedHtml = app(\App\Services\PlaceholderService::class)
-                ->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+            $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        } else {
+            $this->renderedHtml = $service->renderScratchHtml($this->surat);
         }
     }
 
@@ -169,10 +176,16 @@ trait HasApprovalActions
         $ttd->update(['is_visible' => !$ttd->is_visible]);
         $this->surat->refresh();
 
+        $service = app(\App\Services\PlaceholderService::class);
         if ($this->surat->template_id && $this->surat->template) {
-            $this->renderedHtml = app(\App\Services\PlaceholderService::class)
-                ->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+            $this->renderedHtml = $service->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        } else {
+            $this->renderedHtml = $service->renderScratchHtml($this->surat);
         }
+        // if ($this->surat->template_id && $this->surat->template) {
+        //     $this->renderedHtml = app(\App\Services\PlaceholderService::class)
+        //         ->renderHtml($this->surat->template, $this->surat->content ?? [], $this->surat);
+        // }
 
         if ($this->surat->status_surat === 'SELESAI') {
             app(\App\Services\SuratExportService::class)->generateAndAttachDokumenFinal($this->surat);

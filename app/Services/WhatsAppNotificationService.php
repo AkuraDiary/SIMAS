@@ -72,7 +72,9 @@ class WhatsAppNotificationService
         $pemberiUnit = $disposisi->userPegawaiJabatan?->unitKerja?->nama_unit ?? $disposisi->pembuat?->unit_kerja?->nama_unit ?? 'Pimpinan Unit';
         $pemberiNama = $disposisi->pembuat?->nama_lengkap ?? $disposisi->pembuat?->username ?? 'Atasan';
         $sifat = $disposisi->sifat ?? 'BIASA';
-        $instruksi = $disposisi->catatan ?? $disposisi->jenis_instruksi ?? '-';
+
+        $instruksiText = $disposisi->formatted_instruksi ?? (is_array($disposisi->jenis_instruksi) ? implode(', ', $disposisi->jenis_instruksi) : $disposisi->jenis_instruksi);
+        $instruksi = $disposisi->catatan ? ($instruksiText . ' (Catatan: ' . $disposisi->catatan . ')') : ($instruksiText ?: '-');
 
         foreach ($recipients as $recipient) {
             $nama = $recipient->nama_lengkap ?? $recipient->username;

@@ -22,6 +22,53 @@ class Disposisi extends Model implements HasMedia
             ->singleFile(); // Since multiple(false) in Filament
     }
 
+        protected $casts = [
+        'jenis_instruksi'   => 'array',
+        'tanggal_disposisi' => 'datetime',
+    ];
+
+    public static function daftarOpsiInstruksi(): array
+    {
+        return [
+            'tindaklanjuti' => 'Tindak lanjuti',
+            'koordinasikan' => 'Koordinasikan',
+            'laporkan'      => 'Laporkan',
+            'arsipkan'      => 'Arsipkan',
+            'saran'         => 'Ajukan Pendapat / Saran',
+            'diketahui'     => 'Untuk diperhatikan / diketahui',
+            'acc'           => 'Setuju / ACC',
+            'pengecekan'    => 'Adakan Pengecekan',
+            'mewakili'      => 'Agar Mewakili',
+            'jawab'         => 'Siapkan Jawaban',
+            'diselesaikan'  => 'Untuk Diselesaikan',
+            'bahas'         => 'Bahas Bersama',
+            'edarkan'       => 'Gandakan / Edarkan',
+            'lainnya'       => 'Instruksi Lainnya',
+        ];
+    }
+
+    public static function labelInstruksi(string $key): string
+    {
+        $opsi = static::daftarOpsiInstruksi();
+        return $opsi[$key] ?? $key;
+    }
+
+    public function getFormattedInstruksiAttribute(): string
+    {
+        $raw = $this->jenis_instruksi;
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [$raw];
+        }
+
+        if (!is_array($raw) || empty($raw)) {
+            return '-';
+        }
+
+        $labels = array_map(fn($item) => static::labelInstruksi($item), $raw);
+        return implode(', ', $labels);
+    }
+
     protected $fillable = [
         'jenis_instruksi',
         'sifat',
