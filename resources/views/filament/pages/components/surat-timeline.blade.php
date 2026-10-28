@@ -18,7 +18,10 @@
         </div>
 
         @if(!empty($event['instruksi']))
-        <p class="text-xs font-bold text-gray-600 dark:text-gray-400 my-2"> Instruksi : {{ $event['instruksi'] }}</p>
+        @php
+        $instruksiText = is_array($event['instruksi']) ? implode(', ', $event['instruksi']) : $event['instruksi'];
+        @endphp
+        <p class="text-xs font-bold text-gray-600 dark:text-gray-400 my-2"> Instruksi : {{ $instruksiText }}</p>
         @endif
 
         <p class="text-xs font-medium text-gray-600 dark:text-gray-300">
