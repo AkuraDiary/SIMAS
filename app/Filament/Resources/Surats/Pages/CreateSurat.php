@@ -40,6 +40,23 @@ class CreateSurat extends CreateRecord
 
         unset($data['custom_nomor_tags']);
 
+        // Pastikan keterangan lampiran terisi otomatis jika belum diisi atau default '-'
+        $content = $data['content'] ?? [];
+        $lampiranText = $content['lampiran_text'] ?? null;
+        if (empty($lampiranText) || $lampiranText === '-') {
+            $countFiles = 0;
+            if (!empty($data['lampirans']) && is_array($data['lampirans'])) {
+                $countFiles += count(array_filter($data['lampirans']));
+            }
+            if (!empty($content['lampiran_pengajuan_terpilih_ids'])) {
+                $countFiles += count($content['lampiran_pengajuan_terpilih_ids']);
+            }
+            if ($countFiles > 0) {
+                $content['lampiran_text'] = "{$countFiles} Berkas";
+                $data['content'] = $content;
+            }
+        }
+
         // Jika pakai template dan Path Builder manual kosong, copy dari Template!
         if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
             if (empty($data['approval_path'])) {

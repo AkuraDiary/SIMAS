@@ -76,6 +76,25 @@ class EditSurat extends EditRecord
         }
         unset($data['custom_nomor_tags']);
 
+        // Pastikan keterangan lampiran terisi otomatis jika belum diisi atau default '-'
+        $content = $data['content'] ?? [];
+        $lampiranText = $content['lampiran_text'] ?? null;
+        if (empty($lampiranText) || $lampiranText === '-') {
+            $countFiles = 0;
+            if (!empty($data['lampirans']) && is_array($data['lampirans'])) {
+                $countFiles += count(array_filter($data['lampirans']));
+            } elseif ($this->record && $this->record->getMedia('lampiran-surat')->count() > 0) {
+                $countFiles += $this->record->getMedia('lampiran-surat')->count();
+            }
+            if (!empty($content['lampiran_pengajuan_terpilih_ids'])) {
+                $countFiles += count($content['lampiran_pengajuan_terpilih_ids']);
+            }
+            if ($countFiles > 0) {
+                $content['lampiran_text'] = "{$countFiles} Berkas";
+                $data['content'] = $content;
+            }
+        }
+
         // Jika form menyembunyikan template_id (karena mode 'scratch'),
         // pastikan nilainya di-set ke null agar menimpa ID lama di database.
         if (!array_key_exists('template_id', $data)) {

@@ -352,9 +352,38 @@ class DocxTemplateService
             $data['nomor_surat'] = $surat->nomor_surat;
         }
         if (!empty($surat->tanggal_kirim)) {
-            $data['tanggal_surat'] = \Carbon\Carbon::parse($surat->tanggal_kirim)->translatedFormat('d F Y');
+            $data['tanggal_surat'] = \Carbon\Carbon::parse($surat->tanggal_kirim)->locale('id')->translatedFormat('d F Y');
             $data['tanggal_terbit'] = $data['tanggal_surat'];
         }
+        if (!empty($surat->perihal)) {
+            $data['perihal'] = $surat->perihal;
+        }
+        if (!isset($data['lampiran']) || empty($data['lampiran']) || $data['lampiran'] === '-') {
+            $count = $surat->getMedia('lampiran-surat')->count();
+            if ($count > 0) {
+                $data['lampiran'] = "{$count} Berkas";
+            } else {
+                $data['lampiran'] = $data['lampiran_text'] ?? ($surat->content['lampiran_text'] ?? '-');
+            }
+        }
+
+        // Plain text version of kepada & tembusan untuk template .docx
+        if (!isset($data['kepada']) || empty($data['kepada'])) {
+            $unitFormatService = app(\App\Services\UnikLetterFormatService::class);
+            $unitIds = $surat->unitTujuan->pluck('id')->toArray();
+            $customText = $data['kepada_custom'] ?? null;
+            $customMode = $data['kepada_custom_mode'] ?? 'replace';
+            $data['kepada'] = $unitFormatService->renderKepadaYthPlainText($unitIds, $customText, $customMode);
+            $data['kepada_yth'] = $data['kepada'];
+        }
+
+        if (!isset($data['tembusan']) || empty($data['tembusan'])) {
+            $unitFormatService = app(\App\Services\UnikLetterFormatService::class);
+            $tembusanUnitIds = $surat->unitTujuan()->wherePivot('jenis_tujuan', 'TEMBUSAN')->pluck('unit_kerjas.id')->toArray();
+            $customTembusan = $data['tembusan_custom'] ?? null;
+            $data['tembusan'] = $unitFormatService->renderTembusanPlainText($tembusanUnitIds, $customTembusan);
+        }
+
         if (isset($data['nomor_surat_tags']) && is_array($data['nomor_surat_tags'])) {
             foreach ($data['nomor_surat_tags'] as $k => $v) {
                 $data[$k] = $v;

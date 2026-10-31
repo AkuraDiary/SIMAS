@@ -87,6 +87,51 @@ class UnikLetterFormatService
     }
 
     /**
+     * Susun versi teks biasa (plain text) dari Kepada Yth untuk kebutuhan Word .docx TemplateProcessor.
+     */
+    public function renderKepadaYthPlainText(array $unitIds, ?string $customText = null, string $customMode = 'replace'): string
+    {
+        $customText = trim((string) $customText);
+        $units = !empty($unitIds)
+            ? UnitKerja::whereIn('id', $unitIds)->get()->sortBy(function ($u) use ($unitIds) {
+                return array_search($u->id, $unitIds);
+            })
+            : collect();
+
+        $items = [];
+        foreach ($units as $unit) {
+            $items[] = $this->formatUnitRecipientName($unit);
+        }
+
+        $lines = ["Kepada Yth. :"];
+
+        if (!empty($customText) && $customMode === 'replace') {
+            $lines[] = $customText;
+        } else {
+            if (!empty($customText) && $customMode === 'append') {
+                $items[] = $customText;
+            }
+
+            if (count($items) === 0) {
+                $lines[] = "(Pilih Unit Tujuan pada Formulir)";
+            } elseif (count($items) === 1) {
+                $lines[] = $items[0];
+            } else {
+                foreach ($items as $idx => $item) {
+                    $num = $idx + 1;
+                    $lines[] = "  {$num}. {$item}";
+                }
+            }
+        }
+
+        $lines[] = "  UNIVERSITAS KADIRI";
+        $lines[] = "  Di -";
+        $lines[] = "  Tempat";
+
+        return implode("\n", $lines);
+    }
+
+    /**
      * Susun blok metadata kepala surat (Nomor, Tanggal, Lampiran, Perihal).
      */
     public function renderHeader(array $params): string
@@ -162,6 +207,83 @@ class UnikLetterFormatService
             "  " . $listHtml . "\n" .
             "</div>\n" .
             "<!-- END:SURAT_TEMBUSAN -->";
+    }
+
+    /**
+     * Susun versi teks biasa (plain text) dari Tembusan untuk kebutuhan Word .docx TemplateProcessor.
+     */
+    public function renderTembusanPlainText(array $tembusanUnitIds = [], ?string $customTembusan = null): string
+    {
+        $customTembusan = trim((string) $customTembusan);
+        $units = !empty($tembusanUnitIds)
+            ? UnitKerja::whereIn('id', $tembusanUnitIds)->get()
+            : collect();
+
+        $items = [];
+        foreach ($units as $unit) {
+            $items[] = $this->formatUnitRecipientName($unit);
+        }
+
+        if (!empty($customTembusan)) {
+            $customLines = preg_split('/[\r\n]+/', $customTembusan);
+            foreach ($customLines as $line) {
+                $line = trim($line);
+                if (!empty($line)) {
+                    $items[] = $line;
+                }
+            }
+        }
+
+        if (empty($items)) {
+            return '';
+        }
+
+        $lines = ["Tembusan diberikan Kepada Yth :"];
+        foreach ($items as $idx => $item) {
+            $num = $idx + 1;
+            $lines[] = "{$num}. {$item}";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Hasilkan kerangka template HTML standar UNIK untuk editor TemplateResource.
+     */
+    public function generateStandardUnikTemplateHtml(): string
+    {
+        return '<table class="surat-header-table" style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-family: \'Times New Roman\', Times, serif; font-size: 11pt; line-height: 1.4;">
+  <tr>
+    <td style="width: 15%; vertical-align: top;">Nomor</td>
+    <td style="width: 3%; vertical-align: top;">:</td>
+    <td style="width: 42%; vertical-align: top;">{{ nomor_surat }}</td>
+    <td style="width: 40%; text-align: right; vertical-align: top;">Kediri, {{ tanggal_surat }}</td>
+  </tr>
+  <tr>
+    <td style="vertical-align: top;">Lampiran</td>
+    <td style="vertical-align: top;">:</td>
+    <td colspan="2" style="vertical-align: top;">{{ lampiran }}</td>
+  </tr>
+  <tr>
+    <td style="vertical-align: top;">Perihal</td>
+    <td style="vertical-align: top;">:</td>
+    <td colspan="2" style="vertical-align: top;"><strong>{{ perihal }}</strong></td>
+  </tr>
+</table>
+
+{{ kepada }}
+
+<div style="font-family: \'Times New Roman\', Times, serif; font-size: 11pt; line-height: 1.5; margin-top: 16px;">
+  <p style="text-align: justify; text-indent: 30px; margin-bottom: 12px;">Dengan hormat,</p>
+  <p style="text-align: justify; text-indent: 30px; margin-bottom: 12px;">Sehubungan dengan {{ isi_keperluan }}, maka bersama ini kami sampaikan bahwa {{ rincian_informasi }}.</p>
+  <p style="text-align: justify; text-indent: 30px; margin-bottom: 24px;">Demikian surat pemberitahuan ini disampaikan untuk dapat ditindaklanjuti sebagaimana mestinya. Atas perhatian dan kerja samanya, kami sampaikan terima kasih.</p>
+</div>
+
+<div style="margin-top: 30px; text-align: right;">
+  <p style="margin: 0;">{{ ttd_pejabat }}</p>
+</div>
+
+{{ tembusan }}';
     }
 
     /**

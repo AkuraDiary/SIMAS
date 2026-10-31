@@ -81,4 +81,33 @@ class UnikLetterFormatServiceTest extends TestCase
         // Teks naskah user WAJIB tetap utuh
         $this->assertStringContainsString('Ini naskah rahasia yang tidak boleh hilang saat header diupdate.', $updatedHtml);
     }
+
+    public function test_render_kepada_yth_plain_text(): void
+    {
+        $plain = $this->service->renderKepadaYthPlainText([], 'Seluruh Tenaga Pendidik & Tenaga Kependidikan', 'replace');
+        $this->assertStringContainsString('Kepada Yth. :', $plain);
+        $this->assertStringContainsString('Seluruh Tenaga Pendidik & Tenaga Kependidikan', $plain);
+        $this->assertStringContainsString('UNIVERSITAS KADIRI', $plain);
+        $this->assertStringContainsString('Di -', $plain);
+        $this->assertStringContainsString('Tempat', $plain);
+    }
+
+    public function test_render_tembusan_plain_text(): void
+    {
+        $plain = $this->service->renderTembusanPlainText([], "Rektor (sebagai laporan)\nArsip");
+        $this->assertStringContainsString('Tembusan diberikan Kepada Yth :', $plain);
+        $this->assertStringContainsString('1. Rektor (sebagai laporan)', $plain);
+        $this->assertStringContainsString('2. Arsip', $plain);
+    }
+
+    public function test_generate_standard_unik_template_html(): void
+    {
+        $html = $this->service->generateStandardUnikTemplateHtml();
+        $this->assertStringContainsString('{{ nomor_surat }}', $html);
+        $this->assertStringContainsString('{{ tanggal_surat }}', $html);
+        $this->assertStringContainsString('{{ lampiran }}', $html);
+        $this->assertStringContainsString('{{ perihal }}', $html);
+        $this->assertStringContainsString('{{ kepada }}', $html);
+        $this->assertStringContainsString('{{ tembusan }}', $html);
+    }
 }

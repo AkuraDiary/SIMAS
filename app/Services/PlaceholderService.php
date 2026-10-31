@@ -108,10 +108,44 @@ class PlaceholderService
         }
         if (!isset($data['tanggal_surat']) || empty($data['tanggal_surat'])) {
             $data['tanggal_surat'] = ($surat && $surat->tanggal_kirim)
-                ? \Carbon\Carbon::parse($surat->tanggal_kirim)->translatedFormat('d F Y')
-                : '.......................';
+                ? \Carbon\Carbon::parse($surat->tanggal_kirim)->locale('id')->translatedFormat('d F Y')
+                : \Carbon\Carbon::now()->locale('id')->translatedFormat('d F Y');
         }
         $data['tanggal_terbit'] = $data['tanggal_surat']; // Alias just in case
+
+        // Inject Perihal & Lampiran
+        if (!isset($data['perihal']) || empty($data['perihal'])) {
+            $data['perihal'] = $surat?->perihal ?? 'Pemberitahuan';
+        }
+        if (!isset($data['lampiran']) || empty($data['lampiran'])) {
+            $data['lampiran'] = $data['lampiran_text'] ?? ($surat?->content['lampiran_text'] ?? null);
+            if (empty($data['lampiran']) || $data['lampiran'] === '-') {
+                if ($surat && $surat->getMedia('lampiran-surat')->count() > 0) {
+                    $c = $surat->getMedia('lampiran-surat')->count();
+                    $data['lampiran'] = "{$c} Berkas";
+                } else {
+                    $data['lampiran'] = '-';
+                }
+            }
+        }
+
+        // Inject Kepada Yth resmi UNIK
+        if (!isset($data['kepada']) || empty($data['kepada'])) {
+            $unitFormatService = app(\App\Services\UnikLetterFormatService::class);
+            $unitIds = (array) ($data['unit_tujuan_ids'] ?? ($surat ? $surat->unitTujuan->pluck('id')->toArray() : []));
+            $customText = $data['kepada_custom'] ?? ($surat?->content['kepada_custom'] ?? null);
+            $customMode = $data['kepada_custom_mode'] ?? ($surat?->content['kepada_custom_mode'] ?? 'replace');
+            $data['kepada'] = $unitFormatService->renderKepadaYth($unitIds, $customText, $customMode);
+            $data['kepada_yth'] = $data['kepada'];
+        }
+
+        // Inject Tembusan resmi UNIK
+        if (!isset($data['tembusan']) || empty($data['tembusan'])) {
+            $unitFormatService = app(\App\Services\UnikLetterFormatService::class);
+            $tembusanUnitIds = (array) ($data['unit_tembusan_ids'] ?? ($surat?->content['unit_tembusan_ids'] ?? ($surat ? $surat->unitTujuan()->wherePivot('jenis_tujuan', 'TEMBUSAN')->pluck('unit_kerjas.id')->toArray() : [])));
+            $customTembusan = $data['tembusan_custom'] ?? ($surat?->content['tembusan_custom'] ?? null);
+            $data['tembusan'] = $unitFormatService->renderTembusan($tembusanUnitIds, $customTembusan);
+        }
 
         $canDragQr = !$forPdf && $this->canUserAdjustSignature($surat, $template, 'qr_code');
         $qrLockAttr = $canDragQr ? '' : ' data-locked="true"';

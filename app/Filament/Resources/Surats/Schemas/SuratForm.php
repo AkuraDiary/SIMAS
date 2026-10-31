@@ -70,7 +70,7 @@ class SuratForm
                                 ->label('Metode Pembuatan')
                                 ->options([
                                     'template' => 'Gunakan Template',
-                                    'scratch' => 'Tulis dari Awal (From Scratch)',
+                                    'scratch' => 'Tulis dari Awal',
                                 ])
                                 ->default('template')
                                 ->inline()
@@ -117,7 +117,7 @@ class SuratForm
                                 }),
 
                             Select::make('template_id')
-                                ->label('Pilih Template Surat')
+                                ->label('Pilih Template')
                                 ->suffixAction(
                                     \Filament\Actions\Action::make('download_template_blank')
                                         ->icon('heroicon-o-arrow-down-tray')
@@ -206,7 +206,7 @@ class SuratForm
 
 
                             Select::make('user_pegawai_jabatan_id')
-                                ->label('Kirim Sebagai (Peran / Jabatan)')
+                                ->label('Jabatan Pengirim')
                                 ->options(function () {
                                     $pegawai = Auth::user()->pegawai;
                                     if (!$pegawai) return [];
@@ -252,7 +252,7 @@ class SuratForm
                                     ->live(),
 
                                 Select::make('terbitan_for_surat_id')
-                                    ->label('Merujuk ke Pengajuan')
+                                    ->label('Rujukan Pengajuan')
                                     ->options(function (Get $get, ?\App\Models\Surat $record) {
                                         // Izinkan rujukan baik yang berstatus SELESAI maupun yang sedang DIPROSES
                                         $allowedStatuses = ['SELESAI', 'DIPROSES'];
@@ -319,6 +319,7 @@ class SuratForm
                                     ->afterStateUpdated(function ($state, Set $set, Get $get) {
                                         if (!$state) {
                                             $set('lampiran_pengajuan_dipilih', []);
+                                            static::updateAutoLampiranText($set, $get);
                                             return;
                                         }
                                         $pengajuan = \App\Models\Surat::with('media')->find($state);
@@ -335,9 +336,10 @@ class SuratForm
                                         if ($pengajuan) {
                                             $lampiranIds = $pengajuan->getMedia('lampiran-surat')->pluck('id')->map(fn($id) => (string) $id)->toArray();
                                             $set('lampiran_pengajuan_dipilih', $lampiranIds);
+                                            static::updateAutoLampiranText($set, $get);
                                         }
                                     })
-                                    ->helperText('Pilih surat pengajuan yang menjadi rujukan (hanya pengajuan selesai dan belum diterbitkan).')
+                                    ->helperText('Pilih pengajuan yang telah disetujui.')
                                     ->visible(fn(Get $get) => $get('tipe_surat') === 'TERBITAN'),
 
                                 TextInput::make('pengirim_eksternal')
@@ -399,16 +401,8 @@ class SuratForm
 
 
                             CheckboxList::make('lampiran_pengajuan_dipilih')
-                                ->label('Lampiran Berkas dari Pengajuan Rujukan')
-                                ->helperText(function (Get $get) {
-                                    $pengajuanId = $get('terbitan_for_surat_id');
-                                    if (!$pengajuanId) return null;
-                                    $pengajuan = \App\Models\Surat::with('media')->find($pengajuanId);
-                                    if (!$pengajuan || $pengajuan->getMedia('lampiran-surat')->isEmpty()) {
-                                        return 'Pengajuan ini tidak memiliki berkas lampiran yang diunggah.';
-                                    }
-                                    return 'Centang berkas lampiran dari pengajuan yang ingin disertakan ke dalam dokumen terbitan ini.';
-                                })
+                                ->label('Lampiran Berkas Pengajuan')
+                                ->helperText('Centang berkas lampiran yang ingin disertakan ke dalam terbitan.')
                                 ->options(function (Get $get) {
                                     $pengajuanId = $get('terbitan_for_surat_id');
                                     if (!$pengajuanId) return [];
@@ -431,28 +425,16 @@ class SuratForm
                                 })
                                 ->bulkToggleable()
                                 ->columns(2)
+                                ->live()
+                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                    static::updateAutoLampiranText($set, $get);
+                                })
                                 ->visible(fn(Get $get) => filled($get('terbitan_for_surat_id'))),
 
 
                             Select::make('unitTujuan')
-                                ->label(function (Get $get) {
-                                    if (filled($get('terbitan_for_surat_id'))) {
-                                        return 'Unit Penerima Balasan & Tembusan';
-                                    }
-                                    if ($get('tipe_surat') === 'TERBITAN') {
-                                        return 'Unit Kerja Penerima Edaran / Terbitan';
-                                    }
-                                    return 'Penerima Surat (Unit Tujuan)';
-                                })
-                                ->helperText(function (Get $get) {
-                                    if (filled($get('terbitan_for_surat_id'))) {
-                                        return 'Unit pengaju otomatis menjadi penerima utama. Anda dapat menambahkan unit lain sebagai tembusan.';
-                                    }
-                                    if ($get('tipe_surat') === 'TERBITAN') {
-                                        return 'Pilih unit-unit internal kampus yang menjadi sasaran edaran/terbitan ini setelah disahkan.';
-                                    }
-                                    return 'Unit-unit yang menjadi sasaran naskah dinas resmi ini.';
-                                })
+                                ->label('Unit Tujuan')
+                                ->placeholder('Pilih satu atau beberapa unit tujuan...')
                                 ->multiple()
                                 ->relationship(
                                     'unitTujuan',
@@ -479,70 +461,86 @@ class SuratForm
                                 ->preload()
                                 ->live(),
 
-                            Grid::make(2)->schema([
-                                TextInput::make('content.kepada_custom')
-                                    ->label('Teks Kustom Kepada Yth. (Opsional / Kolektif)')
-                                    ->placeholder('Contoh: Seluruh Tenaga Pendidik & Tenaga Kependidikan')
-                                    ->helperText('Isi jika surat ditujukan kolektif atau memiliki sebutan khusus.')
-                                    ->live(),
+                            Section::make('Tembusan & Penerima Khusus')
+                                ->icon('heroicon-o-users')
+                                ->compact()
+                                ->collapsible()
+                                ->collapsed(fn(Get $get) => empty($get('content.kepada_custom')) && empty($get('content.unit_tembusan_ids')) && empty($get('content.tembusan_custom')))
+                                ->schema([
+                                    Grid::make(2)->schema([
+                                        TextInput::make('content.kepada_custom')
+                                            ->label('Penerima Khusus / Kolektif')
+                                            ->placeholder('Contoh: Seluruh Dosen & Tenaga Kependidikan')
+                                            ->live(),
 
-                                Radio::make('content.kepada_custom_mode')
-                                    ->label('Perlakuan Teks Kustom')
-                                    ->options([
-                                        'replace' => 'Menimpa daftar unit di atas',
-                                        'append' => 'Menambahkan di akhir daftar unit',
-                                    ])
-                                    ->default('replace')
-                                    ->inline()
-                                    ->visible(fn(Get $get) => filled($get('content.kepada_custom')))
-                                    ->live(),
-                            ]),
+                                        Radio::make('content.kepada_custom_mode')
+                                            ->label('Posisi Penerima Khusus')
+                                            ->options([
+                                                'replace' => 'Gantikan daftar unit di atas',
+                                                'append' => 'Tambahkan di akhir daftar unit',
+                                            ])
+                                            ->default('replace')
+                                            ->inline()
+                                            ->visible(fn(Get $get) => filled($get('content.kepada_custom')))
+                                            ->live(),
+                                    ]),
 
-                            Grid::make(2)->schema([
-                                Select::make('content.unit_tembusan_ids')
-                                    ->label('Pilih Unit Tembusan (Opsional)')
-                                    ->multiple()
-                                    ->options(function () {
-                                        return \App\Models\UnitKerja::where('id', '<>', Auth::user()?->unit_kerja_id)
-                                            ->pluck('nama_unit', 'id');
-                                    })
-                                    ->helperText('Unit yang menerima tembusan di bagian bawah surat.')
-                                    ->searchable()
-                                    ->preload()
-                                    ->live(),
+                                    Grid::make(2)->schema([
+                                        Select::make('content.unit_tembusan_ids')
+                                            ->label('Unit Tembusan')
+                                            ->multiple()
+                                            ->options(function () {
+                                                return \App\Models\UnitKerja::where('id', '<>', Auth::user()?->unit_kerja_id)
+                                                    ->pluck('nama_unit', 'id');
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->live(),
 
-                                TextInput::make('content.tembusan_custom')
-                                    ->label('Tembusan Lainnya / Kustom (Opsional)')
-                                    ->placeholder('Contoh: Rektor (sebagai laporan), Arsip')
-                                    ->helperText('Pisahkan dengan baris baru untuk beberapa baris tembusan.')
-                                    ->live(),
-                            ]),
+                                        TextInput::make('content.tembusan_custom')
+                                            ->label('Tembusan Lainnya')
+                                            ->placeholder('Contoh: Rektor (sebagai laporan), Arsip')
+                                            ->live(),
+                                    ]),
+                                ]),
 
                             Grid::make(3)->schema([
                                 TextInput::make('perihal')
-                                    ->label('Perihal Surat (Subject)')
-                                    ->placeholder('Masukkan judul surat...')
+                                    ->label('Perihal')
+                                    ->placeholder('Perihal surat...')
                                     ->required()
+                                    ->live(onBlur: true)
                                     ->columnSpan(2),
 
                                 TextInput::make('content.lampiran_text')
-                                    ->label('Keterangan Lampiran (Header)')
+                                    ->label('Lampiran')
                                     ->default('-')
-                                    ->placeholder('Contoh: - atau 1 Berkas')
+                                    ->placeholder('-')
+                                    ->helperText('Otomatis dari berkas lampiran')
+                                    ->live(onBlur: true)
+                                    ->afterStateHydrated(function ($component, $state, ?\Illuminate\Database\Eloquent\Model $record) {
+                                        if (empty($state) && $record instanceof Surat) {
+                                            $count = $record->getMedia('lampiran-surat')->count();
+                                            $component->state($count > 0 ? "{$count} Berkas" : '-');
+                                        }
+                                    })
                                     ->columnSpan(1),
                             ]),
 
                             // Penomoran Surat (di antara metadata dan konten surat)
                             Section::make('Penomoran Surat')
-                                ->description('Pilih apakah nomor surat digenerate otomatis saat dikirim atau ditetapkan sekarang (termasuk opsi backdate & sisipan).')
+                                ->description('Opsi penomoran otomatis atau manual/backdate.')
                                 ->icon('heroicon-o-hashtag')
+                                ->collapsible()
+                                ->collapsed(fn(Get $get) => ($get('mode_penomoran') ?? 'auto') === 'auto' && empty($get('nomor_surat')))
+                                ->compact()
                                 ->schema([
                                     Radio::make('mode_penomoran')
-                                        ->label('Pilihan Penomoran')
+                                        ->label('Penomoran')
                                         ->options([
-                                            'auto' => 'Generate Otomatis saat Surat Dikirim',
-                                            'manual' => 'Tetapkan Nomor Sekarang / Backdate',
-                                            'kosong' => 'Kosongkan Nomor',
+                                            'auto' => 'Otomatis saat dikirim',
+                                            'manual' => 'Tetapkan nomor / Tanggal khusus',
+                                            'kosong' => 'Tanpa nomor',
                                         ])
                                         ->default('auto')
                                         ->inline()
@@ -801,8 +799,15 @@ class SuratForm
 
                                         // Force dependency tracking for all nested content keys & numbering
                                         $get('nomor_surat');
+                                        $get('perihal');
                                         $get('tanggal_surat_input');
                                         $get('custom_nomor_tags');
+                                        $get('unitTujuan');
+                                        $get('content.kepada_custom');
+                                        $get('content.kepada_custom_mode');
+                                        $get('content.unit_tembusan_ids');
+                                        $get('content.tembusan_custom');
+                                        $get('content.lampiran_text');
 
                                         foreach ($fieldVariables as $field) {
                                             if (!empty($field['key'])) {
@@ -863,6 +868,32 @@ class SuratForm
                                             $previewData['tanggal_terbit'] = $previewData['tanggal_surat'];
                                         }
 
+                                        if (!empty($get('perihal'))) {
+                                            $previewData['perihal'] = $get('perihal');
+                                        }
+
+                                        if (!empty($get('content.lampiran_text'))) {
+                                            $previewData['lampiran_text'] = $get('content.lampiran_text');
+                                            $previewData['lampiran'] = $get('content.lampiran_text');
+                                        }
+
+                                        if (!empty($get('unitTujuan'))) {
+                                            $previewData['unit_tujuan_ids'] = (array) $get('unitTujuan');
+                                        }
+
+                                        if (!empty($get('content.kepada_custom'))) {
+                                            $previewData['kepada_custom'] = $get('content.kepada_custom');
+                                            $previewData['kepada_custom_mode'] = $get('content.kepada_custom_mode') ?? 'replace';
+                                        }
+
+                                        if (!empty($get('content.unit_tembusan_ids'))) {
+                                            $previewData['unit_tembusan_ids'] = (array) $get('content.unit_tembusan_ids');
+                                        }
+
+                                        if (!empty($get('content.tembusan_custom'))) {
+                                            $previewData['tembusan_custom'] = $get('content.tembusan_custom');
+                                        }
+
                                         return new HtmlString(
                                             view('filament.forms.components.template-preview', [
                                                 'html' => $placeholderService->renderHtml($template, $previewData)
@@ -876,10 +907,22 @@ class SuratForm
 
                             // Dynamic Path Builder
                             Section::make('Jalur Persetujuan Khusus')
-                                ->description('Pilih pejabat yang bertugas memverifikasi draf secara berjenjang sebelum disahkan. Jika dikosongkan, alur default template akan digunakan.')
+                                ->description('Opsional. Jika kosong, mengikuti alur bawaan template.')
+                                ->icon('heroicon-o-check-badge')
+                                ->collapsible()
+                                ->collapsed(function (Get $get) {
+                                    $path = $get('approval_path');
+                                    if (empty($path) || !is_array($path)) return true;
+                                    foreach ($path as $item) {
+                                        if (!empty($item['jabatan_id'])) return false;
+                                    }
+                                    return true;
+                                })
+                                ->compact()
                                 ->schema([
                                     \Filament\Forms\Components\Repeater::make('approval_path')
                                         ->label('Alur Persetujuan & Tanda Tangan')
+                                        ->defaultItems(0)
                                         ->schema([
                                             \Filament\Forms\Components\Select::make('jabatan_id')
                                                 ->label('Jabatan')
@@ -895,29 +938,34 @@ class SuratForm
                                                 ->visible(fn(Get $get) => $get('is_signer') === true),
                                         ])
                                         ->columns(3)
-                                ])
-                                ->collapsible(),
+                                ]),
+
+                            Section::make('Lampiran File')
+                                ->icon('heroicon-o-paper-clip')
+                                ->collapsible()
+                                ->compact()
+                                ->schema([
+                                    SpatieMediaLibraryFileUpload::make('lampirans')
+                                        ->label("Unggah File Lampiran")
+                                        ->helperText("PDF, DOCX, atau JPG (Maks. 10MB)")
+                                        ->multiple()
+                                        ->collection('lampiran-surat')
+                                        ->preserveFilenames()
+                                        ->conversion('thumb')
+                                        ->maxSize(10240)
+                                        ->panelLayout('grid')
+                                        ->imagePreviewHeight('250')
+                                        ->live()
+                                        ->afterStateUpdated(function (Get $get, Set $set) {
+                                            static::updateAutoLampiranText($set, $get);
+                                        })
+                                        ->columnSpanFull(),
+                                ]),
                         ]),
-
-                        Section::make('Lampiran File')
-                            ->schema([
-                                SpatieMediaLibraryFileUpload::make('lampirans')
-                                    ->label("Klik atau seret file ke sini")
-                                    ->helperText("PDF, DOCX, atau JPG (Maks. 10MB)")
-                                    ->multiple()
-                                    ->collection('lampiran-surat')
-                                    ->preserveFilenames()
-                                    ->conversion('thumb')
-                                    ->maxSize(10240)
-                                    ->panelLayout('grid')
-                                    ->imagePreviewHeight('250') // Optional: limits preview size
-                                    ->columnSpanFull(),
-
-                            ]),
                     ])->columnSpan(['lg' => 3]),
 
                     // RIGHT COLUMN
-                    Section::make('RINGKASAN PENGIRIMAN')
+                    Section::make('Ringkasan Pengiriman')
                         ->schema([
                             TextEntry::make('pengirim_label')
                                 ->label('Pengirim')
@@ -971,6 +1019,27 @@ class SuratForm
 
 
             ]);
+    }
+
+    public static function updateAutoLampiranText(Set $set, Get $get): void
+    {
+        $lampirans = $get('lampirans');
+        $count = 0;
+        if (is_array($lampirans)) {
+            $count += count(array_filter($lampirans));
+        } elseif (!empty($lampirans)) {
+            $count += 1;
+        }
+
+        $pengajuanDipilih = $get('lampiran_pengajuan_dipilih');
+        if (is_array($pengajuanDipilih)) {
+            $count += count(array_filter($pengajuanDipilih));
+        } elseif (!empty($pengajuanDipilih)) {
+            $count += 1;
+        }
+
+        $text = $count > 0 ? "{$count} Berkas" : '-';
+        $set('content.lampiran_text', $text);
     }
 
     public static function updateFormNomorPreview(Set $set, Get $get): void
