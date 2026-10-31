@@ -283,7 +283,7 @@ class PlaceholderService
                         $rowContent = $blockContent;
                         if (is_array($row)) {
                             foreach ($row as $childKey => $childValue) {
-                                $rowContent = preg_replace('/\{\{\s*' . preg_quote($childKey, '/') . '\s*\}\}/', (string) $childValue, $rowContent);
+                                $rowContent = preg_replace_callback('/\{\{\s*' . preg_quote($childKey, '/') . '\s*\}\}/', fn() => (string) $childValue, $rowContent);
                             }
                         }
                         $renderedRows .= $rowContent;
@@ -299,13 +299,14 @@ class PlaceholderService
             if (!is_array($value) && $value !== null) {
                 $isRefocatedOrHidden = ($surat && $surat->suratTtds->where('placeholder_key', $key)->isNotEmpty() && $value === '');
                 if ($value !== '' || $isRefocatedOrHidden) {
-                    $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', (string) $value), $html);
+                    $valStr = (string) $value;
+                    $html = preg_replace_callback('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', fn() => $valStr, $html);
                 }
             }
         }
 
         // Handle signature vars specifically (TTD Pemohon)
-        foreach ($templat?->field_variables ?? [] as $field) {
+        foreach ($template?->field_variables ?? [] as $field) {
             $key = $field['key'] ?? '';
             if (!$key || $field['type'] !== 'signature') continue;
 
@@ -371,7 +372,7 @@ class PlaceholderService
                     $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', '', $html);
                     $unplacedTtdsByPage[$savedPage][$key] = $wrapper;
                 } else {
-                    $html = preg_replace('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', str_replace('$', '\$', $wrapper), $html);
+                    $html = preg_replace_callback('/\{\{\s*' . preg_quote($key, '/') . '\s*\}\}/', fn() => $wrapper, $html);
                 }
             }
         }
