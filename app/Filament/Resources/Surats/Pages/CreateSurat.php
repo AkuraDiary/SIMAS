@@ -135,13 +135,25 @@ class CreateSurat extends CreateRecord
     protected function afterCreate(): void
     {
         $surat = $this->record;
-        $unitIds = $this->data['unitTujuan'] ?? [];
+        $unitIds = (array) ($this->data['unitTujuan'] ?? []);
+        $tembusanIds = (array) ($this->data['content']['unit_tembusan_ids'] ?? []);
 
-        foreach ($unitIds as $index => $unitId) {
-            $surat->unitTujuan()->updateExistingPivot($unitId, [
-                'jenis_tujuan' => $index === 0 ? 'UTAMA' : 'TEMBUSAN',
+        // Sinkronkan seluruh unit tujuan utama & tembusan ke pivot surat_unit
+        $allUnitIds = array_unique(array_merge($unitIds, $tembusanIds));
+        if (!empty($allUnitIds)) {
+            $surat->unitTujuan()->syncWithPivotValues($allUnitIds, [
                 'status_baca' => 'BELUM',
+                'jenis_tujuan' => 'UTAMA',
             ]);
+
+            foreach ($allUnitIds as $uId) {
+                $isTembusan = in_array((int) $uId, array_map('intval', $tembusanIds), true);
+                if ($isTembusan) {
+                    $surat->unitTujuan()->updateExistingPivot($uId, [
+                        'jenis_tujuan' => 'TEMBUSAN',
+                    ]);
+                }
+            }
         }
 
         // Penanganan alokasi nomor surat saat pembuatan

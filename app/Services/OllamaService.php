@@ -183,7 +183,7 @@ class OllamaService
     {
         $baseDir = resource_path('prompts/unik');
         $systemFile    = $baseDir . '/system_prompt.txt';
-        $styleFile     = $baseDir . '/style_guidelines.md';
+        $styleFile     = file_exists($baseDir . '/style_guide.md') ? ($baseDir . '/style_guide.md') : ($baseDir . '/style_guidelines.md');
         $safeguardFile = $baseDir . '/safeguards.md';
         $systemPrompt = file_exists($systemFile)
             ? file_get_contents($systemFile)

@@ -85,20 +85,35 @@ class SuratForm
                                         }
                                     }
                                 })
-                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                ->afterStateUpdated(function (Get $get, Set $set, $state) {
                                     // Simpan isi_surat jika ada, dan hapus sisa variabel template
                                     $currentContent = $get('content') ?? [];
                                     $isiSurat = $currentContent['isi_surat'] ?? null;
 
-                                    if ($isiSurat) {
-                                        $set('content', ['isi_surat' => $isiSurat]);
+                                    if ($state === 'scratch') {
+                                        if (empty($isiSurat)) {
+                                            $service = app(\App\Services\UnikLetterFormatService::class);
+                                            $isiSurat = $service->generateBoilerplate([
+                                                'nomor_surat' => $get('nomor_surat'),
+                                                'lampiran' => $currentContent['lampiran_text'] ?? '-',
+                                                'perihal' => $get('perihal') ?? 'Pemberitahuan',
+                                                'tanggal_surat' => $get('tanggal_surat_input') ?? now(),
+                                                'unit_tujuan_ids' => (array) ($get('unitTujuan') ?? []),
+                                                'kepada_custom' => $currentContent['kepada_custom'] ?? null,
+                                                'kepada_custom_mode' => $currentContent['kepada_custom_mode'] ?? 'replace',
+                                                'unit_tembusan_ids' => (array) ($currentContent['unit_tembusan_ids'] ?? []),
+                                                'tembusan_custom' => $currentContent['tembusan_custom'] ?? null,
+                                            ]);
+                                        }
+                                        $currentContent['isi_surat'] = $isiSurat;
+                                        $set('content', $currentContent);
                                     } else {
-                                        $set('content', []);
+                                        if ($isiSurat) {
+                                            $set('content', ['isi_surat' => $isiSurat]);
+                                        } else {
+                                            $set('content', []);
+                                        }
                                     }
-                                    // $set('template_id', null);
-                                    // if ($get('metode_pembuatan') === 'scratch') {
-                                    //     $set('content', []);
-                                    // }
                                 }),
 
                             Select::make('template_id')
@@ -436,7 +451,7 @@ class SuratForm
                                     if ($get('tipe_surat') === 'TERBITAN') {
                                         return 'Pilih unit-unit internal kampus yang menjadi sasaran edaran/terbitan ini setelah disahkan.';
                                     }
-                                    return 'Unit pertama dianggap sebagai tujuan utama, unit berikutnya sebagai tembusan.';
+                                    return 'Unit-unit yang menjadi sasaran naskah dinas resmi ini.';
                                 })
                                 ->multiple()
                                 ->relationship(
@@ -454,16 +469,68 @@ class SuratForm
                                     if (!empty($path) && is_array($path) && count($path) > 0) {
                                         return false;
                                     }
+                                    // Tidak wajib jika menggunakan teks kustom Kepada Yth
+                                    if (filled($get('content.kepada_custom'))) {
+                                        return false;
+                                    }
                                     return true;
                                 })
                                 ->searchable()
-                                ->preload(),
+                                ->preload()
+                                ->live(),
 
+                            Grid::make(2)->schema([
+                                TextInput::make('content.kepada_custom')
+                                    ->label('Teks Kustom Kepada Yth. (Opsional / Kolektif)')
+                                    ->placeholder('Contoh: Seluruh Tenaga Pendidik & Tenaga Kependidikan')
+                                    ->helperText('Isi jika surat ditujukan kolektif atau memiliki sebutan khusus.')
+                                    ->live(),
 
-                            TextInput::make('perihal')
-                                ->label('Perihal Surat (Subject)')
-                                ->placeholder('Masukkan judul surat...')
-                                ->required(),
+                                Radio::make('content.kepada_custom_mode')
+                                    ->label('Perlakuan Teks Kustom')
+                                    ->options([
+                                        'replace' => 'Menimpa daftar unit di atas',
+                                        'append' => 'Menambahkan di akhir daftar unit',
+                                    ])
+                                    ->default('replace')
+                                    ->inline()
+                                    ->visible(fn(Get $get) => filled($get('content.kepada_custom')))
+                                    ->live(),
+                            ]),
+
+                            Grid::make(2)->schema([
+                                Select::make('content.unit_tembusan_ids')
+                                    ->label('Pilih Unit Tembusan (Opsional)')
+                                    ->multiple()
+                                    ->options(function () {
+                                        return \App\Models\UnitKerja::where('id', '<>', Auth::user()?->unit_kerja_id)
+                                            ->pluck('nama_unit', 'id');
+                                    })
+                                    ->helperText('Unit yang menerima tembusan di bagian bawah surat.')
+                                    ->searchable()
+                                    ->preload()
+                                    ->live(),
+
+                                TextInput::make('content.tembusan_custom')
+                                    ->label('Tembusan Lainnya / Kustom (Opsional)')
+                                    ->placeholder('Contoh: Rektor (sebagai laporan), Arsip')
+                                    ->helperText('Pisahkan dengan baris baru untuk beberapa baris tembusan.')
+                                    ->live(),
+                            ]),
+
+                            Grid::make(3)->schema([
+                                TextInput::make('perihal')
+                                    ->label('Perihal Surat (Subject)')
+                                    ->placeholder('Masukkan judul surat...')
+                                    ->required()
+                                    ->columnSpan(2),
+
+                                TextInput::make('content.lampiran_text')
+                                    ->label('Keterangan Lampiran (Header)')
+                                    ->default('-')
+                                    ->placeholder('Contoh: - atau 1 Berkas')
+                                    ->columnSpan(1),
+                            ]),
 
                             // Penomoran Surat (di antara metadata dan konten surat)
                             Section::make('Penomoran Surat')
@@ -658,7 +725,47 @@ class SuratForm
                                         TinyEditor::make('content.isi_surat')
                                             ->profile('full')
                                             ->label('Isi Surat')
-                                            ->hintAction(AiDraftAction::makeForFormComponent('ai_hint_assistant')->outlined())
+                                            ->hintActions([
+                                                AiDraftAction::makeForFormComponent('ai_hint_assistant')->outlined(),
+                                                \Filament\Actions\Action::make('sync_unik_header')
+                                                    ->label('Perbarui Header & Kepada Yth')
+                                                    ->icon('heroicon-o-arrow-path')
+                                                    ->color('gray')
+                                                    ->tooltip('Perbarui kepala surat, tanggal, perihal, dan daftar penerima sesuai isian formulir tanpa menghapus naskah surat')
+                                                    ->action(function (Get $get, Set $set, $livewire) {
+                                                        $service = app(\App\Services\UnikLetterFormatService::class);
+                                                        $currentHtml = (string) ($get('content.isi_surat') ?? '');
+                                                        $unitIds = (array) ($get('unitTujuan') ?? []);
+                                                        $updated = $service->updateHeaderInHtml($currentHtml, [
+                                                            'nomor_surat' => $get('nomor_surat'),
+                                                            'lampiran' => $get('content.lampiran_text') ?? '-',
+                                                            'perihal' => $get('perihal') ?? 'Pemberitahuan',
+                                                            'tanggal_surat' => $get('tanggal_surat_input') ?? now(),
+                                                            'unit_tujuan_ids' => $unitIds,
+                                                            'kepada_custom' => $get('content.kepada_custom'),
+                                                            'kepada_custom_mode' => $get('content.kepada_custom_mode') ?? 'replace',
+                                                            'unit_tembusan_ids' => (array) ($get('content.unit_tembusan_ids') ?? []),
+                                                            'tembusan_custom' => $get('content.tembusan_custom'),
+                                                        ]);
+
+                                                        $set('content.isi_surat', $updated);
+                                                        if (method_exists($livewire, 'js')) {
+                                                            $encodedHtml = json_encode($updated);
+                                                            $livewire->js("
+                                                                if (window.filamentTinyEditors && window.filamentTinyEditors['data.content.isi_surat']) {
+                                                                    tinymce.get(window.filamentTinyEditors['data.content.isi_surat'])?.setContent({$encodedHtml});
+                                                                } else if (tinymce.activeEditor) {
+                                                                    tinymce.activeEditor.setContent({$encodedHtml});
+                                                                }
+                                                            ");
+                                                        }
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Header & Kepada Yth Diperbarui')
+                                                            ->body('Kepala surat dan daftar penerima telah diselaraskan dengan data form.')
+                                                            ->success()
+                                                            ->send();
+                                                    }),
+                                            ])
                                             ->setCustomConfigs([
                                                 'font_family_formats' => 'Arial=arial,helvetica,sans-serif; Times New Roman=times new roman,times; Verdana=verdana,geneva',
                                             ])
