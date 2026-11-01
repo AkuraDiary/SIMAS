@@ -191,8 +191,10 @@ class UnitKerjaService
         return $unit->pegawaiJabatans()
             ->with(['pegawai.user', 'jabatan'])
             ->where('status_jabatan', 'AKTIF')
+            // Pegawai harus masih ada (tidak soft-deleted) dan akunnya masih ada
+            ->whereHas('pegawai', fn($q) => $q->whereHas('user'))
             ->join('jabatans', 'jabatans.id', '=', 'user_pegawai_jabatans.jabatan_id')
-            ->whereNull('jabatans.deleted_at') // exclude soft deleted jabatan
+            ->whereNull('jabatans.deleted_at')
             ->orderByRaw('jabatans.level_jabatan IS NULL ASC')
             ->orderBy('jabatans.level_jabatan')
             ->orderBy('jabatans.nama_jabatan')
@@ -220,7 +222,7 @@ class UnitKerjaService
         $toDelete    = array_diff($existingIds, $incomingIds);
 
         // Soft-delete removed positions
-         if ($toDelete) {
+        if ($toDelete) {
             Jabatan::whereIn('id', $toDelete)->delete();
             // Nonaktifkan seluruh penugasan pegawai pada jabatan yang dihapus ini
             \App\Models\UserPegawaiJabatan::whereIn('jabatan_id', $toDelete)
