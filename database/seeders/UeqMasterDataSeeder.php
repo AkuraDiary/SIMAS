@@ -35,6 +35,7 @@ class UeqMasterDataSeeder extends Seeder
 
         // 3. Seed 14 UEQ Users, Pegawai, & Jabatan Assignments
         $this->seedUeqUsers();
+        User::factory()->createMahasiswa()->create();
 
         // 4. Seed 5 Official Letter Numbering Formats
         $this->seedFormatNomorSurats();
