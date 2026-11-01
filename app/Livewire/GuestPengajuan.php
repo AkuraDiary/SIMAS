@@ -127,7 +127,7 @@ class GuestPengajuan extends Component implements HasForms
                                 ->label('Nomor Telepon / WhatsApp')
                                 ->placeholder('08xxxxxxxxxx')
                                 ->tel()
-                                ->numeric()
+                                // ->numeric()
                                 ->minLength(10)
                                 ->maxLength(14)
                                 ->rule('regex:/^08[0-9]{8,12}$/')

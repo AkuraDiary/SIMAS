@@ -96,7 +96,7 @@ class UserMahasiswaForm
                         TextInput::make('phone')
                             ->label('Nomor Telepon')
                             ->tel()
-                            ->numeric()
+                            // ->numeric()
                             ->minLength(10)
                             ->maxLength(14)
                             ->rule('regex:/^08[0-9]{8,12}$/')
