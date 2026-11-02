@@ -297,6 +297,27 @@ class AiDraftAction
                     return;
                 }
 
+                // Anyam draf AI ke dalam kerangka tata naskah resmi UNIK jika belum memiliki header
+                $service = app(\App\Services\UnikLetterFormatService::class);
+                if (!str_contains($generatedContent, '<!-- START:SURAT_HEADER -->')) {
+                    $formData = $livewire->data ?? [];
+                    $contentData = $formData['content'] ?? [];
+                    $unitIds = (array) ($formData['unitTujuan'] ?? []);
+
+                    $generatedContent = $service->generateBoilerplate([
+                        'nomor_surat' => $formData['nomor_surat'] ?? null,
+                        'lampiran' => $contentData['lampiran_text'] ?? '-',
+                        'perihal' => $generatedPerihal ?: ($formData['perihal'] ?? 'Pemberitahuan'),
+                        'tanggal_surat' => $formData['tanggal_surat_input'] ?? now(),
+                        'unit_tujuan_ids' => $unitIds,
+                        'kepada_custom' => $contentData['kepada_custom'] ?? null,
+                        'kepada_custom_mode' => $contentData['kepada_custom_mode'] ?? 'replace',
+                        'unit_tembusan_ids' => (array) ($contentData['unit_tembusan_ids'] ?? []),
+                        'tembusan_custom' => $contentData['tembusan_custom'] ?? null,
+                        'isi_surat' => $generatedContent,
+                    ]);
+                }
+
                 if (method_exists($livewire, 'set')) {
                     $livewire->set('data.metode_pembuatan', 'scratch');
                     $livewire->set('data.content.isi_surat', $generatedContent);

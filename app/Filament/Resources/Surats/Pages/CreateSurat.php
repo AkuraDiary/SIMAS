@@ -40,6 +40,23 @@ class CreateSurat extends CreateRecord
 
         unset($data['custom_nomor_tags']);
 
+        // Pastikan keterangan lampiran terisi otomatis jika belum diisi atau default '-'
+        $content = $data['content'] ?? [];
+        $lampiranText = $content['lampiran_text'] ?? null;
+        if (empty($lampiranText) || $lampiranText === '-') {
+            $countFiles = 0;
+            if (!empty($data['lampirans']) && is_array($data['lampirans'])) {
+                $countFiles += count(array_filter($data['lampirans']));
+            }
+            if (!empty($content['lampiran_pengajuan_terpilih_ids'])) {
+                $countFiles += count($content['lampiran_pengajuan_terpilih_ids']);
+            }
+            if ($countFiles > 0) {
+                $content['lampiran_text'] = "{$countFiles} Berkas";
+                $data['content'] = $content;
+            }
+        }
+
         // Jika pakai template dan Path Builder manual kosong, copy dari Template!
         if (($data['metode_pembuatan'] ?? 'template') === 'template' && !empty($data['template_id'])) {
             if (empty($data['approval_path'])) {
@@ -135,13 +152,25 @@ class CreateSurat extends CreateRecord
     protected function afterCreate(): void
     {
         $surat = $this->record;
-        $unitIds = $this->data['unitTujuan'] ?? [];
+        $unitIds = (array) ($this->data['unitTujuan'] ?? []);
+        $tembusanIds = (array) ($this->data['content']['unit_tembusan_ids'] ?? []);
 
-        foreach ($unitIds as $index => $unitId) {
-            $surat->unitTujuan()->updateExistingPivot($unitId, [
-                'jenis_tujuan' => $index === 0 ? 'UTAMA' : 'TEMBUSAN',
+        // Sinkronkan seluruh unit tujuan utama & tembusan ke pivot surat_unit
+        $allUnitIds = array_unique(array_merge($unitIds, $tembusanIds));
+        if (!empty($allUnitIds)) {
+            $surat->unitTujuan()->syncWithPivotValues($allUnitIds, [
                 'status_baca' => 'BELUM',
+                'jenis_tujuan' => 'UTAMA',
             ]);
+
+            foreach ($allUnitIds as $uId) {
+                $isTembusan = in_array((int) $uId, array_map('intval', $tembusanIds), true);
+                if ($isTembusan) {
+                    $surat->unitTujuan()->updateExistingPivot($uId, [
+                        'jenis_tujuan' => 'TEMBUSAN',
+                    ]);
+                }
+            }
         }
 
         // Penanganan alokasi nomor surat saat pembuatan

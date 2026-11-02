@@ -17,7 +17,17 @@ use Saade\FilamentAutograph\Forms\Components\SignaturePad;
 
 class FormSchemaService
 {
-    // We will paste the methods in here!
+    public static array $reservedKeys = [
+        'nomor_surat',
+        'tanggal_surat',
+        'tanggal_terbit',
+        'qr_code',
+        'perihal',
+        'lampiran',
+        'kepada',
+        'kepada_yth',
+        'tembusan',
+    ];
 
     /**
      * Extract placeholders matching the format {{ field_name }}, loop blocks, and dot notation.
@@ -136,6 +146,9 @@ class FormSchemaService
         $flatFields = array_unique($flatMatches[1] ?? []);
 
         foreach ($flatFields as $flatField) {
+            if (in_array(strtolower($flatField), static::$reservedKeys, true) || str_starts_with(strtolower($flatField), 'ttd_')) {
+                continue;
+            }
             $fields[] = [
                 'key' => $flatField,
                 'label' => ucwords(str_replace('_', ' ', $flatField)),
@@ -227,7 +240,7 @@ class FormSchemaService
     {
         $schema = [];
         // Define reserved keywords that should not become form inputs
-        $reservedKeys = ['nomor_surat', 'tanggal_surat', 'tanggal_terbit', 'qr_code'];
+        $reservedKeys = static::$reservedKeys;
 
         foreach ($fieldVariables as $field) {
             $key = $field['key'] ?? null;

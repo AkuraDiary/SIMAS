@@ -221,12 +221,15 @@ class TemplateResource extends Resource
                             ->label('Daftar Reserved Keywords')
                             ->state(new \Illuminate\Support\HtmlString('
                                 <div class="bg-gray-50 border border-gray-200 text-gray-600 rounded-lg p-3 text-sm mb-4 dark:bg-gray-900/50 dark:border-gray-800 dark:text-gray-400">
-    <strong class="text-gray-900 dark:text-white">Keyword di bawah ini tidak akan meminta input dari user:</strong><br>
+    <strong class="text-gray-900 dark:text-white">Keyword di bawah ini tidak akan meminta input dari user (diisi otomatis oleh sistem):</strong><br>
     <ul class="list-disc ml-5 mt-2 space-y-1">
-        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ nomor_surat }}</code> : Nomor surat (di-generate di akhir)</li>
-        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_surat }}</code> : Tanggal dikirimnya surat</li>
-        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_terbit }}</code> : Sama dengan tanggal surat</li>
-        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ qr_code }}</code> : QR Code pelacakan</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ nomor_surat }}</code> : Nomor surat resmi (digenerate saat kirim/backdate)</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tanggal_surat }}</code> : Tanggal surat (contoh: 31 Oktober 2026)</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ perihal }}</code> : Perihal naskah dinas dari form</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ lampiran }}</code> : Keterangan lampiran (contoh: - atau 1 Berkas)</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ kepada }}</code> / <code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ kepada_yth }}</code> : Blok Kepada Yth resmi UNIK (otomatis bernomor / teks kolektif)</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ tembusan }}</code> : Blok Tembusan resmi UNIK di bagian bawah surat</li>
+        <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ qr_code }}</code> : QR Code pelacakan dokumen</li>
         <li><code class="bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-xs dark:bg-gray-800 dark:text-gray-200">{{ ttd_approver_... }}</code> : Tanda tangan untuk approver/penandatangan legal</li>
     </ul>
 </div>
@@ -363,6 +366,29 @@ class TemplateResource extends Resource
                                 'pagebreak_split_block' => true,
                             ])
                             ->hintActions([
+                                Action::make('insertUnikStandardTemplate')
+                                    ->label('Muat Format Standar UNIK')
+                                    ->icon('heroicon-m-sparkles')
+                                    ->color('primary')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Muat Kerangka Standar UNIK?')
+                                    ->modalDescription('Tindakan ini akan memuat kerangka kepala surat, blok kepada yth, dan tembusan resmi UNIK ke dalam editor.')
+                                    ->action(function (Set $set, Get $get) {
+                                        $standardHtml = app(\App\Services\UnikLetterFormatService::class)->generateStandardUnikTemplateHtml();
+                                        $set('content_html', $standardHtml);
+
+                                        // Otomatis scan placeholders
+                                        $service = app(\App\Services\FormSchemaService::class);
+                                        $fields = $service->extractPlaceholders($standardHtml);
+                                        $current = $service->syncExtractedToVariables($fields, $get('field_variables') ?? []);
+                                        $set('field_variables', $current);
+
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Format Standar UNIK Berhasil Dimuat')
+                                            ->body('Kerangka naskah dinas resmi UNIK beserta variabel isian telah disiapkan.')
+                                            ->success()
+                                            ->send();
+                                    }),
                                 Action::make('insertPageBreak')
                                     ->label('Tambah Halaman Baru (Page Break)')
                                     ->icon('heroicon-m-document-plus')
