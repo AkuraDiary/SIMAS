@@ -241,6 +241,10 @@ class SuratForm
                             Grid::make(2)->schema([
                                 Select::make('tipe_surat')
                                     ->label('Jenis Surat')
+                                    ->hintIcon(
+                                        'heroicon-m-question-mark-circle',
+                                        tooltip: "• Internal: Surat dinas antar-unit kerja di dalam kampus.\n• Pengajuan: Permohonan/usulan baru ke pimpinan atau unit lain.\n• Terbitan: Surat resmi tindak lanjut atas pengajuan yang disetujui.\n• Eksternal: Surat kedinasan yang ditujukan ke pihak luar kampus."
+                                    )
                                     ->options([
                                         'INTERNAL' => 'Internal',
                                         'PENGAJUAN' => 'Pengajuan',
@@ -249,8 +253,14 @@ class SuratForm
                                     ])
                                     ->default('INTERNAL')
                                     ->dehydrated()
-                                    ->live(),
-
+                                    ->live()
+                                    ->helperText(fn(Get $get) => match ($get('tipe_surat')) {
+                                        'INTERNAL'  => 'Surat kedinasan antar-unit kerja di lingkungan internal universitas.',
+                                        'PENGAJUAN' => 'Permohonan atau usulan baru yang ditujukan ke pimpinan/unit lain untuk diproses.',
+                                        'TERBITAN'  => 'Surat resmi yang diterbitkan sebagai hasil persetujuan atas pengajuan sebelumnya (memerlukan rujukan).',
+                                        'EKSTERNAL' => 'Surat kedinasan resmi yang ditujukan kepada pihak atau instansi di luar universitas.',
+                                        default     => null,
+                                    }),
                                 Select::make('terbitan_for_surat_id')
                                     ->label('Rujukan Pengajuan')
                                     ->options(function (Get $get, ?\App\Models\Surat $record) {
