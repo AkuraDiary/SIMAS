@@ -10,6 +10,7 @@ use App\Models\UnitKerja;
 use App\Services\FormSchemaService;
 use App\Services\PlaceholderService;
 use Carbon\Carbon;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
@@ -241,10 +242,45 @@ class SuratForm
                             Grid::make(2)->schema([
                                 Select::make('tipe_surat')
                                     ->label('Jenis Surat')
-                                    ->hintIcon(
-                                        'heroicon-m-question-mark-circle',
-                                        tooltip: "• Internal: Surat dinas antar-unit kerja di dalam kampus.\n• Pengajuan: Permohonan/usulan baru ke pimpinan atau unit lain.\n• Terbitan: Surat resmi tindak lanjut atas pengajuan yang disetujui.\n• Eksternal: Surat kedinasan yang ditujukan ke pihak luar kampus."
+
+                                    ->hintAction(
+                                        Action::make('infoKategori')
+                                            ->icon('heroicon-m-information-circle')
+                                            ->color('gray')
+                                            ->tooltip('Klik untuk melihat detail kategori') // Small native browser hint
+                                            ->modalHeading('Panduan Kategori Surat')
+                                            ->modalSubmitAction(false) // Removes the unnecessary "Save" button
+                                            ->modalCancelActionLabel('Tutup')
+                                            ->modalContent(
+                                                fn() => new HtmlString('
+                                                <div class="p-1 space-y-4 text-left">
+                    <ul class="space-y-3 text-sm text-gray-600 dark:text-gray-300 list-none">
+                        <!-- INTERNAL: Gray -->
+                        <li class="leading-relaxed border-b border-gray-100 dark:border-gray-800 pb-2">
+                            <strong class="text-gray-600 dark:text-gray-400 font-semibold block text-base mb-0.5">Internal</strong>
+                            Surat dinas antar-unit kerja di dalam kampus.
+                        </li>
+                        <!-- PENGAJUAN: Info (Blue) -->
+                        <li class="leading-relaxed border-b border-gray-100 dark:border-gray-800 pb-2">
+                            <strong class="text-info-600 dark:text-info-400 font-semibold block text-base mb-0.5">Pengajuan</strong>
+                            Permohonan/usulan baru ke pimpinan atau unit lain.
+                        </li>
+                        <!-- TERBITAN: Success (Green) -->
+                        <li class="leading-relaxed border-b border-gray-100 dark:border-gray-800 pb-2">
+                            <strong class="text-success-600 dark:text-success-400 font-semibold block text-base mb-0.5">Terbitan</strong>
+                            Surat resmi tindak lanjut atas pengajuan yang disetujui.
+                        </li>
+                        <!-- EKSTERNAL: Warning (Amber/Yellow) -->
+                        <li class="leading-relaxed pb-1">
+                            <strong class="text-warning-600 dark:text-warning-400 font-semibold block text-base mb-0.5">Eksternal</strong>
+                            Surat yang masuk dari pihak luar kampus.
+                        </li>
+                    </ul>
+                </div>
+                                                ')
+                                            )
                                     )
+
                                     ->options([
                                         'INTERNAL' => 'Internal',
                                         'PENGAJUAN' => 'Pengajuan',
@@ -258,7 +294,7 @@ class SuratForm
                                         'INTERNAL'  => 'Surat kedinasan antar-unit kerja di lingkungan internal universitas.',
                                         'PENGAJUAN' => 'Permohonan atau usulan baru yang ditujukan ke pimpinan/unit lain untuk diproses.',
                                         'TERBITAN'  => 'Surat resmi yang diterbitkan sebagai hasil persetujuan atas pengajuan sebelumnya (memerlukan rujukan).',
-                                        'EKSTERNAL' => 'Surat kedinasan resmi yang ditujukan kepada pihak atau instansi di luar universitas.',
+                                        'EKSTERNAL' => 'Surat yang masuk dari pihak luar kampus.',
                                         default     => null,
                                     }),
                                 Select::make('terbitan_for_surat_id')
