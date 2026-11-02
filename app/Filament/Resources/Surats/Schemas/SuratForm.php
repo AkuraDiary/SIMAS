@@ -772,7 +772,7 @@ class SuratForm
                                             ->hintActions([
                                                 AiDraftAction::makeForFormComponent('ai_hint_assistant')->outlined(),
                                                 \Filament\Actions\Action::make('sync_unik_header')
-                                                    ->label('Perbarui Header & Kepada Yth')
+                                                    ->label('Singkronisasi Dengan Form')
                                                     ->icon('heroicon-o-arrow-path')
                                                     ->color('gray')
                                                     ->tooltip('Perbarui kepala surat, tanggal, perihal, dan daftar penerima sesuai isian formulir tanpa menghapus naskah surat')
