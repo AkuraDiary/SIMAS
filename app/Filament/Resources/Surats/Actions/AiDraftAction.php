@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Surats\Actions;
 
+use App\Services\GeminiService;
 use App\Services\OllamaService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
@@ -139,7 +140,7 @@ class AiDraftAction
                                     $set('ai_history', '[]');
 
                                     try {
-                                        $service = app(OllamaService::class);
+                                        $service = app(GeminiService::class);
                                         $result = $service->generateDraft($prompt, [
                                             'kategori' => $kategori,
                                             'tone' => $tone,
@@ -177,7 +178,7 @@ class AiDraftAction
                                     $prompt = trim((string) ($get('ai_prompt') ?? 'Kegiatan Kedinasan Unit'));
                                     $kategori = $get('ai_kategori') ?? 'Undangan Rapat / Kegiatan';
 
-                                    $service = app(OllamaService::class);
+                                    $service = app(GeminiService::class);
                                     $result = $service->generateFallbackDraft($prompt, [
                                         'kategori' => $kategori,
                                         'tone' => $get('ai_tone'),
@@ -254,7 +255,7 @@ class AiDraftAction
                                     $history = json_decode($historyJson, true) ?: [];
 
                                     try {
-                                        $service = app(OllamaService::class);
+                                        $service = app(GeminiService::class);
                                         $result = $service->refineDraft($currentDraft, $revisi, [
                                             'kategori' => $get('ai_kategori'),
                                             'perihal_saat_ini' => $get('ai_perihal'),
