@@ -20,8 +20,8 @@ class GeminiService extends BaseAiDraftService
         ?int $timeout = null
     ) {
         $this->apiKey = $apiKey ?? config('services.gemini.api_key');
-        $this->model = $model ?? config('services.gemini.model', 'gemini-3.5-flash-lite');
-        $this->baseUrl = rtrim($baseUrl ?? config('services.gemini.base_url', 'https://generativelanguage.googleapis.com/v1beta'), '/');
+        $this->model = $model ?? config('services.gemini.model');
+        $this->baseUrl = rtrim($baseUrl ?? config('services.gemini.base_url'), '/');
         $this->timeout = $timeout ?? (int) config('services.gemini.timeout', 30);
     }
 
