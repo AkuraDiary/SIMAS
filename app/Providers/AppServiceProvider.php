@@ -31,9 +31,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(
+        $this->app->singleton(
             \App\Services\Contracts\AiDraftServiceInterface::class,
-            \App\Services\GeminiService::class
+            \App\Services\AiDraftManager::class
         );
     }
 
