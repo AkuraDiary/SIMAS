@@ -44,12 +44,14 @@ class FormatNomorSuratResource extends Resource
         return $query;
     }
 
+    protected static ?string $slug = 'format-nomor-surat';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHashtag;
 
     // protected static ?string $navigationGroup = 'Pengaturan';
     protected static ?int $navigationSort = 5;
     protected static ?string $navigationLabel = 'Format Nomor Surat';
-    protected static ?string $pluralLabel = 'Format Nomor Surat';
+    protected static ?string $pluralModelLabel = 'Format Nomor Surat';
     protected static ?string $modelLabel = 'Format Nomor Surat';
 
     public static function form(Schema $schema): Schema

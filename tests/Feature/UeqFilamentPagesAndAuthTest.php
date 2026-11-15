@@ -82,8 +82,9 @@ class UeqFilamentPagesAndAuthTest extends TestCase
         $urls = [
             '/internal',
             '/internal/manage-organisasi',
-            '/internal/user-pegawais',
-            '/internal/format-nomor-surats',
+            '/internal/akun-pegawai',
+            '/internal/akun-mahasiswa',
+            '/internal/format-nomor-surat',
             '/internal/template-resource/templates',
         ];
 

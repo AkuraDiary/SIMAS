@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources\Surats\Actions;
 
+use App\Exceptions\AiDisabledException;
+use App\Exceptions\AiNotConfiguredException;
+use App\Services\AiDraftManager;
+use App\Services\Contracts\AiDraftServiceInterface;
 use App\Services\GeminiService;
 use App\Services\OllamaService;
 use Filament\Actions\Action;
@@ -24,11 +28,15 @@ class AiDraftAction
 {
     /**
      * Check if the current logged-in user can access the AI drafting assistant.
-     * Constraint: Logged in users only, strictly excluding ADMIN.
+     * Constraint: Logged in users only, strictly excluding ADMIN, and global AI toggle must be enabled.
      */
     public static function isAccessible(): bool
     {
-        return auth()->check() && auth()->user()?->tipe_entitas !== 'ADMIN';
+        if (! auth()->check() || auth()->user()?->tipe_entitas === 'ADMIN') {
+            return false;
+        }
+
+        return AiDraftManager::isFeatureEnabled();
     }
 
     /**
@@ -140,7 +148,7 @@ class AiDraftAction
                                     $set('ai_history', '[]');
 
                                     try {
-                                        $service = app(GeminiService::class);
+                                        $service = app(AiDraftServiceInterface::class);
                                         $result = $service->generateDraft($prompt, [
                                             'kategori' => $kategori,
                                             'tone' => $tone,
@@ -158,10 +166,22 @@ class AiDraftAction
                                             ->body('Draft surat telah dihasilkan. Silakan tinjau dan sesuaikan di bawah.')
                                             ->success()
                                             ->send();
+                                    } catch (AiDisabledException $e) {
+                                        Notification::make()
+                                            ->title('Fitur AI Dinonaktifkan')
+                                            ->body($e->getMessage())
+                                            ->warning()
+                                            ->send();
+                                    } catch (AiNotConfiguredException $e) {
+                                        Notification::make()
+                                            ->title('Kredensial AI Belum Dikonfigurasi')
+                                            ->body($e->getMessage())
+                                            ->warning()
+                                            ->send();
                                     } catch (\Throwable $e) {
                                         Notification::make()
                                             ->title('Layanan AI Mengalami Kendala')
-                                            ->body($e->getMessage()) //. "\n\nAnda juga dapat menggunakan tombol 'Gunakan Standar Kedinasan Cepat' jika layanan AI sedang offline.")
+                                            ->body($e->getMessage())
                                             ->danger()
                                             ->persistent()
                                             ->send();
@@ -178,7 +198,7 @@ class AiDraftAction
                                     $prompt = trim((string) ($get('ai_prompt') ?? 'Kegiatan Kedinasan Unit'));
                                     $kategori = $get('ai_kategori') ?? 'Undangan Rapat / Kegiatan';
 
-                                    $service = app(GeminiService::class);
+                                    $service = app(AiDraftServiceInterface::class);
                                     $result = $service->generateFallbackDraft($prompt, [
                                         'kategori' => $kategori,
                                         'tone' => $get('ai_tone'),
@@ -255,7 +275,7 @@ class AiDraftAction
                                     $history = json_decode($historyJson, true) ?: [];
 
                                     try {
-                                        $service = app(GeminiService::class);
+                                        $service = app(AiDraftServiceInterface::class);
                                         $result = $service->refineDraft($currentDraft, $revisi, [
                                             'kategori' => $get('ai_kategori'),
                                             'perihal_saat_ini' => $get('ai_perihal'),
@@ -271,6 +291,18 @@ class AiDraftAction
                                             ->title('Draft Berhasil Diperbarui')
                                             ->body('Revisi berhasil diproses.')
                                             ->success()
+                                            ->send();
+                                    } catch (AiDisabledException $e) {
+                                        Notification::make()
+                                            ->title('Fitur AI Dinonaktifkan')
+                                            ->body($e->getMessage())
+                                            ->warning()
+                                            ->send();
+                                    } catch (AiNotConfiguredException $e) {
+                                        Notification::make()
+                                            ->title('Kredensial AI Belum Dikonfigurasi')
+                                            ->body($e->getMessage())
+                                            ->warning()
                                             ->send();
                                     } catch (\Throwable $e) {
                                         Notification::make()

@@ -32,17 +32,19 @@ class UserPegawaiResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'employee-group-solid';
     protected static ?int $navigationSort = 1;
 
+    protected static ?string $slug = 'akun-pegawai';
+
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 
 
     protected static ?string $label = 'Akun Pegawai';
     protected static ?string $title = 'Akun Pegawai';
-    protected static ?string $modelLabel = 'Akun Pegawai';
+    protected static ?string $modelLabel = 'Pegawai';
 
     protected static ?string $navigationLabel = 'Akun Pegawai'; // for navigation
 
     // for breadcrumbs
-    protected static ?string $pluralModelLabel = 'Akun Pegawai';
+    protected static ?string $pluralModelLabel = 'Pegawai';
 
 
     public static function form(Schema $schema): Schema

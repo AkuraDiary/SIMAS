@@ -117,7 +117,7 @@ class EditUserMahasiswa extends EditRecord
                                     'whatsapp' => 'Kirim Link via WhatsApp',
                                     'email'    => 'Kirim Link via Email',
                                 ])
-                                ->helperText("Kirim tautan aktivasi melalui salah email atau whatsapp.")
+                                ->helperText('Pilih pengiriman tautan aktivasi melalui email atau WhatsApp.')
                                 ->preload(),
                             Select::make('is_active')
                                 ->label("Aktivasi Akun Manual")
