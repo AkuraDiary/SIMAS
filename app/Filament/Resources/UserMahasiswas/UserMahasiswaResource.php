@@ -32,16 +32,18 @@ class UserMahasiswaResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'students';
     protected static ?int $navigationSort = 2;
 
+    protected static ?string $slug = 'akun-mahasiswa';
+
     protected static ?string $recordTitleAttribute = 'nama_lengkap';
 
     protected static ?string $label = 'Akun Mahasiswa';
     protected static ?string $title = 'Akun Mahasiswa';
-    protected static ?string $modelLabel = 'Akun Mahasiswa';
+    protected static ?string $modelLabel = 'Mahasiswa';
 
     protected static ?string $navigationLabel = 'Akun Mahasiswa'; // for navigation
 
     // for breadcrumbs
-    protected static ?string $pluralModelLabel = 'Akun Mahasiswa';
+    protected static ?string $pluralModelLabel = 'Mahasiswa';
 
 
     public static function form(Schema $schema): Schema

@@ -432,7 +432,7 @@ class SuratsTable
                 ]),
             ])
 
-            ->emptyStateHeading('TIdak Ada Data Surat')
+            ->emptyStateHeading('Belum Ada Data Surat')
             ->emptyStateDescription('')
             ->persistSearchInSession()
             ->persistSortInSession();;

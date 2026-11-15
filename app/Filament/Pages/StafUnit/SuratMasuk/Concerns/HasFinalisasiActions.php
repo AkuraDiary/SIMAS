@@ -52,7 +52,7 @@ trait HasFinalisasiActions
                     if ($media) {
                         return response()->download($media->getPath(), $media->file_name);
                     }
-                    Notification::make()->title('File PDF belum tergenerate!')->danger()->send();
+                    Notification::make()->title('Berkas PDF belum dibuat')->danger()->send();
                 });
         }
 

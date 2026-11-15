@@ -13,7 +13,7 @@
         <!-- Import Staff Button -->
         <a href="{{ \App\Filament\Resources\UserPegawais\UserPegawaiResource::getUrl() }}" class="group flex flex-col items-center justify-center p-6 bg-white rounded-lg border border-gray-200 transition-colors hover:bg-gray-50 hover:border-primary-500 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 dark:hover:border-primary-400">
             <x-heroicon-o-arrow-up-tray class="w-7 h-7 text-primary-500 mb-3 group-hover:text-primary-600 dark:text-primary-400 dark:group-hover:text-primary-300" />
-            <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Import Staff</span>
+            <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Impor Data Pegawai</span>
         </a>
 
         <!-- Kelola Organisasi Button -->

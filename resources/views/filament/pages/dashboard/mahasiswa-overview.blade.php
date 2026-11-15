@@ -87,7 +87,7 @@
                     $isPending = in_array($status, ['DIPROSES', 'TERKIRIM', 'MENUNGGU']);
                     $isRejected = in_array($status, ['REVISI', 'DITOLAK']);
 
-                    $labelStatus = $isApproved ? 'Approved' : ($isRejected ? 'Rejected' : 'Pending');
+                    $labelStatus = $isApproved ? 'Disetujui' : ($isRejected ? 'Ditolak' : 'Diproses');
                     $badgeClass = $isApproved
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
                     : ($isRejected
@@ -137,7 +137,7 @@
         @if($pengajuans->hasPages() || $pengajuans->total() > 0)
         <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-4 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
             <div>
-                Showing <strong>{{ $pengajuans->firstItem() ?? 0 }}</strong> of <strong>{{ $pengajuans->total() }}</strong> entries
+                Menampilkan <strong>{{ $pengajuans->firstItem() ?? 0 }}</strong> dari <strong>{{ $pengajuans->total() }}</strong> data
             </div>
             <div class="flex items-center gap-1">
                 {{-- Previous Page Link --}}
