@@ -196,10 +196,6 @@ class DetailSurat extends Page implements HasForms
             $this->renderedHtml = $service->renderScratchHtml($this->surat);
             // $this->renderedHtml = $this->surat->content['isi_surat'] ?? null;
         }
-
-        if (request()->boolean('open_nomor')) {
-            $this->mountAction('generate_nomor');
-        }
     }
 
     public function updateTtdPosition(string $key, ?int $x = null, ?int $y = null, ?int $width = null, ?int $page = null): void
