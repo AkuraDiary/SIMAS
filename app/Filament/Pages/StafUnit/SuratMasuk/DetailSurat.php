@@ -119,7 +119,7 @@ class DetailSurat extends Page implements HasForms
             'suratUnits',
             'media',
             'suratTtds.user',
-            // 'terbitanForSurat.media',
+            'terbitanForSurat.media',
             'disposisis.pembuat.jabatanAktif.unitKerja',
             'disposisis.unitTujuan',
             // 'disposisis.unitPembuat',
@@ -195,6 +195,10 @@ class DetailSurat extends Page implements HasForms
         } else {
             $this->renderedHtml = $service->renderScratchHtml($this->surat);
             // $this->renderedHtml = $this->surat->content['isi_surat'] ?? null;
+        }
+
+        if (request()->boolean('open_nomor')) {
+            $this->mountAction('generate_nomor');
         }
     }
 

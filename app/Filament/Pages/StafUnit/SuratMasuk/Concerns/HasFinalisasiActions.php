@@ -57,6 +57,7 @@ trait HasFinalisasiActions
         }
 
         $unitId = Auth::user()->unit_kerja_id;
+        $unitPenomoranId = $this->surat->unit_pengirim_id ?: $unitId;
         $sudahBernomor = filled($this->surat->nomor_surat);
         $isUnitPengirim = $this->surat->unit_pengirim_id == $unitId;
         // $isUnitPenerima = $this->surat->suratUnits()->where('unit_kerja_id', $unitId)->exists()
@@ -90,11 +91,11 @@ trait HasFinalisasiActions
 
                     Select::make('format_id')
                         ->label('Pilih Format Penomoran')
-                        ->options(function () use ($unitId) {
-                            return app(NomorSuratService::class)->getAvailableFormats($unitId, $this->surat->tipe_surat);
+                        ->options(function () use ($unitPenomoranId) {
+                            return app(NomorSuratService::class)->getAvailableFormats($unitPenomoranId, $this->surat->tipe_surat);
                         })
-                        ->default(function () use ($unitId) {
-                            return app(NomorSuratService::class)->resolveFormat($unitId, $this->surat->tipe_surat)?->id;
+                        ->default(function () use ($unitPenomoranId) {
+                            return app(NomorSuratService::class)->resolveFormat($unitPenomoranId, $this->surat->tipe_surat)?->id;
                         })
                         ->required()
                         ->live()
@@ -166,9 +167,9 @@ trait HasFinalisasiActions
                         ->visible(fn(Get $get) => app(NomorSuratService::class)->isDateBackdate($get('tanggal_surat')))
                         ->required(fn(Get $get) => app(NomorSuratService::class)->isDateBackdate($get('tanggal_surat'))),
                 ])
-                ->mountUsing(function ($form) use ($unitId) {
+                ->mountUsing(function ($form) use ($unitPenomoranId) {
                     $service = app(NomorSuratService::class);
-                    $format = $service->resolveFormat($unitId, $this->surat->tipe_surat);
+                    $format = $service->resolveFormat($unitPenomoranId, $this->surat->tipe_surat);
                     $initialPreview = '';
                     $savedTags = $this->surat->content['nomor_surat_tags'] ?? [];
 

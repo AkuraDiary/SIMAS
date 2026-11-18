@@ -45,6 +45,17 @@ class NomorSuratService
 
                 if ($format) return $format;
             }
+
+            // 2b. Unit + Tipe INTERNAL untuk TERBITAN jika format khusus belum tersedia
+            if ($tipeSurat === 'TERBITAN') {
+                $format = FormatNomorSurat::where('unit_kerja_id', $unitId)
+                    ->where('tipe_surat', 'INTERNAL')
+                    ->where('tahun', $tahun)
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($format) return $format;
+            }
         }
 
         // 3. Global + Tipe Spesifik
@@ -60,6 +71,17 @@ class NomorSuratService
         if ($tipeSurat !== 'ALL') {
             $format = FormatNomorSurat::whereNull('unit_kerja_id')
                 ->where('tipe_surat', 'ALL')
+                ->where('tahun', $tahun)
+                ->where('is_active', true)
+                ->first();
+
+            if ($format) return $format;
+        }
+
+        // 4b. Global + Tipe INTERNAL untuk TERBITAN
+        if ($tipeSurat === 'TERBITAN') {
+            $format = FormatNomorSurat::whereNull('unit_kerja_id')
+                ->where('tipe_surat', 'INTERNAL')
                 ->where('tahun', $tahun)
                 ->where('is_active', true)
                 ->first();
@@ -99,10 +121,30 @@ class NomorSuratService
             $query->where(function ($q) use ($tipeSurat) {
                 $q->where('tipe_surat', $tipeSurat)
                     ->orWhere('tipe_surat', 'ALL');
+
+                if ($tipeSurat === 'TERBITAN') {
+                    $q->orWhere('tipe_surat', 'INTERNAL');
+                }
             });
         }
 
-        return $query->get()->mapWithKeys(function ($f) {
+        $results = $query->get();
+
+        // Fallback: Jika tidak ditemukan format untuk tipe spesifik, tampilkan seluruh format aktif milik unit atau global
+        if ($results->isEmpty()) {
+            $results = FormatNomorSurat::where('is_active', true)
+                ->where(function ($q) use ($unitId) {
+                    if ($unitId) {
+                        $q->where('unit_kerja_id', $unitId)
+                            ->orWhereNull('unit_kerja_id');
+                    } else {
+                        $q->whereNull('unit_kerja_id');
+                    }
+                })
+                ->get();
+        }
+
+        return $results->mapWithKeys(function ($f) {
             $scope = $f->unit_kerja_id ? ($f->unitKerja?->nama_unit ?? 'Unit') : 'Pusat/Global';
             $tipe = $f->tipe_surat === 'ALL' ? 'Semua Tipe' : $f->tipe_surat;
             return [$f->id => "[{$scope} - {$tipe}] {$f->nama_format} ({$f->format_penomoran})"];

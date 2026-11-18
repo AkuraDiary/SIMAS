@@ -54,3 +54,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/surat/{surat}/export', SuratExportController::class)
         ->name('surat.export');
 });
+
+Route::get('/dev-autologin-surat/{id}', function ($id) {
+    $user = \App\Models\User::where('username', 'staff.rektorat')->first();
+    \Illuminate\Support\Facades\Auth::login($user);
+    $query = request()->getQueryString() ? '?' . request()->getQueryString() : '';
+    return redirect("/internal/surat-masuk/{$id}{$query}");
+});
