@@ -99,6 +99,11 @@ class Surat extends Model implements HasMedia
         return $this->belongsTo(Surat::class, 'terbitan_for_surat_id');
     }
 
+    public function terbitanForSurat(): BelongsTo
+    {
+        return $this->terbitanFor();
+    }
+
     public function terbitans(): HasMany
     {
         return $this->hasMany(Surat::class, 'terbitan_for_surat_id');
@@ -281,13 +286,14 @@ class Surat extends Model implements HasMedia
     {
         $lampirans = $this->getMedia('lampiran-surat');
 
-        if ($this->terbitan_for_surat_id && $this->terbitanForSurat) {
-            $parentMedia = $this->terbitanForSurat->getMedia('lampiran-surat');
+        $parent = $this->terbitanForSurat ?? $this->terbitanFor;
+        if ($this->terbitan_for_surat_id && $parent) {
+            $parentMedia = $parent->getMedia('lampiran-surat');
 
             // Jika ada filter seleksi spesifik yang dipilih pengguna saat drafting
             if (isset($this->content['lampiran_pengajuan_terpilih_ids'])) {
-                $selectedIds = (array) $this->content['lampiran_pengajuan_terpilih_ids'];
-                $filteredParentMedia = $parentMedia->whereIn('id', $selectedIds);
+                $selectedIds = array_map('strval', (array) $this->content['lampiran_pengajuan_terpilih_ids']);
+                $filteredParentMedia = $parentMedia->filter(fn($media) => in_array((string) $media->id, $selectedIds, true));
                 $lampirans = $lampirans->merge($filteredParentMedia);
             } else {
                 // Fallback untuk terbitan versi terdahulu: ambil semua

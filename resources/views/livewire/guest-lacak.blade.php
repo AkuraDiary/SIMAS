@@ -227,7 +227,7 @@
         <!-- 2. KARTU HASIL PENGUNDUHAN DOKUMEN (HANYA JIKA TERBITAN SUDAH SELESAI) -->
         @php
         $terbitan = $surat->terbitans()->whereIn('status_surat', ['SELESAI', 'TERBIT'])->latest()->first();
-        $attachmentCount = $terbitan ? $terbitan->getMedia('lampiran-surat')->count() : 0;
+        $attachmentCount = $terbitan ? $terbitan->getSemuaLampiran()->count() : 0;
         @endphp
 
         @if($terbitan)

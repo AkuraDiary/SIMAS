@@ -178,18 +178,20 @@
             {{-- 2. BERKAS LAMPIRAN --}}
             @php
             $lampirans = $this->record->getMedia('lampiran-surat');
+            $terbitanLampirans = $terbitan ? $terbitan->getSemuaLampiran() : collect();
+            $semuaLampirans = $lampirans->merge($terbitanLampirans)->unique('id');
             @endphp
-            @if($lampirans->isNotEmpty())
+            @if($semuaLampirans->isNotEmpty())
             <x-filament::section>
                 <x-slot name="heading">
                     <div class="flex items-center gap-2">
                         <x-filament::icon icon="heroicon-o-paper-clip" class="w-5 h-5 text-primary-600" />
-                        <span>Lampiran Berkas Pendukung ({{ $lampirans->count() }})</span>
+                        <span>Lampiran Berkas Pendukung ({{ $semuaLampirans->count() }})</span>
                     </div>
                 </x-slot>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                    @foreach($lampirans as $media)
+                    @foreach($semuaLampirans as $media)
                     <div class="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-primary-300 dark:hover:border-primary-700 transition">
                         {{-- Tombol Buka Preview --}}
                         <button type="button" wire:click="openPreview({{ $media->id }})" class="flex items-center gap-3 overflow-hidden text-left flex-1 cursor-pointer">

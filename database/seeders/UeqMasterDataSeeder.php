@@ -1102,7 +1102,7 @@ class UeqMasterDataSeeder extends Seeder
             [
                 'nama_format' => 'Format Surat Rektorat (BAKU)',
                 'unit_singkatan' => 'BAKU',
-                'tipe_surat' => 'INTERNAL',
+                'tipe_surat' => 'ALL',
                 'format_penomoran' => '{NOMOR}/BAKU/{BULAN_ROMAWI}/{TAHUN}',
                 'padding_digit' => 3,
                 'nomor_urut_terakhir' => 0,
@@ -1112,7 +1112,7 @@ class UeqMasterDataSeeder extends Seeder
             [
                 'nama_format' => 'Format Surat Rektorat (Sekretariat)',
                 'unit_singkatan' => 'REK',
-                'tipe_surat' => 'INTERNAL',
+                'tipe_surat' => 'ALL',
                 'format_penomoran' => '{NOMOR}/SEK/{BULAN_ROMAWI}/{TAHUN}',
                 'padding_digit' => 3,
                 'nomor_urut_terakhir' => 0,
@@ -1122,7 +1122,7 @@ class UeqMasterDataSeeder extends Seeder
             [
                 'nama_format' => 'Format Surat Fak. Ilmu Kesehatan',
                 'unit_singkatan' => 'FIK',
-                'tipe_surat' => 'INTERNAL',
+                'tipe_surat' => 'ALL',
                 'format_penomoran' => '{NOMOR}/FIK UNIK/{BULAN_ROMAWI}/{TAHUN}',
                 'padding_digit' => 3,
                 'nomor_urut_terakhir' => 0,
@@ -1132,7 +1132,7 @@ class UeqMasterDataSeeder extends Seeder
             [
                 'nama_format' => 'Format Surat Fakultas Teknik',
                 'unit_singkatan' => 'FT',
-                'tipe_surat' => 'INTERNAL',
+                'tipe_surat' => 'ALL',
                 'format_penomoran' => '{NOMOR}/FT UNIK/{BULAN_ROMAWI}/{TAHUN}',
                 'padding_digit' => 3,
                 'nomor_urut_terakhir' => 0,
@@ -1142,7 +1142,7 @@ class UeqMasterDataSeeder extends Seeder
             [
                 'nama_format' => 'Format Surat BAAK',
                 'unit_singkatan' => 'BAAK',
-                'tipe_surat' => 'INTERNAL',
+                'tipe_surat' => 'ALL',
                 'format_penomoran' => '{NOMOR}/BAAK/{BULAN_ROMAWI}/{TAHUN}',
                 'padding_digit' => 3,
                 'nomor_urut_terakhir' => 0,
