@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\UserMahasiswas\Schemas;
 
+use App\Models\UnitKerja;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserMahasiswaForm
 {
@@ -62,16 +66,42 @@ class UserMahasiswaForm
                             ->default('AKTIF')
                             ->required()
                             ->native(false),
-                        Select::make('prodi_id')
-                            ->label('Prodi')
-                            ->relationship('prodi', 'nama_unit')
-                            ->searchable()
-                            ->preload(),
                         Select::make('fakultas_id')
                             ->label('Fakultas')
-                            ->relationship('fakultas', 'nama_unit')
+                            ->relationship(
+                                name: 'fakultas',
+                                titleAttribute: 'nama_unit',
+                                modifyQueryUsing: fn(Builder $query) => $query
+                                    ->whereHas('jenisUnit', fn(Builder $q) => $q->where('nama_jenis', 'Fakultas'))
+                                    ->orderBy('nama_unit')
+                            )
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->live()
+                            ->afterStateHydrated(function (Select $component, $state, $record): void {
+                                if (blank($state) && $record?->prodi?->parent_id) {
+                                    $component->state($record->prodi->parent_id);
+                                }
+                            })
+                            ->afterStateUpdated(fn(Set $set) => $set('prodi_id', null)),
+                        Select::make('prodi_id')
+                            ->label('Prodi')
+                            ->options(function (Get $get): array {
+                                $fakultasId = $get('fakultas_id');
+                                if (blank($fakultasId)) {
+                                    return [];
+                                }
+
+                                return UnitKerja::query()
+                                    ->where('parent_id', $fakultasId)
+                                    ->whereHas('jenisUnit', fn(Builder $q) => $q->where('nama_jenis', 'Prodi'))
+                                    ->orderBy('nama_unit')
+                                    ->pluck('nama_unit', 'id')
+                                    ->all();
+                            })
+                            ->disabled(fn(Get $get): bool => blank($get('fakultas_id')))
+                            ->placeholder(fn(Get $get): string => blank($get('fakultas_id')) ? 'Pilih Fakultas terlebih dahulu' : 'Pilih Prodi')
+                            ->searchable(),
                     ])
                     ->columnSpanFull()
                     ->columns(2),

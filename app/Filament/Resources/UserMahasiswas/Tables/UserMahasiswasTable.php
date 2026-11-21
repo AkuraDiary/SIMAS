@@ -16,6 +16,7 @@ use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserMahasiswasTable
 {
@@ -86,7 +87,13 @@ class UserMahasiswasTable
             ->filters([
                 SelectFilter::make('prodi_id')
                     ->label('Prodi')
-                    ->relationship('prodi', 'nama_unit')
+                    ->relationship(
+                        name: 'prodi',
+                        titleAttribute: 'nama_unit',
+                        modifyQueryUsing: fn(Builder $query) => $query
+                            ->whereHas('jenisUnit', fn(Builder $q) => $q->where('nama_jenis', 'Prodi'))
+                            ->orderBy('nama_unit')
+                    )
                     ->searchable()
                     ->preload(),
                 SelectFilter::make('status')
